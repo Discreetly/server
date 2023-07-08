@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "outDir": "./dist",
+    "target": "ES5",
+    "module": "ES6"
+  },
+  "files": [
+    "./src/server.ts"
+  ]
+}
