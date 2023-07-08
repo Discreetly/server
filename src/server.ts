@@ -3,7 +3,7 @@ import { Server } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import * as cors from 'cors';
 import { createClient } from 'redis';
-import { serverConfig, rooms as defaultRooms } from '../config/rooms';
+import { serverConfig, rooms as defaultRooms, rooms } from '../config/rooms';
 import { MessageI, RoomGroupI } from 'discreetly-interfaces';
 import verifyProof from './verifier';
 import ClaimCodeManager from 'discreetly-claimcodes';
@@ -123,6 +123,7 @@ app.get('/api/rooms', (req, res) => {
 app.get('/api/rooms/:id', (req, res) => {
   // TODO This should return the room info for the given room ID
   console.log('fetching room info', req.params.id);
+  console.log(loadedRooms);
 });
 
 // TODO api endpoint that creates new rooms and generates invite codes for them

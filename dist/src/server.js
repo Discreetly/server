@@ -99,6 +99,7 @@ app.get('/api/rooms', function (req, res) {
 app.get('/api/rooms/:id', function (req, res) {
     // TODO This should return the room info for the given room ID
     console.log('fetching room info', req.params.id);
+    console.log(loadedRooms);
 });
 // TODO api endpoint that creates new rooms and generates invite codes for them
 app.post('/join', function (req, res) {
