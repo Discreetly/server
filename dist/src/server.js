@@ -99,7 +99,8 @@ app.get('/api/rooms', function (req, res) {
 app.get('/api/rooms/:id', function (req, res) {
     // TODO This should return the room info for the given room ID
     console.log('fetching room info', req.params.id);
-    console.log(loadedRooms);
+    var room = loadedRooms.flatMap(function (rooms) { return rooms.rooms; }).filter(function (room) { return room.id === req.params.id; });
+    res.json(room);
 });
 // TODO api endpoint that creates new rooms and generates invite codes for them
 app.post('/join', function (req, res) {
@@ -113,6 +114,7 @@ app.post('/join', function (req, res) {
         // update redis with new code status
         redisClient.set('ccm', JSON.stringify(ccm.getClaimCodeSets()));
         console.log('Code claimed');
+        console.log(redisClient.get('ccm'));
     }
     else {
         console.error('Code already claimed');
