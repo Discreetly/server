@@ -135,17 +135,34 @@ app.post('/join', (req, res) => {
   // TODO This is where we would validate the claim/invite code
   // TODO the `result` is in this format: https://github.com/AtHeartEngineering/Discreetly/blob/f2ea89d4b87004693985854e17a4e669177c4df3/packages/claimCodes/src/manager.ts#L10
   const result = ccm.claimCode(code);
+
+
+
   if (result.status === 'CLAIMED') {
     // join room
     // update redis with new code status
     redisClient.set('ccm', JSON.stringify(ccm.getClaimCodeSets()));
+    // get the groupId from redis so the client can join that group
+    // TODO The `groupID` is the room ID like in https://github.com/AtHeartEngineering/Discreetly/blob/acc670fc4c43aa545dbbd03817879abfe5bc819e/packages/server/config/rooms.ts#L37
+    // TODO If the claim code is valid, then we would add the user to the room
+    redisClient.get('ccm').then(cc => {
+      const data = JSON.parse(cc);
+      for (const group in data) {
+        const codes = data[group].claimCodes;
+        for (const claim of codes) {
+          if (claim.code === code) {
+            console.log("GROUPID", data[group].groupID);
+          }
+        }
+      }
+    });
     console.log('Code claimed');
-    console.log(redisClient.get('ccm'));
+
   } else {
     console.error('Code already claimed');
   }
-  // TODO The `groupID` is the room ID like in https://github.com/AtHeartEngineering/Discreetly/blob/acc670fc4c43aa545dbbd03817879abfe5bc819e/packages/server/config/rooms.ts#L37
-  // TODO If the claim code is valid, then we would add the user to the room
+
+
   // const identityCommitment = data.identityCommitment; // FIX this is the identity commitment from the user, think of it as a user ID
   res.status(200).json({ code });
 });

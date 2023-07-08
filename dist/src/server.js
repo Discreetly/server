@@ -113,14 +113,26 @@ app.post('/join', function (req, res) {
         // join room
         // update redis with new code status
         redisClient.set('ccm', JSON.stringify(ccm.getClaimCodeSets()));
+        // get the groupId from redis so the client can join that group
+        // TODO The `groupID` is the room ID like in https://github.com/AtHeartEngineering/Discreetly/blob/acc670fc4c43aa545dbbd03817879abfe5bc819e/packages/server/config/rooms.ts#L37
+        // TODO If the claim code is valid, then we would add the user to the room
+        redisClient.get('ccm').then(function (cc) {
+            var data = JSON.parse(cc);
+            for (var group in data) {
+                var codes = data[group].claimCodes;
+                for (var _i = 0, codes_1 = codes; _i < codes_1.length; _i++) {
+                    var claim = codes_1[_i];
+                    if (claim.code === code) {
+                        console.log("GROUPID", data[group].groupID);
+                    }
+                }
+            }
+        });
         console.log('Code claimed');
-        console.log(redisClient.get('ccm'));
     }
     else {
         console.error('Code already claimed');
     }
-    // TODO The `groupID` is the room ID like in https://github.com/AtHeartEngineering/Discreetly/blob/acc670fc4c43aa545dbbd03817879abfe5bc819e/packages/server/config/rooms.ts#L37
-    // TODO If the claim code is valid, then we would add the user to the room
     // const identityCommitment = data.identityCommitment; // FIX this is the identity commitment from the user, think of it as a user ID
     res.status(200).json({ code: code });
 });
