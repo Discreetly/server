@@ -1,9 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.serverConfig = exports.rooms = void 0;
-var utils_1 = require("../../protocol-interfaces/src/utils");
+var discreetly_interfaces_1 = require("discreetly-interfaces");
 require("dotenv/config");
-var serverID = 999n;
+// TODO THIS SHOULD BE AN ENVIRONMENTAL VARIABLE STORED IN .env FILE
+// IF THIS FILE DOESN'T EXIST, GENERATE A RANDOM ID AND STORE IT IN THE FILE
+var serverID = BigInt(999);
 try {
     serverID = process.env.serverID ? process.env.serverID : 999n;
 }
@@ -11,29 +13,29 @@ catch (error) {
     console.error('Error reading serverID from .env file!');
 }
 console.log('SERVERID:', serverID);
-var idcommitment_1 = (0, utils_1.genId)(serverID, 0n);
-var idcommitment_2 = (0, utils_1.genId)(serverID, 1n);
-var idcommitment_3 = (0, utils_1.genId)(serverID, 2n);
-var idcommitment_4 = (0, utils_1.genId)(serverID, 3n);
-var idcommitment_5 = (0, utils_1.genId)(serverID, 4n);
+var idcommitment_1 = (0, discreetly_interfaces_1.genId)(serverID, 0n);
+var idcommitment_2 = (0, discreetly_interfaces_1.genId)(serverID, 1n);
+var idcommitment_3 = (0, discreetly_interfaces_1.genId)(serverID, 2n);
+var idcommitment_4 = (0, discreetly_interfaces_1.genId)(serverID, 3n);
+var idcommitment_5 = (0, discreetly_interfaces_1.genId)(serverID, 4n);
 exports.rooms = [
     {
         name: 'Discreetly',
         rooms: [
             {
-                id: (0, utils_1.genId)(serverID, 'General'),
+                id: (0, discreetly_interfaces_1.genId)(serverID, 'General'),
                 name: 'General',
                 membership: { identityCommitments: [idcommitment_1, idcommitment_2, idcommitment_5] },
                 rateLimit: 1000
             },
             {
-                id: (0, utils_1.genId)(serverID, '1EthRoom'),
+                id: (0, discreetly_interfaces_1.genId)(serverID, '1EthRoom'),
                 name: '1EthRoom',
                 membership: { identityCommitments: [idcommitment_1, idcommitment_2, idcommitment_5] },
                 rateLimit: 100
             },
             {
-                id: (0, utils_1.genId)(serverID, 'Test'),
+                id: (0, discreetly_interfaces_1.genId)(serverID, 'Test'),
                 name: 'Test',
                 membership: {
                     identityCommitments: [
@@ -49,29 +51,29 @@ exports.rooms = [
         ]
     },
     {
-        name: 'Games',
+        name: 'Events',
         rooms: [
             {
-                id: (0, utils_1.genId)(serverID, 'Gunfire Reborn'),
-                name: 'Gunfire Reborn',
-                membership: { identityCommitments: [idcommitment_2, idcommitment_3, idcommitment_4] },
-                rateLimit: 1000
-            },
-            {
-                id: (0, utils_1.genId)(serverID, 'Halo Infinite'),
-                name: 'Halo Infinite',
-                membership: { identityCommitments: [idcommitment_2, idcommitment_3, idcommitment_4] },
+                id: (0, discreetly_interfaces_1.genId)(serverID, 'Devconnect 2023'),
+                name: 'Devconnect 2023',
+                membership: { identityCommitments: [idcommitment_1, idcommitment_3, idcommitment_5] },
                 rateLimit: 1000
             }
         ]
     },
     {
-        name: 'Events',
+        name: 'Games',
         rooms: [
             {
-                id: (0, utils_1.genId)(serverID, 'Devconnect 2023'),
-                name: 'Devconnect 2023',
-                membership: { identityCommitments: [idcommitment_1, idcommitment_3, idcommitment_5] },
+                id: (0, discreetly_interfaces_1.genId)(serverID, 'Gunfire Reborn'),
+                name: 'Gunfire Reborn',
+                membership: { identityCommitments: [idcommitment_2, idcommitment_3, idcommitment_4] },
+                rateLimit: 1000
+            },
+            {
+                id: (0, discreetly_interfaces_1.genId)(serverID, 'Halo Infinite'),
+                name: 'Halo Infinite',
+                membership: { identityCommitments: [idcommitment_2, idcommitment_3, idcommitment_4] },
                 rateLimit: 1000
             }
         ]

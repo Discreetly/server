@@ -64,12 +64,13 @@ redisClient.get('ccm').then((res) => console.log(res));
 redisClient.get('rooms').then((rooms) => {
   rooms = JSON.parse(rooms);
   if (rooms) {
-    loadedRooms = rooms;
+    console.log('Rooms', rooms);
+    loadedRooms = rooms as RoomGroupI[];
   } else {
     loadedRooms = defaultRooms;
     redisClient.set('rooms', JSON.stringify(loadedRooms));
   }
-  console.log(loadedRooms);
+  console.log('Loaded Rooms:', loadedRooms);
 });
 
 redisClient.on('error', (err) => console.log('Redis Client Error', err));
@@ -121,13 +122,14 @@ app.get('/api/rooms', (req, res) => {
 
 app.get('/api/rooms/:id', (req, res) => {
   // TODO This should return the room info for the given room ID
+  console.log('fetching room info', req.params.id);
 });
 
 // TODO api endpoint that creates new rooms and generates invite codes for them
 
 app.post('/join', (req, res) => {
   const { code, idc } = req.body;
-  console.log(code, idc);
+  console.log('claiming code:', code, 'with identityCommitment', idc);
   // TODO This is where we would validate the claim/invite code
   // TODO the `result` is in this format: https://github.com/AtHeartEngineering/Discreetly/blob/f2ea89d4b87004693985854e17a4e669177c4df3/packages/claimCodes/src/manager.ts#L10
   const result = ccm.claimCode(code);

@@ -7,7 +7,7 @@ var cors = require("cors");
 var redis_1 = require("redis");
 var rooms_1 = require("../config/rooms");
 var verifier_1 = require("./verifier");
-var manager_1 = require("../../claimCodes/src/manager");
+var discreetly_claimcodes_1 = require("discreetly-claimcodes");
 // Deal with bigints in JSON
 BigInt.prototype.toJSON = function () {
     return this.toString();
@@ -33,13 +33,13 @@ redisClient.connect().then(function () { return console.log('Redis Connected'); 
 var ccm;
 redisClient.get('ccm').then(function (cc) {
     if (!cc) {
-        ccm = new manager_1.default();
+        ccm = new discreetly_claimcodes_1.default();
         ccm.generateClaimCodeSet(10, 999, 'TEST');
         var ccs = ccm.getClaimCodeSets();
         redisClient.set('ccm', JSON.stringify(ccs));
     }
     else {
-        ccm = new manager_1.default(JSON.parse(cc));
+        ccm = new discreetly_claimcodes_1.default(JSON.parse(cc));
         if (ccm.getUsedCount(999).unusedCount < 5) {
             ccm.generateClaimCodeSet(10, 999, 'TEST');
             var ccs = ccm.getClaimCodeSets();
@@ -51,13 +51,14 @@ redisClient.get('ccm').then(function (res) { return console.log(res); });
 redisClient.get('rooms').then(function (rooms) {
     rooms = JSON.parse(rooms);
     if (rooms) {
+        console.log('Rooms', rooms);
         loadedRooms = rooms;
     }
     else {
         loadedRooms = rooms_1.rooms;
         redisClient.set('rooms', JSON.stringify(loadedRooms));
     }
-    console.log(loadedRooms);
+    console.log('Loaded Rooms:', loadedRooms);
 });
 redisClient.on('error', function (err) { return console.log('Redis Client Error', err); });
 io.on('connection', function (socket) {
@@ -97,11 +98,12 @@ app.get('/api/rooms', function (req, res) {
 });
 app.get('/api/rooms/:id', function (req, res) {
     // TODO This should return the room info for the given room ID
+    console.log('fetching room info', req.params.id);
 });
 // TODO api endpoint that creates new rooms and generates invite codes for them
 app.post('/join', function (req, res) {
     var _a = req.body, code = _a.code, idc = _a.idc;
-    console.log(code, idc);
+    console.log('claiming code:', code, 'with identityCommitment', idc);
     // TODO This is where we would validate the claim/invite code
     // TODO the `result` is in this format: https://github.com/AtHeartEngineering/Discreetly/blob/f2ea89d4b87004693985854e17a4e669177c4df3/packages/claimCodes/src/manager.ts#L10
     var result = ccm.claimCode(code);

@@ -36,7 +36,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-var utils_1 = require("../../protocol-interfaces/src/utils");
+var discreetly_interfaces_1 = require("discreetly-interfaces");
 var rlnjs_1 = require("rlnjs");
 var verification_key_1 = require("./verification_key");
 var v = new rlnjs_1.RLNVerifier(verification_key_1.default);
@@ -45,7 +45,7 @@ function verifyProof(msg) {
         var rlnIdentifier, msgHash;
         return __generator(this, function (_a) {
             rlnIdentifier = BigInt(msg.room);
-            msgHash = (0, utils_1.str2BigInt)(msg.message);
+            msgHash = (0, discreetly_interfaces_1.str2BigInt)(msg.message);
             if (msgHash !== msg.proof.snarkProof.publicSignals.x) {
                 return [2 /*return*/, false];
             }

@@ -1,5 +1,4 @@
-import { MessageI } from '../../protocol-interfaces/src/main';
-import { str2BigInt } from '../../protocol-interfaces/src/utils';
+import { MessageI, str2BigInt } from 'discreetly-interfaces';
 import { RLNVerifier } from 'rlnjs';
 import vkey from './verification_key';
 import { poseidon1 } from 'poseidon-lite/poseidon1';

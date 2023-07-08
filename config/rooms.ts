@@ -1,7 +1,9 @@
 import { MembershipI, RoomGroupI, ServerI, genId } from 'discreetly-interfaces';
 import 'dotenv/config';
 
-let serverID = 999n;
+// TODO THIS SHOULD BE AN ENVIRONMENTAL VARIABLE STORED IN .env FILE
+// IF THIS FILE DOESN'T EXIST, GENERATE A RANDOM ID AND STORE IT IN THE FILE
+let serverID = BigInt(999);
 
 try {
   serverID = process.env.serverID ? (process.env.serverID as unknown as bigint) : 999n;
@@ -49,6 +51,17 @@ export const rooms: RoomGroupI[] = [
     ]
   },
   {
+    name: 'Events',
+    rooms: [
+      {
+        id: genId(serverID, 'Devconnect 2023'),
+        name: 'Devconnect 2023',
+        membership: { identityCommitments: [idcommitment_1, idcommitment_3, idcommitment_5] },
+        rateLimit: 1000
+      }
+    ]
+  },
+  {
     name: 'Games',
     rooms: [
       {
@@ -61,17 +74,6 @@ export const rooms: RoomGroupI[] = [
         id: genId(serverID, 'Halo Infinite'),
         name: 'Halo Infinite',
         membership: { identityCommitments: [idcommitment_2, idcommitment_3, idcommitment_4] },
-        rateLimit: 1000
-      }
-    ]
-  },
-  {
-    name: 'Events',
-    rooms: [
-      {
-        id: genId(serverID, 'Devconnect 2023'),
-        name: 'Devconnect 2023',
-        membership: { identityCommitments: [idcommitment_1, idcommitment_3, idcommitment_5] },
         rateLimit: 1000
       }
     ]
