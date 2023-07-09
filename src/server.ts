@@ -53,9 +53,11 @@ redisClient.get('ccm').then((cc) => {
     redisClient.set('ccm', JSON.stringify(ccs));
   } else {
     ccm = new ClaimCodeManager(JSON.parse(cc));
+
     if (ccm.getUsedCount(999).unusedCount < 5) {
       ccm.generateClaimCodeSet(10, 999, 'TEST');
       const ccs = ccm.getClaimCodeSets();
+
       redisClient.set('ccm', JSON.stringify(ccs));
     }
   }
@@ -129,18 +131,18 @@ app.get('/api/rooms/:id', (req, res) => {
 });
 
 // TODO api endpoint that creates new rooms and generates invite codes for them
-
+const testGroupId0 = "917472730658974787195329824193375792646499428986660190540754124137738350241"
+const testGroupId1 = "355756154407663058879850750536398206548026044600409795496806929599466182253"
 app.post('/join', (req, res) => {
   const data = req.body;
   console.log(data);
   const { code, idc } = data;
   console.log('claiming code:', code, 'with identityCommitment', idc);
   const result: ClaimCodeStatus = ccm.claimCode(code);
-
+  const groupID = result.groupID;
   if (result.status === 'CLAIMED') {
     redisClient.set('ccm', JSON.stringify(ccm.getClaimCodeSets()));
-    const groupID = result.groupID;
-    addIdentityToRoom(groupID, idc);
+    addIdentityToRoom(testGroupId1, idc);
     console.log('Code claimed:', code);
     res.status(200).json({ groupID });
   } else {

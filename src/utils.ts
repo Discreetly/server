@@ -17,21 +17,36 @@ export const findRoomById = (rooms, id) => {
   }
 }
 
+export const findGroupById = (rooms, groupId) => {
+  for (let i = 0; i < rooms.length; i++) {
+    if (rooms[i].id === groupId) {
+      const group = rooms[i];
+      return group
+    }
+  }
+}
 
-export const addIdentityToRoom = (groupId, IdentityCommitment) => {
+export const addIdentityToRoom = (groupId, identityCommitment) => {
   redisClient.get('rooms').then((res) => {
     const data = JSON.parse(res);
-    const roomIndex = data[0].rooms.findIndex((room) => room.id === groupId);
-    const roomToAdd = data[0].rooms[roomIndex];
-    // console.log(roomToAdd.membership.identityCommitments.find(identity => identity === idc));
-    if (
-      !roomToAdd.membership.identityCommitments.find((identity) => identity === IdentityCommitment)
-    ) {
-      roomToAdd.membership.identityCommitments.push(IdentityCommitment);
-      const updatedRooms = JSON.stringify(data);
-      redisClient.set('rooms', updatedRooms);
+    const group = findGroupById(data, groupId);
+    if (group) {
+      const groupIndex = data.findIndex(gIdx => gIdx.name === group.name)
+      if (groupIndex === -1) {
+        console.error('Group not found')
+      } else {
+        data[groupIndex].rooms.forEach(room => {
+          if (!room.membership.identityCommitments.find(id => id === identityCommitment)) {
+            room.membership.identityCommitments.push(identityCommitment);
+            console.log(`Identity set in room ${room.name}`)
+            redisClient.set('rooms', JSON.stringify(data));
+          } else {
+            console.error(`Identity already exists in room ${room.name}`)
+          }
+        });
+      }
     } else {
-      console.log('Identity already exists in room');
+      console.error("Group not found");
     }
   });
 };

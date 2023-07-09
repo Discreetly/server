@@ -104,16 +104,18 @@ app.get('/api/rooms/:id', function (req, res) {
     res.json(room);
 });
 // TODO api endpoint that creates new rooms and generates invite codes for them
+var testGroupId0 = "917472730658974787195329824193375792646499428986660190540754124137738350241";
+var testGroupId1 = "355756154407663058879850750536398206548026044600409795496806929599466182253";
 app.post('/join', function (req, res) {
     var data = req.body;
     console.log(data);
     var code = data.code, idc = data.idc;
     console.log('claiming code:', code, 'with identityCommitment', idc);
     var result = ccm.claimCode(code);
+    var groupID = result.groupID;
     if (result.status === 'CLAIMED') {
         redisClient.set('ccm', JSON.stringify(ccm.getClaimCodeSets()));
-        var groupID = result.groupID;
-        (0, utils_1.addIdentityToRoom)(groupID, idc);
+        (0, utils_1.addIdentityToRoom)(testGroupId1, idc);
         console.log('Code claimed:', code);
         res.status(200).json({ groupID: groupID });
     }
