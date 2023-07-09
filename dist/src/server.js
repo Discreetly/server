@@ -137,3 +137,4 @@ process.on('SIGINT', function () {
     console.log('disconnecting redis');
     redisClient.disconnect().then(process.exit());
 });
+// TODO we are going to need endpoints that take a password that will be in a .env file to generate new roomGroups, rooms, and claim codes
