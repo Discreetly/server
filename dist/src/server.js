@@ -48,18 +48,16 @@ redisClient.get('ccm').then(function (cc) {
         }
     }
 });
-redisClient.get('ccm').then(function (res) { return console.log(res); });
 redisClient.get('rooms').then(function (rooms) {
     rooms = JSON.parse(rooms);
     if (rooms) {
-        console.log('Rooms', rooms);
         loadedRooms = rooms;
     }
     else {
         loadedRooms = rooms_1.rooms;
         redisClient.set('rooms', JSON.stringify(loadedRooms));
     }
-    console.log('Loaded Rooms:', loadedRooms);
+    console.log('Rooms:', JSON.stringify(loadedRooms, null, 2));
 });
 redisClient.on('error', function (err) { return console.log('Redis Client Error', err); });
 io.on('connection', function (socket) {
@@ -100,26 +98,33 @@ app.get('/api/rooms', function (req, res) {
 app.get('/api/rooms/:id', function (req, res) {
     // TODO This should return the room info for the given room ID
     console.log('fetching room info', req.params.id);
-    var room = loadedRooms.flatMap(function (rooms) { return rooms.rooms; }).filter(function (room) { return room.id === req.params.id; });
+    var room = loadedRooms
+        .flatMap(function (rooms) { return rooms.rooms; })
+        .filter(function (room) { return room.id === req.params.id; });
     res.json(room);
 });
 // TODO api endpoint that creates new rooms and generates invite codes for them
 app.post('/join', function (req, res) {
-    var _a = req.body, code = _a.code, idc = _a.idc;
+    var data = req.body;
+    console.log(data);
+    var code = data.code, idc = data.idc;
     console.log('claiming code:', code, 'with identityCommitment', idc);
     var result = ccm.claimCode(code);
-    // fake id for groupID's of loadedRooms - will replace when groupID's have real ID's
-    var id = "11265330281159962366877930944095553344292465623956771902429854381297987195502";
     if (result.status === 'CLAIMED') {
-        (0, utils_1.getGroupId)(code);
         redisClient.set('ccm', JSON.stringify(ccm.getClaimCodeSets()));
-        (0, utils_1.addIdentityToRoom)(id, idc);
-        console.log('Code claimed');
+        var groupID = result.groupID;
+        (0, utils_1.addIdentityToRoom)(groupID, idc);
+        console.log('Code claimed:', code);
+        res.status(200).json({ groupID: groupID });
     }
     else {
-        console.error('Code already claimed');
+        res.status(451).json({ status: 'invalid' });
     }
-    res.status(200).json({ code: code });
+});
+app.get('/logclaimcodes', function (req, res) {
+    console.log('-----CLAIMCODES-----');
+    console.log(JSON.stringify(ccm.getClaimCodeSets(), null, 2));
+    console.log('-----ENDOFCODES-----');
 });
 app.listen(http_port, function () {
     console.log("Http Server is running at http://localhost:".concat(http_port));
@@ -127,8 +132,8 @@ app.listen(http_port, function () {
 socket_server.listen(socket_port, function () {
     console.log("Socket Server is running at http://localhost:".concat(socket_port));
 });
-// // Disconnect from redis on exit
-// process.on('SIGINT', () => {
-//   console.log('disconnecting redis');
-//   redisClient.disconnect().then(process.exit());
-// });
+// Disconnect from redis on exit
+process.on('SIGINT', function () {
+    console.log('disconnecting redis');
+    redisClient.disconnect().then(process.exit());
+});

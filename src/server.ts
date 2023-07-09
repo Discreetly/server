@@ -7,7 +7,9 @@ import { serverConfig, rooms as defaultRooms, rooms } from '../config/rooms';
 import { MessageI, RoomGroupI } from 'discreetly-interfaces';
 import verifyProof from './verifier';
 import ClaimCodeManager from 'discreetly-claimcodes';
-import { addIdentityToRoom, getGroupId } from './utils'
+import type { ClaimCodeStatus } from 'discreetly-claimcodes';
+import { addIdentityToRoom } from './utils';
+
 // Deal with bigints in JSON
 (BigInt.prototype as any).toJSON = function () {
   return this.toString();
@@ -59,18 +61,15 @@ redisClient.get('ccm').then((cc) => {
   }
 });
 
-redisClient.get('ccm').then((res) => console.log(res));
-
 redisClient.get('rooms').then((rooms) => {
   rooms = JSON.parse(rooms);
   if (rooms) {
-    console.log('Rooms', rooms);
     loadedRooms = rooms as RoomGroupI[];
   } else {
     loadedRooms = defaultRooms;
     redisClient.set('rooms', JSON.stringify(loadedRooms));
   }
-  console.log('Loaded Rooms:', loadedRooms);
+  console.log('Rooms:', JSON.stringify(loadedRooms, null, 2));
 });
 
 redisClient.on('error', (err) => console.log('Redis Client Error', err));
@@ -123,28 +122,36 @@ app.get('/api/rooms', (req, res) => {
 app.get('/api/rooms/:id', (req, res) => {
   // TODO This should return the room info for the given room ID
   console.log('fetching room info', req.params.id);
-  const room = loadedRooms.flatMap(rooms => rooms.rooms).filter(room => room.id === req.params.id)
+  const room = loadedRooms
+    .flatMap((rooms) => rooms.rooms)
+    .filter((room) => room.id === req.params.id);
   res.json(room);
 });
 
 // TODO api endpoint that creates new rooms and generates invite codes for them
 
 app.post('/join', (req, res) => {
-  const { code, idc } = req.body;
+  const data = req.body;
+  console.log(data);
+  const { code, idc } = data;
   console.log('claiming code:', code, 'with identityCommitment', idc);
-  const result = ccm.claimCode(code);
+  const result: ClaimCodeStatus = ccm.claimCode(code);
 
-  // fake id for groupID's of loadedRooms - will replace when groupID's have real ID's
-  const id = "11265330281159962366877930944095553344292465623956771902429854381297987195502"
   if (result.status === 'CLAIMED') {
-    getGroupId(code);
     redisClient.set('ccm', JSON.stringify(ccm.getClaimCodeSets()));
-    addIdentityToRoom(id, idc);
-    console.log('Code claimed');
+    const groupID = result.groupID;
+    addIdentityToRoom(groupID, idc);
+    console.log('Code claimed:', code);
+    res.status(200).json({ groupID });
   } else {
-    console.error('Code already claimed');
+    res.status(451).json({ status: 'invalid' });
   }
-  res.status(200).json({ code });
+});
+
+app.get('/logclaimcodes', (req, res) => {
+  console.log('-----CLAIMCODES-----');
+  console.log(JSON.stringify(ccm.getClaimCodeSets(), null, 2));
+  console.log('-----ENDOFCODES-----');
 });
 
 app.listen(http_port, () => {
@@ -155,8 +162,8 @@ socket_server.listen(socket_port, () => {
   console.log(`Socket Server is running at http://localhost:${socket_port}`);
 });
 
-// // Disconnect from redis on exit
-// process.on('SIGINT', () => {
-//   console.log('disconnecting redis');
-//   redisClient.disconnect().then(process.exit());
-// });
+// Disconnect from redis on exit
+process.on('SIGINT', () => {
+  console.log('disconnecting redis');
+  redisClient.disconnect().then(process.exit());
+});

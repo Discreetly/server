@@ -29,12 +29,6 @@ exports.rooms = [
                 rateLimit: 1000
             },
             {
-                id: (0, discreetly_interfaces_1.genId)(serverID, '1EthRoom'),
-                name: '1EthRoom',
-                membership: { identityCommitments: [idcommitment_1, idcommitment_2, idcommitment_5] },
-                rateLimit: 100
-            },
-            {
                 id: (0, discreetly_interfaces_1.genId)(serverID, 'Test'),
                 name: 'Test',
                 membership: {
@@ -47,6 +41,12 @@ exports.rooms = [
                     ]
                 },
                 rateLimit: 10000
+            },
+            {
+                id: (0, discreetly_interfaces_1.genId)(serverID, '1EthRoom'),
+                name: '1EthRoom',
+                membership: { identityCommitments: [] },
+                rateLimit: 100
             }
         ]
     },
@@ -56,24 +56,7 @@ exports.rooms = [
             {
                 id: (0, discreetly_interfaces_1.genId)(serverID, 'Devconnect 2023'),
                 name: 'Devconnect 2023',
-                membership: { identityCommitments: [idcommitment_1, idcommitment_3, idcommitment_5] },
-                rateLimit: 1000
-            }
-        ]
-    },
-    {
-        name: 'Games',
-        rooms: [
-            {
-                id: (0, discreetly_interfaces_1.genId)(serverID, 'Gunfire Reborn'),
-                name: 'Gunfire Reborn',
-                membership: { identityCommitments: [idcommitment_2, idcommitment_3, idcommitment_4] },
-                rateLimit: 1000
-            },
-            {
-                id: (0, discreetly_interfaces_1.genId)(serverID, 'Halo Infinite'),
-                name: 'Halo Infinite',
-                membership: { identityCommitments: [idcommitment_2, idcommitment_3, idcommitment_4] },
+                membership: { identityCommitments: [] },
                 rateLimit: 1000
             }
         ]
