@@ -65,7 +65,7 @@ export const rooms: RoomGroupI[] = [
 
 export const serverConfig: ServerI = {
   id: serverID,
-  name: 'Discreetly',
+  name: 'Localhost',
   serverInfoEndpoint: 'localhost:3001',
   messageHandlerSocket: 'http://localhost:3002',
   version: '0.0.1',
