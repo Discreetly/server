@@ -3,6 +3,21 @@ import { createClient } from 'redis';
 const redisClient = createClient();
 redisClient.connect();
 
+export const findRoomById = (rooms, id) => {
+  for (let i = 0; i < rooms.length; i++) {
+    const nestedRooms = rooms[i].rooms;
+    for (let j = 0; j < nestedRooms.length; j++) {
+      if (nestedRooms[j].id === id) {
+        console.log("FOUND ROOM")
+        return nestedRooms[j];
+      } else {
+        console.log(`Room with id:${id} not found`)
+      }
+    }
+  }
+}
+
+
 export const addIdentityToRoom = (groupId, IdentityCommitment) => {
   redisClient.get('rooms').then((res) => {
     const data = JSON.parse(res);
