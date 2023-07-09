@@ -8,6 +8,7 @@ var redis_1 = require("redis");
 var rooms_1 = require("../config/rooms");
 var verifier_1 = require("./verifier");
 var discreetly_claimcodes_1 = require("discreetly-claimcodes");
+var utils_1 = require("./utils");
 // Deal with bigints in JSON
 BigInt.prototype.toJSON = function () {
     return this.toString();
@@ -106,34 +107,18 @@ app.get('/api/rooms/:id', function (req, res) {
 app.post('/join', function (req, res) {
     var _a = req.body, code = _a.code, idc = _a.idc;
     console.log('claiming code:', code, 'with identityCommitment', idc);
-    // TODO This is where we would validate the claim/invite code
-    // TODO the `result` is in this format: https://github.com/AtHeartEngineering/Discreetly/blob/f2ea89d4b87004693985854e17a4e669177c4df3/packages/claimCodes/src/manager.ts#L10
     var result = ccm.claimCode(code);
+    // fake id for groupID's of loadedRooms - will replace when groupID's have real ID's
+    var id = "11265330281159962366877930944095553344292465623956771902429854381297987195502";
     if (result.status === 'CLAIMED') {
-        // join room
-        // update redis with new code status
+        (0, utils_1.getGroupId)(code);
         redisClient.set('ccm', JSON.stringify(ccm.getClaimCodeSets()));
-        // get the groupId from redis so the client can join that group
-        // TODO The `groupID` is the room ID like in https://github.com/AtHeartEngineering/Discreetly/blob/acc670fc4c43aa545dbbd03817879abfe5bc819e/packages/server/config/rooms.ts#L37
-        // TODO If the claim code is valid, then we would add the user to the room
-        redisClient.get('ccm').then(function (cc) {
-            var data = JSON.parse(cc);
-            for (var group in data) {
-                var codes = data[group].claimCodes;
-                for (var _i = 0, codes_1 = codes; _i < codes_1.length; _i++) {
-                    var claim = codes_1[_i];
-                    if (claim.code === code) {
-                        console.log("GROUPID", data[group].groupID);
-                    }
-                }
-            }
-        });
+        (0, utils_1.addIdentityToRoom)(id, idc);
         console.log('Code claimed');
     }
     else {
         console.error('Code already claimed');
     }
-    // const identityCommitment = data.identityCommitment; // FIX this is the identity commitment from the user, think of it as a user ID
     res.status(200).json({ code: code });
 });
 app.listen(http_port, function () {
