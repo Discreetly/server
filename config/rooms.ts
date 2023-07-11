@@ -14,18 +14,18 @@ console.log('SERVERID:', serverID);
 
 export const rooms: RoomGroupI[] = [
   {
-    name: 'Discreetly',
+    name: 'Discreetly Test',
     id: genId(serverID, 'Discreetly'),
     rooms: [
       {
         id: genId(serverID, 'General'),
-        name: 'General',
+        name: 'General 1 Second',
         membership: { identityCommitments: [] },
         rateLimit: 1000 // in ms
       },
       {
-        id: genId(serverID, 'Test'),
-        name: 'Test',
+        id: genId(serverID, '10sec'),
+        name: '10 Second Room',
         membership: {
           identityCommitments: []
         },
@@ -34,14 +34,16 @@ export const rooms: RoomGroupI[] = [
     ]
   },
   {
-    name: 'Events',
-    id: genId(serverID, 'Events'),
+    name: 'SERVER TEST',
+    id: genId(serverID, 'Test'),
     rooms: [
       {
-        id: genId(serverID, 'Devconnect 2023'),
-        name: 'Devconnect 2023',
-        membership: { identityCommitments: [] },
-        rateLimit: 1000 // in ms
+        id: genId(serverID, 'Test'),
+        name: 'Test',
+        membership: {
+          identityCommitments: []
+        },
+        rateLimit: 10000 // in ms
       }
     ]
   }

@@ -15,18 +15,18 @@ catch (error) {
 console.log('SERVERID:', serverID);
 exports.rooms = [
     {
-        name: 'Discreetly',
+        name: 'Discreetly Test',
         id: (0, discreetly_interfaces_1.genId)(serverID, 'Discreetly'),
         rooms: [
             {
                 id: (0, discreetly_interfaces_1.genId)(serverID, 'General'),
-                name: 'General',
+                name: 'General 1 Second',
                 membership: { identityCommitments: [] },
                 rateLimit: 1000 // in ms
             },
             {
-                id: (0, discreetly_interfaces_1.genId)(serverID, 'Test'),
-                name: 'Test',
+                id: (0, discreetly_interfaces_1.genId)(serverID, '10sec'),
+                name: '10 Second Room',
                 membership: {
                     identityCommitments: []
                 },
@@ -35,14 +35,16 @@ exports.rooms = [
         ]
     },
     {
-        name: 'Events',
-        id: (0, discreetly_interfaces_1.genId)(serverID, 'Events'),
+        name: 'SERVER TEST',
+        id: (0, discreetly_interfaces_1.genId)(serverID, 'Test'),
         rooms: [
             {
-                id: (0, discreetly_interfaces_1.genId)(serverID, 'Devconnect 2023'),
-                name: 'Devconnect 2023',
-                membership: { identityCommitments: [] },
-                rateLimit: 1000 // in ms
+                id: (0, discreetly_interfaces_1.genId)(serverID, 'Test'),
+                name: 'Test',
+                membership: {
+                    identityCommitments: []
+                },
+                rateLimit: 10000 // in ms
             }
         ]
     }

@@ -1,4 +1,13 @@
 "use strict";
+var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+        if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 var express = require("express");
 var http_1 = require("http");
@@ -30,27 +39,11 @@ var io = new socket_io_1.Server(socket_server, {
 });
 var userCount = {};
 var loadedRooms;
+var TESTGROUPID;
 // TODO get the claim code manager working with redis to store the state of the rooms and claim codes in a redis database that persists across server restarts
 // Redis
 var redisClient = (0, redis_1.createClient)();
 redisClient.connect().then(function () { return (0, utils_1.pp)('Redis Connected'); });
-var ccm;
-redisClient.get('ccm').then(function (cc) {
-    if (!cc) {
-        ccm = new discreetly_claimcodes_1.default();
-        ccm.generateClaimCodeSet(10, 999, 'TEST');
-        var ccs = ccm.getClaimCodeSets();
-        redisClient.set('ccm', JSON.stringify(ccs));
-    }
-    else {
-        ccm = new discreetly_claimcodes_1.default(JSON.parse(cc));
-        if (ccm.getUsedCount(999).unusedCount < 5) {
-            ccm.generateClaimCodeSet(10, 999, 'TEST');
-            var ccs = ccm.getClaimCodeSets();
-            redisClient.set('ccm', JSON.stringify(ccs));
-        }
-    }
-});
 redisClient.get('rooms').then(function (rooms) {
     rooms = JSON.parse(rooms);
     if (rooms) {
@@ -61,6 +54,25 @@ redisClient.get('rooms').then(function (rooms) {
         redisClient.set('rooms', JSON.stringify(loadedRooms));
     }
     (0, utils_1.pp)({ 'Loaded Rooms': loadedRooms });
+});
+var ccm;
+redisClient.get('ccm').then(function (cc) {
+    TESTGROUPID = BigInt(loadedRooms[0].id);
+    if (!cc) {
+        ccm = new discreetly_claimcodes_1.default();
+        ccm.generateClaimCodeSet(10, TESTGROUPID, 'TEST');
+        var ccs_1 = ccm.getClaimCodeSets();
+        redisClient.set('ccm', JSON.stringify(ccs_1));
+    }
+    else {
+        ccm = new discreetly_claimcodes_1.default(JSON.parse(cc));
+        if (ccm.getUsedCount(TESTGROUPID).unusedCount < 5) {
+            ccm.generateClaimCodeSet(10, TESTGROUPID, 'TEST');
+            var ccs_2 = ccm.getClaimCodeSets();
+            redisClient.set('ccm', JSON.stringify(ccs_2));
+        }
+    }
+    var ccs = ccm.getClaimCodeSets();
 });
 redisClient.on('error', function (err) { return (0, utils_1.pp)('Redis Client Error: ' + err, 'error'); });
 io.on('connection', function (socket) {
@@ -107,8 +119,6 @@ app.get('/api/rooms/:id', function (req, res) {
     res.json(room);
 });
 // TODO api endpoint that creates new rooms and generates invite codes for them
-var testGroupId0 = '917472730658974787195329824193375792646499428986660190540754124137738350241';
-var testGroupId1 = '355756154407663058879850750536398206548026044600409795496806929599466182253';
 app.post('/join', function (req, res) {
     var data = req.body;
     var code = data.code, idc = data.idc;
@@ -116,10 +126,33 @@ app.post('/join', function (req, res) {
     var result = ccm.claimCode(code);
     var groupID = result.groupID;
     if (result.status === 'CLAIMED') {
+        var claimedRooms_1 = [];
+        var alreadyAddedRooms_1 = [];
+        loadedRooms.forEach(function (group) {
+            if (group.id == groupID) {
+                group.rooms.forEach(function (room) {
+                    var added = (0, utils_1.addIdentityToRoom)(BigInt(room.id), BigInt(idc));
+                    if (added) {
+                        claimedRooms_1.push(room);
+                    }
+                    else {
+                        alreadyAddedRooms_1.push(room);
+                    }
+                });
+            }
+        });
+        var r = __spreadArray(__spreadArray([], claimedRooms_1, true), alreadyAddedRooms_1, true);
+        if (claimedRooms_1.length > 0) {
+            res.status(200).json({ status: 'valid', rooms: r });
+        }
+        else if (alreadyAddedRooms_1.length > 0) {
+            res.status(200).json({ status: 'already-added', rooms: r });
+        }
+        else {
+            res.status(451).json({ status: 'invalid' });
+        }
+        // the DB should be updated after we successfully send a response
         redisClient.set('ccm', JSON.stringify(ccm.getClaimCodeSets()));
-        (0, utils_1.addIdentityToRoom)(testGroupId1, idc);
-        (0, utils_1.pp)('Express[/join]Code claimed: ' + code);
-        res.status(200).json({ groupID: groupID });
     }
     else {
         res.status(451).json({ status: 'invalid' });
@@ -135,8 +168,9 @@ app.post('/group/add', function (req, res) {
 });
 app.get('/logclaimcodes', function (req, res) {
     (0, utils_1.pp)('-----CLAIMCODES-----', 'debug');
-    (0, utils_1.pp)(ccm.getClaimCodeSets());
+    (0, utils_1.pp)(ccm.getClaimCodeSet(TESTGROUPID));
     (0, utils_1.pp)('-----ENDOFCODES-----', 'debug');
+    res.status(200).json({ status: 'ok' });
 });
 app.listen(HTTP_PORT, function () {
     (0, utils_1.pp)("Express Http Server is running at http://localhost:".concat(HTTP_PORT));

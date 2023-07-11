@@ -1,6 +1,6 @@
 import { createClient } from 'redis';
-import { RoomGroupI, ServerI, genId } from 'discreetly-interfaces';
-
+import type { RoomI, RoomGroupI, ServerI } from 'discreetly-interfaces';
+import { genId } from 'discreetly-interfaces';
 
 const redisClient = createClient();
 redisClient.connect();
@@ -19,37 +19,32 @@ export const findRoomById = (rooms, id) => {
   }
 };
 
-export const findGroupById = (rooms, groupId) => {
-  for (let i = 0; i < rooms.length; i++) {
-    if (rooms[i].id === groupId) {
-      const group = rooms[i];
-      return group;
-    }
+export const findGroupById = (roomGroups: RoomGroupI[], groupId: BigInt): RoomGroupI => {
+  const group = roomGroups.find((group) => group.id === groupId);
+  if (!group) {
+    console.error('Group not found');
+  } else {
+    return group;
   }
 };
 
-export const addIdentityToRoom = (groupId, identityCommitment) => {
-  redisClient.get('rooms').then((res) => {
-    const data = JSON.parse(res);
-    const group = findGroupById(data, groupId);
-    if (group) {
-      const groupIndex = data.findIndex((gIdx) => gIdx.name === group.name);
-      if (groupIndex === -1) {
-        console.error('Group not found');
-      } else {
-        data[groupIndex].rooms.forEach((room) => {
-          if (!room.membership.identityCommitments.find((id) => id === identityCommitment)) {
-            room.membership.identityCommitments.push(identityCommitment);
-            console.log(`Identity set in room ${room.name}`);
-            redisClient.set('rooms', JSON.stringify(data));
-          } else {
-            console.error(`Identity already exists in room ${room.name}`);
+export const addIdentityToRoom = (roomID: BigInt, identityCommitment: BigInt): Boolean => {
+  return redisClient.get('rooms').then((res) => {
+    const roomGroups = JSON.parse(res) as RoomGroupI[];
+    roomGroups.forEach((group) => {
+      group.rooms.forEach((room) => {
+        if (BigInt(room.id) == roomID) {
+          if (room.membership.identityCommitments.includes(identityCommitment)) {
+            console.log('Identity already in room');
+            return false;
           }
-        });
-      }
-    } else {
-      console.error('Group not found');
-    }
+          room.membership.identityCommitments.push(identityCommitment);
+          redisClient.set('rooms', JSON.stringify(roomGroups));
+          console.debug(`IdentityCommitment ${identityCommitment} added to room ${roomID}`);
+          return true;
+        }
+      });
+    });
   });
 };
 
@@ -57,22 +52,22 @@ export const createGroup = (groupName, roomNames) => {
   const newGroup: RoomGroupI = {
     id: genId(BigInt(999), groupName),
     name: groupName,
-    rooms: roomNames.map(roomName => {
+    rooms: roomNames.map((roomName) => {
       return {
         id: genId(BigInt(999), roomName),
         name: roomName,
         membership: { identityCommitments: [] },
         rateLimit: 1000
-      }
+      };
     })
-  }
-  redisClient.get('rooms').then(groups => {
+  };
+  redisClient.get('rooms').then((groups) => {
     const data = JSON.parse(groups);
     data.push(newGroup);
     redisClient.set('rooms', JSON.stringify(data));
     pp(`Group ${groupName} created`);
   });
-}
+};
 
 // Pretty Print to console
 export const pp = (str: any, level = 'log') => {
