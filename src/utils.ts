@@ -28,26 +28,29 @@ export const findGroupById = (roomGroups: RoomGroupI[], groupId: BigInt): RoomGr
   }
 };
 
-export const addIdentityToRoom = (roomID: BigInt, identityCommitment: BigInt): Boolean => {
-  return redisClient.get('rooms').then((res) => {
-    const roomGroups = JSON.parse(res) as RoomGroupI[];
-    roomGroups.forEach((group, groupIndex) => {
-      group.rooms.forEach((room, roomIndex) => {
-        if (BigInt(room.id) == roomID) {
-          if (room.membership.identityCommitments.includes(identityCommitment)) {
-            console.log('Identity already in room');
-            return false;
-          }
-          roomGroups[groupIndex].rooms[roomIndex].membership.identityCommitments.push(
-            identityCommitment
-          );
-          redisClient.set('rooms', JSON.stringify(roomGroups));
-          console.debug(`IdentityCommitment ${identityCommitment} added to room ${roomID}`);
-          return true;
+export const addIdentityToRoom = (
+  roomID: BigInt,
+  identityCommitment: BigInt,
+  roomGroups: RoomGroupI[]
+): { status: Boolean; roomGroups: RoomGroupI[] } => {
+  let added = false;
+  roomGroups.forEach((group, groupIndex) => {
+    group.rooms.forEach((room, roomIndex) => {
+      if (BigInt(room.id) == roomID) {
+        if (room.membership.identityCommitments.includes(identityCommitment)) {
+          console.log('Identity already in room');
         }
-      });
+        roomGroups[groupIndex].rooms[roomIndex].membership.identityCommitments.push(
+          identityCommitment
+        );
+        pp(roomGroups);
+
+        console.log(`IdentityCommitment ${identityCommitment} added to room ${roomID}`);
+        added = true;
+      }
     });
   });
+  return { status: added, roomGroups: roomGroups };
 };
 
 export const createGroup = (groupName, roomNames) => {

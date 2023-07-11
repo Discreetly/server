@@ -131,8 +131,10 @@ app.post('/join', function (req, res) {
         loadedRooms.forEach(function (group) {
             if (group.id == groupID) {
                 group.rooms.forEach(function (room) {
-                    var added = (0, utils_1.addIdentityToRoom)(BigInt(room.id), BigInt(idc));
-                    if (added) {
+                    var _a = (0, utils_1.addIdentityToRoom)(BigInt(room.id), BigInt(idc), loadedRooms), status = _a.status, roomGroups = _a.roomGroups;
+                    loadedRooms = roomGroups;
+                    redisClient.set('rooms', JSON.stringify(loadedRooms));
+                    if (status) {
                         claimedRooms_1.push(room);
                     }
                     else {
