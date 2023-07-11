@@ -150,6 +150,7 @@ app.post('/join', (req, res) => {
       if (group.id == groupID) {
         group.rooms.forEach((room: RoomI) => {
           let added = addIdentityToRoom(BigInt(room.id), BigInt(idc));
+
           if (added) {
             claimedRooms.push(room);
           } else {
