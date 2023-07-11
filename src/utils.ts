@@ -1,4 +1,6 @@
 import { createClient } from 'redis';
+import { RoomGroupI, ServerI, genId } from 'discreetly-interfaces';
+
 
 const redisClient = createClient();
 redisClient.connect();
@@ -50,6 +52,27 @@ export const addIdentityToRoom = (groupId, identityCommitment) => {
     }
   });
 };
+
+export const createGroup = (groupName, roomNames) => {
+  const newGroup: RoomGroupI = {
+    id: genId(BigInt(999), groupName),
+    name: groupName,
+    rooms: roomNames.map(roomName => {
+      return {
+        id: genId(BigInt(999), roomName),
+        name: roomName,
+        membership: { identityCommitments: [] },
+        rateLimit: 1000
+      }
+    })
+  }
+  redisClient.get('rooms').then(groups => {
+    const data = JSON.parse(groups);
+    data.push(newGroup);
+    redisClient.set('rooms', JSON.stringify(data));
+    pp(`Group ${groupName} created`);
+  });
+}
 
 // Pretty Print to console
 export const pp = (str: any, level = 'log') => {

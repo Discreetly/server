@@ -111,7 +111,6 @@ var testGroupId0 = '917472730658974787195329824193375792646499428986660190540754
 var testGroupId1 = '355756154407663058879850750536398206548026044600409795496806929599466182253';
 app.post('/join', function (req, res) {
     var data = req.body;
-    console.log(data);
     var code = data.code, idc = data.idc;
     (0, utils_1.pp)('Express[/join]: claiming code:' + code);
     var result = ccm.claimCode(code);
@@ -124,6 +123,14 @@ app.post('/join', function (req, res) {
     }
     else {
         res.status(451).json({ status: 'invalid' });
+    }
+});
+// TODO we are going to need endpoints that take a password that will be in a .env file to generate new roomGroups, rooms, and claim codes
+app.post('/group/add', function (req, res) {
+    var data = req.body;
+    var password = data.password, groupName = data.groupName, rooms = data.rooms, codes = data.codes;
+    if (password === process.env.PASSWORD) {
+        (0, utils_1.createGroup)(groupName, rooms);
     }
 });
 app.get('/logclaimcodes', function (req, res) {
@@ -142,7 +149,6 @@ process.on('SIGINT', function () {
     (0, utils_1.pp)('disconnecting redis');
     redisClient.disconnect().then(process.exit());
 });
-// TODO we are going to need endpoints that take a password that will be in a .env file to generate new roomGroups, rooms, and claim codes
 if (TESTING) {
     var randomMessagePicker = /** @class */ (function () {
         function randomMessagePicker(values, weights) {

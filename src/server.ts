@@ -8,8 +8,9 @@ import { MessageI, RoomGroupI } from 'discreetly-interfaces';
 import verifyProof from './verifier';
 import ClaimCodeManager from 'discreetly-claimcodes';
 import type { ClaimCodeStatus } from 'discreetly-claimcodes';
-import { pp, addIdentityToRoom } from './utils';
+import { pp, addIdentityToRoom, createGroup } from './utils';
 import { faker } from '@faker-js/faker';
+
 
 // HTTP is to get info from the server about configuration, rooms, etc
 const HTTP_PORT = 3001;
@@ -27,6 +28,7 @@ const app = express();
 
 const socket_server = new Server(app);
 app.use(express.json());
+
 
 const io = new SocketIOServer(socket_server, {
   cors: {
@@ -138,7 +140,6 @@ const testGroupId0 = '9174727306589747871953298241933757926464994289866601905407
 const testGroupId1 = '355756154407663058879850750536398206548026044600409795496806929599466182253';
 app.post('/join', (req, res) => {
   const data = req.body;
-  console.log(data);
   const { code, idc } = data;
   pp('Express[/join]: claiming code:' + code);
   const result: ClaimCodeStatus = ccm.claimCode(code);
@@ -152,6 +153,15 @@ app.post('/join', (req, res) => {
     res.status(451).json({ status: 'invalid' });
   }
 });
+
+// TODO we are going to need endpoints that take a password that will be in a .env file to generate new roomGroups, rooms, and claim codes
+app.post('/group/add', (req, res) => {
+  const data = req.body;
+  const { password, groupName, rooms, codes } = data;
+  if (password === process.env.PASSWORD) {
+    createGroup(groupName, rooms)
+  }
+})
 
 app.get('/logclaimcodes', (req, res) => {
   pp('-----CLAIMCODES-----', 'debug');
@@ -173,7 +183,7 @@ process.on('SIGINT', () => {
   redisClient.disconnect().then(process.exit());
 });
 
-// TODO we are going to need endpoints that take a password that will be in a .env file to generate new roomGroups, rooms, and claim codes
+
 
 if (TESTING) {
   class randomMessagePicker {
