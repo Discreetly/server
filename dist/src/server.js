@@ -165,7 +165,10 @@ app.post('/group/add', function (req, res) {
     var data = req.body;
     var password = data.password, groupName = data.groupName, rooms = data.rooms, codes = data.codes;
     if (password === process.env.PASSWORD) {
-        (0, utils_1.createGroup)(groupName, rooms);
+        var roomGroups = (0, utils_1.createGroup)(groupName, rooms, loadedRooms);
+        loadedRooms = roomGroups;
+        redisClient.set('rooms', JSON.stringify(loadedRooms));
+        res.status(201).json({ status: "Created group ".concat(groupName), loadedRooms: loadedRooms });
     }
 });
 app.get('/logclaimcodes', function (req, res) {

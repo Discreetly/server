@@ -53,7 +53,11 @@ export const addIdentityToRoom = (
   return { status: added, roomGroups: roomGroups };
 };
 
-export const createGroup = (groupName, roomNames) => {
+export const createGroup = (
+  groupName: string,
+  roomNames: string[] = ["New Room"],
+  roomGroups: RoomGroupI[]
+): RoomGroupI[] => {
   const newGroup: RoomGroupI = {
     id: genId(BigInt(999), groupName),
     name: groupName,
@@ -66,12 +70,8 @@ export const createGroup = (groupName, roomNames) => {
       };
     })
   };
-  redisClient.get('rooms').then((groups) => {
-    const data = JSON.parse(groups);
-    data.push(newGroup);
-    redisClient.set('rooms', JSON.stringify(data));
-    pp(`Group ${groupName} created`);
-  });
+  roomGroups.push(newGroup);
+  return roomGroups
 };
 
 // Pretty Print to console

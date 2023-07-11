@@ -182,7 +182,10 @@ app.post('/group/add', (req, res) => {
   const data = req.body;
   const { password, groupName, rooms, codes } = data;
   if (password === process.env.PASSWORD) {
-    createGroup(groupName, rooms);
+    const roomGroups = createGroup(groupName, rooms, loadedRooms);
+    loadedRooms = roomGroups;
+    redisClient.set('rooms', JSON.stringify(loadedRooms));
+    res.status(201).json({status: `Created group ${groupName}`, loadedRooms});
   }
 });
 
