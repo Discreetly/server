@@ -8,7 +8,7 @@ import type { MessageI, RoomI, RoomGroupI } from 'discreetly-interfaces';
 import verifyProof from './verifier';
 import ClaimCodeManager from 'discreetly-claimcodes';
 import type { ClaimCodeStatus } from 'discreetly-claimcodes';
-import { pp, addIdentityToRoom, createGroup } from './utils';
+import { pp, addIdentityToRoom, createGroup, createRoom } from './utils';
 import { faker } from '@faker-js/faker';
 
 // HTTP is to get info from the server about configuration, rooms, etc
@@ -179,14 +179,27 @@ app.post('/join', (req, res) => {
 // TODO we are going to need endpoints that take a password that will be in a .env file to generate new roomGroups, rooms, and claim codes
 app.post('/group/add', (req, res) => {
   const data = req.body;
-  const { password, groupName, rooms, codes } = data;
+  const { password, groupName, roomNames, codes } = data;
   if (password === process.env.PASSWORD) {
-    const roomGroups = createGroup(groupName, rooms, loadedRooms);
+    const roomGroups = createGroup(groupName, roomNames, loadedRooms);
     loadedRooms = roomGroups;
     redisClient.set('rooms', JSON.stringify(loadedRooms));
     res.status(201).json({ status: `Created group ${groupName}`, loadedRooms });
   }
 });
+
+app.post('/room/add', (req, res) => {
+  const data = req.body;
+  const { password, groupId, roomName } = data;
+  if (password === process.env.PASSWORD) {
+    console.log(groupId, roomName);
+    const roomGroups = createRoom(groupId, roomName, loadedRooms);
+    console.log('here');
+    loadedRooms = roomGroups;
+    redisClient.set('rooms', JSON.stringify(loadedRooms));
+    res.status(201).json({ status: `Created room ${roomName}`, loadedRooms });
+  }
+})
 
 app.get('/logclaimcodes', (req, res) => {
   pp('-----CLAIMCODES-----', 'debug');

@@ -52,7 +52,7 @@ export function addIdentityToRoom(
 
 export function createGroup(
   groupName: string,
-  roomNames: string[] = ['New Room'],
+  roomNames: string[],
   roomGroups: RoomGroupI[]
 ): RoomGroupI[] {
   const newGroup: RoomGroupI = {
@@ -68,6 +68,23 @@ export function createGroup(
     })
   };
   roomGroups.push(newGroup);
+  return roomGroups;
+}
+
+export const createRoom = (
+  groupId: bigint,
+  roomName: string,
+  roomGroups: RoomGroupI[]): RoomGroupI[] => {
+  const newRoom: RoomI = {
+    id: genId(BigInt(999), roomName),
+    name: roomName,
+    membership: { identityCommitments: [] },
+    rateLimit: 1000
+  }
+  const groupIndex = roomGroups.findIndex(group => group.id === groupId);
+  if (groupIndex !== -1) {
+    roomGroups[groupIndex].rooms.push(newRoom);
+  }
   return roomGroups;
 }
 
