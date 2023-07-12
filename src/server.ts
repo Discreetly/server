@@ -181,7 +181,6 @@ app.post('/join', (req, res) => {
 app.post('/group/add', (req, res) => {
   const data = req.body;
   const { password, groupName, roomNames, codes } = data;
-  console.log(codes);
   if (password === process.env.PASSWORD) {
     const result = createGroup(groupName, roomNames, loadedRooms);
     loadedRooms = result.roomGroup;
@@ -200,9 +199,7 @@ app.post('/room/add', (req, res) => {
   const data = req.body;
   const { password, groupId, roomName } = data;
   if (password === process.env.PASSWORD) {
-    console.log(groupId, roomName);
     const roomGroups = createRoom(groupId, roomName, loadedRooms);
-    console.log('here');
     loadedRooms = roomGroups;
     redisClient.set('rooms', JSON.stringify(loadedRooms));
     res.status(201).json({ status: `Created room ${roomName}`, loadedRooms });
