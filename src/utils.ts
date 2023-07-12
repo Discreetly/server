@@ -54,7 +54,7 @@ export function createGroup(
   groupName: string,
   roomNames: string[],
   roomGroups: RoomGroupI[]
-): RoomGroupI[] {
+): { groupId: bigint, roomGroup: RoomGroupI[] } {
   const newGroup: RoomGroupI = {
     id: genId(BigInt(999), groupName),
     name: groupName,
@@ -68,7 +68,7 @@ export function createGroup(
     })
   };
   roomGroups.push(newGroup);
-  return roomGroups;
+  return { groupId: newGroup.id, roomGroup: roomGroups };
 }
 
 export const createRoom = (

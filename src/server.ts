@@ -181,10 +181,17 @@ app.post('/join', (req, res) => {
 app.post('/group/add', (req, res) => {
   const data = req.body;
   const { password, groupName, roomNames, codes } = data;
+  console.log(codes);
   if (password === process.env.PASSWORD) {
-    const roomGroups = createGroup(groupName, roomNames, loadedRooms);
-    loadedRooms = roomGroups;
+    const result = createGroup(groupName, roomNames, loadedRooms);
+    loadedRooms = result.roomGroup;
     redisClient.set('rooms', JSON.stringify(loadedRooms));
+    if (codes.generate) {
+      codes.amount = codes.amount || 10;
+      ccm.generateClaimCodeSet(codes.amount, result.groupId, groupName);
+      const ccs = ccm.getClaimCodeSets();
+      redisClient.set('ccm', JSON.stringify(ccs));
+    }
     res.status(201).json({ status: `Created group ${groupName}`, loadedRooms });
   }
 });
