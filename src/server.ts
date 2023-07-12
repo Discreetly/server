@@ -87,7 +87,7 @@ io.on('connection', (socket: Socket) => {
 
   socket.on('validateMessage', (msg: MessageI) => {
     pp({ 'VALIDATING MESSAGE ID': msg.id.slice(0, 11), 'MSG:': msg.message });
-    const valid = verifyProof(msg);
+    const valid = verifyProof(msg, loadedRooms);
     if (!valid) {
       pp('INVALID MESSAGE', 'warn');
       return;

@@ -5,59 +5,56 @@ import { genId } from 'discreetly-interfaces';
 const redisClient = createClient();
 redisClient.connect();
 
-export const findRoomById = (rooms, id) => {
-  for (let i = 0; i < rooms.length; i++) {
-    const nestedRooms = rooms[i].rooms;
-    for (let j = 0; j < nestedRooms.length; j++) {
-      if (nestedRooms[j].id === id) {
-        console.log('FOUND ROOM');
-        return nestedRooms[j];
-      } else {
-        console.log(`Room with id:${id} not found`);
+export function findRoomById(
+  roomGroups,
+  roomID
+): { room: RoomI; groupIndex: number; roomIndex: number } | undefined {
+  roomGroups.forEach((group, groupIndex) => {
+    group.rooms.forEach((room, roomIndex) => {
+      if (BigInt(room.id) == roomID) {
+        return { room, groupIndex, roomIndex };
       }
-    }
-  }
-};
+    });
+  });
+  return undefined;
+}
 
-export const findGroupById = (roomGroups: RoomGroupI[], groupId: BigInt): RoomGroupI => {
+export function findGroupById(roomGroups: RoomGroupI[], groupId: BigInt): RoomGroupI {
   const group = roomGroups.find((group) => group.id === groupId);
   if (!group) {
     console.error('Group not found');
   } else {
     return group;
   }
-};
+}
 
-export const addIdentityToRoom = (
-  roomID: BigInt,
-  identityCommitment: BigInt,
+export function addIdentityToRoom(
+  roomID: bigint,
+  identityCommitment: bigint,
   roomGroups: RoomGroupI[]
-): { status: Boolean; roomGroups: RoomGroupI[] } => {
+): { status: Boolean; roomGroups: RoomGroupI[] } {
   let added = false;
-  roomGroups.forEach((group, groupIndex) => {
-    group.rooms.forEach((room, roomIndex) => {
-      if (BigInt(room.id) == roomID) {
-        if (room.membership.identityCommitments.includes(identityCommitment)) {
-          console.log('Identity already in room');
-        }
-        roomGroups[groupIndex].rooms[roomIndex].membership.identityCommitments.push(
-          identityCommitment
-        );
-        pp(roomGroups);
+  const r = findRoomById(roomGroups, roomID);
 
-        console.log(`IdentityCommitment ${identityCommitment} added to room ${roomID}`);
-        added = true;
-      }
-    });
-  });
+  if (r) {
+    if (r.room.membership.identityCommitments.includes(identityCommitment)) {
+      console.log('Identity already in room');
+    } else {
+      roomGroups[r.groupIndex].rooms[r.roomIndex].membership.identityCommitments.push(
+        identityCommitment
+      );
+      console.log(`IdentityCommitment ${identityCommitment} added to room ${roomID}`);
+      added = true;
+    }
+  }
   return { status: added, roomGroups: roomGroups };
-};
+}
 
-export const createGroup = (
+export function createGroup(
   groupName: string,
-  roomNames: string[] = ["New Room"],
+  roomNames: string[] = ['New Room'],
   roomGroups: RoomGroupI[]
-): RoomGroupI[] => {
+): RoomGroupI[] {
   const newGroup: RoomGroupI = {
     id: genId(BigInt(999), groupName),
     name: groupName,
@@ -71,8 +68,8 @@ export const createGroup = (
     })
   };
   roomGroups.push(newGroup);
-  return roomGroups
-};
+  return roomGroups;
+}
 
 // Pretty Print to console
 export const pp = (str: any, level = 'log') => {
