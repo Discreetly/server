@@ -47,13 +47,15 @@ if (process.env.NODE_ENV === 'development') {
   redisClient = createClient();
   TESTING = true;
 } else {
-  redisClient = createClient({
+  const redisConfig = {
     password: process.env.REDIS_PASSWORD,
     socket: {
       host: process.env.REDIS_URL,
       port: Number(process.env.REDIS_PORT)
     }
-  });
+  };
+  console.log(redisConfig);
+  redisClient = createClient(redisConfig);
 }
 redisClient.connect().then(() => pp('Redis Connected'));
 
