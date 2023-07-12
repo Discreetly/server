@@ -200,7 +200,7 @@ app.post('/room/add', (req, res) => {
     redisClient.set('rooms', JSON.stringify(loadedRooms));
     res.status(201).json({ status: `Created room ${roomName}`, loadedRooms });
   }
-})
+});
 
 app.get('/logclaimcodes', (req, res) => {
   pp('-----CLAIMCODES-----', 'debug');

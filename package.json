@@ -2,12 +2,12 @@
   "name": "discreetly-server",
   "version": "0.1.0",
   "description": "",
-  "main": "src/server.ts",
+  "main": "dist/server.cjs",
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/server.js",
-    "watch": "tsc --watch ./src/server.ts --outDir ./dist/",
-    "serve": "nodemon -q dist/src/server.js",
+    "build": "rollup --config rollup.config.mjs",
+    "start": "node dist/server.cjs",
+    "watch": "rollup --config rollup.config.mjs --watch",
+    "serve": "nodemon -q dist/server.jcs",
     "dev": "concurrently \"npm run watch\" \"npm run serve\""
   },
   "engines": {
@@ -32,10 +32,16 @@
     "socket.io": "^4.6.2"
   },
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.2",
+    "@rollup/plugin-json": "^6.0.0",
+    "@rollup/plugin-node-resolve": "^15.1.0",
     "@types/cors": "^2.8.13",
     "@types/express": "^4.17.17",
     "concurrently": "^8.2.0",
     "nodemon": "^2.0.22",
+    "rollup": "^3.26.2",
+    "rollup-plugin-cleaner": "^1.0.0",
+    "rollup-plugin-typescript2": "^0.35.0",
     "typescript": "^5.1.6"
   }
 }
