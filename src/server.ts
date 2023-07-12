@@ -45,7 +45,13 @@ let TESTGROUPID: BigInt;
 // TODO get the claim code manager working with redis to store the state of the rooms and claim codes in a redis database that persists across server restarts
 // Redis
 
-const redisClient = createClient({ url: REDIS_URL });
+const redisClient = createClient({
+  password: '<password>',
+  socket: {
+    host: 'redis-18525.c232.us-east-1-2.ec2.cloud.redislabs.com',
+    port: 18525
+  }
+});
 redisClient.connect().then(() => pp('Redis Connected'));
 
 redisClient.get('rooms').then((rooms) => {
