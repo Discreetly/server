@@ -87,7 +87,6 @@ io.on('connection', (socket: Socket) => {
 
   socket.on('validateMessage', (msg: MessageI) => {
     pp({ 'VALIDATING MESSAGE ID': msg.id.slice(0, 11), 'MSG:': msg.message });
-    const timestamp = Date.now().toString();
     const valid = verifyProof(msg);
     if (!valid) {
       pp('INVALID MESSAGE', 'warn');
@@ -185,7 +184,7 @@ app.post('/group/add', (req, res) => {
     const roomGroups = createGroup(groupName, rooms, loadedRooms);
     loadedRooms = roomGroups;
     redisClient.set('rooms', JSON.stringify(loadedRooms));
-    res.status(201).json({status: `Created group ${groupName}`, loadedRooms});
+    res.status(201).json({ status: `Created group ${groupName}`, loadedRooms });
   }
 });
 

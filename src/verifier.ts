@@ -1,4 +1,4 @@
-import { MessageI, str2BigInt } from 'discreetly-interfaces';
+import type { MessageI, str2BigInt } from 'discreetly-interfaces';
 import { RLNVerifier } from 'rlnjs';
 import vkey from './verification_key';
 import { poseidon1 } from 'poseidon-lite/poseidon1';
@@ -13,6 +13,7 @@ async function verifyProof(msg: MessageI): Promise<boolean> {
   // TODO VERIFY MERKLE ROOT
   // TODO VERIFY PROOF LAST
   //
+  const timestamp = Date.now().toString();
   const rlnIdentifier = BigInt(msg.room);
   const msgHash = str2BigInt(msg.message);
   if (msgHash !== msg.proof.snarkProof.publicSignals.x) {
