@@ -21,6 +21,7 @@ export function findRoomById(
 
 export function findGroupById(roomGroups: RoomGroupI[], groupId: BigInt): RoomGroupI {
   const group = roomGroups.find((group) => group.id === groupId);
+  console.log(roomGroups, groupId);
   if (!group) {
     console.error('Group not found');
   } else {
@@ -71,10 +72,10 @@ export function createGroup(
   return { groupId: newGroup.id, roomGroup: roomGroups };
 }
 
-export const createRoom = (
+export function createRoom(
   groupId: bigint,
   roomName: string,
-  roomGroups: RoomGroupI[]): RoomGroupI[] => {
+  roomGroups: RoomGroupI[]): RoomGroupI[] {
   const newRoom: RoomI = {
     id: genId(BigInt(999), roomName),
     name: roomName,

@@ -8,7 +8,7 @@ import type { MessageI, RoomI, RoomGroupI } from 'discreetly-interfaces';
 import verifyProof from './verifier.js';
 import { ClaimCodeManager } from 'discreetly-claimcodes';
 import type { ClaimCodeStatus } from 'discreetly-claimcodes';
-import { pp, addIdentityToRoom, createGroup, createRoom } from './utils.js';
+import { pp, addIdentityToRoom, createGroup, createRoom, findGroupById } from './utils.js';
 import { faker } from '@faker-js/faker';
 
 // HTTP is to get info from the server about configuration, rooms, etc
@@ -205,6 +205,18 @@ app.post('/room/add', (req, res) => {
     res.status(201).json({ status: `Created room ${roomName}`, loadedRooms });
   }
 });
+
+app.post('/group/createcode', (req, res) => {
+  const data = req.body;
+  let { password, groupId, amount } = data;
+  if (password === process.env.PASSWORD) {
+    amount = amount || 10;
+    const group = findGroupById(loadedRooms, groupId);
+    const ccs = ccm.generateClaimCodeSet(amount, groupId, group.name);
+    redisClient.set('ccm', JSON.stringify(ccs));
+    res.status(201).json({ stats: `Created ${amount} codes for ${group.name}`, ccm })
+  }
+})
 
 app.get('/logclaimcodes', (req, res) => {
   pp('-----CLAIMCODES-----', 'debug');
