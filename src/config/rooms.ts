@@ -1,12 +1,13 @@
-import { MembershipI, RoomGroupI, ServerI, genId } from 'discreetly-interfaces';
+import type { MembershipI, RoomGroupI, ServerI } from 'discreetly-interfaces';
+import { genId } from 'discreetly-interfaces';
 import 'dotenv/config';
 
 // TODO THIS SHOULD BE AN ENVIRONMENTAL VARIABLE STORED IN .env FILE
 // IF THIS FILE DOESN'T EXIST, GENERATE A RANDOM ID AND STORE IT IN THE FILE
-let serverID = BigInt(999);
+let serverID;
 
 try {
-  serverID = process.env.serverID ? (process.env.serverID as unknown as bigint) : 999n;
+  serverID = process.env.SERVERID ? (process.env.SERVERID as unknown as bigint) : 0n;
 } catch (error) {
   console.error('Error reading serverID from .env file!');
 }

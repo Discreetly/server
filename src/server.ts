@@ -1,14 +1,14 @@
-import * as express from 'express';
+import express from 'express';
 import { Server } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import * as cors from 'cors';
+import cors from 'cors';
 import { createClient } from 'redis';
-import { serverConfig, rooms as defaultRooms, rooms } from '../config/rooms';
+import { serverConfig, rooms as defaultRooms, rooms } from './config/rooms.js';
 import type { MessageI, RoomI, RoomGroupI } from 'discreetly-interfaces';
-import verifyProof from './verifier';
-import ClaimCodeManager from 'discreetly-claimcodes';
+import verifyProof from './verifier.js';
+import { ClaimCodeManager } from 'discreetly-claimcodes';
 import type { ClaimCodeStatus } from 'discreetly-claimcodes';
-import { pp, addIdentityToRoom, createGroup } from './utils';
+import { pp, addIdentityToRoom, createGroup } from './utils.js';
 import { faker } from '@faker-js/faker';
 
 // HTTP is to get info from the server about configuration, rooms, etc
@@ -17,6 +17,7 @@ const HTTP_PORT = 3001;
 const SOCKET_PORT = 3002;
 // Testing Mode
 const TESTING = true;
+const REDIS_URL = process.env.REDIS_URL || 'localhost:6379';
 
 // Deal with bigints in JSON
 (BigInt.prototype as any).toJSON = function () {
@@ -44,13 +45,13 @@ let TESTGROUPID: BigInt;
 // TODO get the claim code manager working with redis to store the state of the rooms and claim codes in a redis database that persists across server restarts
 // Redis
 
-const redisClient = createClient();
+const redisClient = createClient({ url: REDIS_URL });
 redisClient.connect().then(() => pp('Redis Connected'));
 
 redisClient.get('rooms').then((rooms) => {
   rooms = JSON.parse(rooms);
   if (rooms) {
-    loadedRooms = rooms as RoomGroupI[];
+    loadedRooms = rooms as unknown as RoomGroupI[];
   } else {
     loadedRooms = defaultRooms;
     redisClient.set('rooms', JSON.stringify(loadedRooms));
@@ -242,8 +243,8 @@ if (TESTING) {
 
   setInterval(() => {
     const message: MessageI = {
-      id: faker.number.bigInt(),
-      room: '7458174823225695762087107782399226439860424529052640186229953289032606624581',
+      id: faker.number.bigInt().toString(),
+      room: BigInt('7458174823225695762087107782399226439860424529052640186229953289032606624581'),
       message: picker.pick(),
       timestamp: Date.now().toString(),
       epoch: Math.floor(Date.now() / 10000)
