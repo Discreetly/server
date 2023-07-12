@@ -5,19 +5,24 @@
   "main": "src/server.ts",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/src/server.js",
+    "start": "node dist/server.js",
     "watch": "tsc --watch ./src/server.ts --outDir ./dist/",
     "serve": "nodemon -q dist/src/server.js",
     "dev": "concurrently \"npm run watch\" \"npm run serve\""
   },
+  "engines": {
+    "node": "18.x.x"
+  },
+  "type": "module",
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@faker-js/faker": "^8.0.2",
     "atob": "^2.1.2",
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
-    "discreetly-claimcodes": "^1.0.5",
+    "discreetly-claimcodes": "^1.0.7",
     "discreetly-interfaces": "^0.1.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
@@ -27,7 +32,6 @@
     "socket.io": "^4.6.2"
   },
   "devDependencies": {
-    "@faker-js/faker": "^8.0.2",
     "@types/cors": "^2.8.13",
     "@types/express": "^4.17.17",
     "concurrently": "^8.2.0",
