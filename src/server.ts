@@ -17,7 +17,7 @@ const HTTP_PORT = 3001;
 const SOCKET_PORT = 3002;
 // Testing Mode
 const TESTING = true;
-const REDIS_URL = process.env.REDIS_URL || 'localhost:6379';
+const REDIS_URL = process.env.REDISCLOUD_URL || 'redis://localhost:6379';
 
 // Deal with bigints in JSON
 (BigInt.prototype as any).toJSON = function () {
@@ -45,13 +45,7 @@ let TESTGROUPID: BigInt;
 // TODO get the claim code manager working with redis to store the state of the rooms and claim codes in a redis database that persists across server restarts
 // Redis
 
-const redisClient = createClient({
-  password: '<password>',
-  socket: {
-    host: 'redis-18525.c232.us-east-1-2.ec2.cloud.redislabs.com',
-    port: 18525
-  }
-});
+const redisClient = createClient({ url: REDIS_URL });
 redisClient.connect().then(() => pp('Redis Connected'));
 
 redisClient.get('rooms').then((rooms) => {
