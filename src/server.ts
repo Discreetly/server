@@ -15,9 +15,6 @@ import { faker } from '@faker-js/faker';
 const HTTP_PORT = 3001;
 // Socket is to communicate chat room messages back and forth
 const SOCKET_PORT = 3002;
-// Testing Mode
-const TESTING = true;
-const REDIS_URL = process.env.REDISCLOUD_URL || 'redis://localhost:6379';
 
 // Deal with bigints in JSON
 (BigInt.prototype as any).toJSON = function () {
@@ -42,11 +39,22 @@ interface userCountI {
 let userCount: userCountI = {};
 let loadedRooms: RoomGroupI[];
 let TESTGROUPID: BigInt;
-// TODO get the claim code manager working with redis to store the state of the rooms and claim codes in a redis database that persists across server restarts
-// Redis
-console.log('Connecting to REDIS_URL', REDIS_URL);
-const redisClient = createClient({ url: REDIS_URL });
 
+let redisClient;
+let TESTING = false;
+
+if (process.env.NODE_ENV === 'development') {
+  redisClient = createClient();
+  TESTING = true;
+} else {
+  redisClient = createClient({
+    password: process.env.REDIS_PASSWORD,
+    socket: {
+      host: process.env.REDIS_URL,
+      port: Number(process.env.REDIS_PORT)
+    }
+  });
+}
 redisClient.connect().then(() => pp('Redis Connected'));
 
 redisClient.get('rooms').then((rooms) => {
@@ -214,11 +222,11 @@ app.get('/logclaimcodes', (req, res) => {
 });
 
 app.listen(HTTP_PORT, () => {
-  pp(`Express Http Server is running at http://localhost:${HTTP_PORT}`);
+  pp(`Express Http Server is running at port ${HTTP_PORT}`);
 });
 
 socket_server.listen(SOCKET_PORT, () => {
-  pp(`SocketIO Server is running at http://localhost:${SOCKET_PORT}`);
+  pp(`SocketIO Server is running at port ${SOCKET_PORT}`);
 });
 
 // Disconnect from redis on exit
