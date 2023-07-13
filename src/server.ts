@@ -43,10 +43,12 @@ let TESTGROUPID: BigInt;
 let redisClient;
 let TESTING = false;
 
-if (process.env.NODE_ENV !== 'production') {
+if (!process.env.REDIS_URL) {
+  console.log('Connecting to redis at localhost');
   redisClient = createClient();
   TESTING = true;
 } else {
+  console.log('Connecting to redis at: ' + process.env.REDIS_URL);
   redisClient = createClient({
     url: process.env.REDIS_URL,
     socket: {
