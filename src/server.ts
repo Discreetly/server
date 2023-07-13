@@ -49,6 +49,7 @@ if (!process.env.REDIS_URL) {
   TESTING = true;
 } else {
   console.log('Connecting to redis at: ' + process.env.REDIS_URL);
+  console.log(process.env.REDIS_TLS_URL);
   redisClient = createClient({
     url: process.env.REDIS_URL,
     socket: {
