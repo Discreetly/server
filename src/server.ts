@@ -47,18 +47,13 @@ if (process.env.NODE_ENV !== 'production') {
   redisClient = createClient();
   TESTING = true;
 } else {
-  const redisConfig = {
-    password: process.env.REDIS_PASSWORD,
+  redisClient = createClient({
+    url: process.env.REDIS_URL,
     socket: {
-      host: process.env.REDIS_URL,
-      port: Number(process.env.REDIS_PORT)
-    },
-    tls: {
+      tls: true,
       rejectUnauthorized: false
     }
-  };
-  console.log(redisConfig);
-  redisClient = createClient(redisConfig);
+  });
 }
 redisClient.connect().then(() => pp('Redis Connected'));
 
