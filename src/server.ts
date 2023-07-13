@@ -216,11 +216,13 @@ app.post('/room/add', (req, res) => {
   }
 });
 
+
 app.post('/group/createcode', (req, res) => {
   const data = req.body;
   let { password, groupId, amount } = data;
   if (password === process.env.PASSWORD) {
     amount = amount || 10;
+    console.log(loadedRooms, groupId)
     const group = findGroupById(loadedRooms, groupId);
     const ccs = ccm.generateClaimCodeSet(amount, groupId, group.name);
     redisClient.set('ccm', JSON.stringify(ccs));

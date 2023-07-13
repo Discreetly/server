@@ -57,11 +57,11 @@ export function createGroup(
   roomGroups: RoomGroupI[]
 ): { groupId: bigint, roomGroup: RoomGroupI[] } {
   const newGroup: RoomGroupI = {
-    id: genId(BigInt(999), groupName),
+    id: genId(BigInt(999), groupName).toString() as unknown as bigint,
     name: groupName,
     rooms: roomNames.map((roomName) => {
       return {
-        id: genId(BigInt(999), roomName),
+        id: genId(BigInt(999), roomName).toString() as unknown as bigint,
         name: roomName,
         membership: { identityCommitments: [] },
         rateLimit: 1000
