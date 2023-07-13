@@ -43,7 +43,7 @@ let TESTGROUPID: BigInt;
 let redisClient;
 let TESTING = false;
 
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV !== 'production') {
   redisClient = createClient();
   TESTING = true;
 } else {
@@ -52,6 +52,9 @@ if (process.env.NODE_ENV === 'development') {
     socket: {
       host: process.env.REDIS_URL,
       port: Number(process.env.REDIS_PORT)
+    },
+    tls: {
+      rejectUnauthorized: false
     }
   };
   console.log(redisConfig);
@@ -216,19 +219,18 @@ app.post('/room/add', (req, res) => {
   }
 });
 
-
 app.post('/group/createcode', (req, res) => {
   const data = req.body;
   let { password, groupId, amount } = data;
   if (password === process.env.PASSWORD) {
     amount = amount || 10;
-    console.log(loadedRooms, groupId)
+    console.log(loadedRooms, groupId);
     const group = findGroupById(loadedRooms, groupId);
     const ccs = ccm.generateClaimCodeSet(amount, groupId, group.name);
     redisClient.set('ccm', JSON.stringify(ccs));
-    res.status(201).json({ stats: `Created ${amount} codes for ${group.name}`, ccm })
+    res.status(201).json({ stats: `Created ${amount} codes for ${group.name}`, ccm });
   }
-})
+});
 
 app.get('/logclaimcodes', (req, res) => {
   pp('-----CLAIMCODES-----', 'debug');
