@@ -1,6 +1,6 @@
 {
   "name": "discreetly-server",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "",
   "main": "dist/server.cjs",
   "scripts": {
@@ -8,7 +8,8 @@
     "start": "node dist/server.cjs",
     "watch": "rollup --config rollup.config.mjs --watch",
     "serve": "nodemon -q dist/server.jcs",
-    "dev": "concurrently \"npm run watch\" \"npm run serve\""
+    "dev": "concurrently \"npm run watch\" \"npm run serve\"",
+    "docker": "docker-compose up --build"
   },
   "engines": {
     "node": "18.x.x"
@@ -23,7 +24,7 @@
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
     "discreetly-claimcodes": "^1.0.7",
-    "discreetly-interfaces": "^0.1.5",
+    "discreetly-interfaces": "^0.1.11",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "poseidon-lite": "^0.2.0",
@@ -41,6 +42,7 @@
     "nodemon": "^2.0.22",
     "rollup": "^3.26.2",
     "rollup-plugin-cleaner": "^1.0.0",
+    "rollup-plugin-include-sourcemaps": "^0.7.0",
     "rollup-plugin-typescript2": "^0.35.0",
     "typescript": "^5.1.6"
   }

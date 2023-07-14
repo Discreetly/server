@@ -1,9 +1,12 @@
-import { createClient } from 'redis';
 import type { RoomI, RoomGroupI, ServerI } from 'discreetly-interfaces';
 import { genId } from 'discreetly-interfaces';
 
-const redisClient = createClient();
-redisClient.connect();
+export function shim() {
+  // Deal with bigints in JSON
+  (BigInt.prototype as any).toJSON = function () {
+    return this.toString();
+  };
+}
 
 export function findRoomById(
   roomGroups,
@@ -55,7 +58,7 @@ export function createGroup(
   groupName: string,
   roomNames: string[],
   roomGroups: RoomGroupI[]
-): { groupId: bigint, roomGroup: RoomGroupI[] } {
+): { groupId: bigint; roomGroup: RoomGroupI[] } {
   const newGroup: RoomGroupI = {
     id: genId(BigInt(999), groupName).toString() as unknown as bigint,
     name: groupName,
@@ -75,14 +78,15 @@ export function createGroup(
 export function createRoom(
   groupId: bigint,
   roomName: string,
-  roomGroups: RoomGroupI[]): RoomGroupI[] {
+  roomGroups: RoomGroupI[]
+): RoomGroupI[] {
   const newRoom: RoomI = {
     id: genId(BigInt(999), roomName),
     name: roomName,
     membership: { identityCommitments: [] },
     rateLimit: 1000
-  }
-  const groupIndex = roomGroups.findIndex(group => group.id === groupId);
+  };
+  const groupIndex = roomGroups.findIndex((group) => group.id === groupId);
   if (groupIndex !== -1) {
     roomGroups[groupIndex].rooms.push(newRoom);
   }
