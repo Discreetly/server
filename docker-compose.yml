@@ -7,15 +7,13 @@ services:
       - '3002:3002'
     volumes:
       - .:/app
+    restart: always
     depends_on:
-      - redis
+      - mongodb
     environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
       - NODE_ENV=production
-
-  redis:
-    image: "redis:alpine"
-    hostname: redis
+  mongodb:
+    image: mongo
+    restart: always
     ports:
-      - "6379:6379"
+      - '27017:27017'
