@@ -2,8 +2,8 @@ import { createClient } from 'redis';
 import type { RoomI, RoomGroupI, ServerI } from 'discreetly-interfaces';
 import { genId } from 'discreetly-interfaces';
 
-const redisClient = createClient();
-redisClient.connect();
+// const redisClient = createClient();
+// redisClient.connect();
 
 export function findRoomById(
   roomGroups,

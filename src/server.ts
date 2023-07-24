@@ -3,6 +3,9 @@ import { Server } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import cors from 'cors';
 import { createClient } from 'redis';
+import Prisma from 'prisma';
+import { PrismaClient } from '@prisma/client';
+import { MongoClient, ServerApiVersion } from 'mongodb'
 import { serverConfig, rooms as defaultRooms, rooms } from './config/rooms.js';
 import type { MessageI, RoomI, RoomGroupI } from 'discreetly-interfaces';
 import verifyProof from './verifier.js';
@@ -43,56 +46,67 @@ let TESTGROUPID: BigInt;
 let redisClient;
 let TESTING = false;
 
-if (!process.env.REDIS_URL) {
-  console.log('Connecting to redis at localhost');
-  redisClient = createClient();
-  TESTING = true;
-} else {
-  console.log('Connecting to redis at: ' + process.env.REDIS_URL);
-  console.log(process.env.REDIS_TLS_URL);
-  redisClient = createClient({
-    url: process.env.REDIS_URL,
-    socket: {
-      tls: true,
-      rejectUnauthorized: false
-    }
-  });
-}
-redisClient.connect().then(() => pp('Redis Connected'));
+// ievqPdmksWKSpSG8
 
-redisClient.get('rooms').then((rooms) => {
-  rooms = JSON.parse(rooms);
-  if (rooms) {
-    loadedRooms = rooms as unknown as RoomGroupI[];
-  } else {
-    loadedRooms = defaultRooms;
-    redisClient.set('rooms', JSON.stringify(loadedRooms));
-  }
-});
+// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 
-let ccm: ClaimCodeManager;
+const prisma = new PrismaClient();
+console.log("Prisma connected");
 
-redisClient.get('ccm').then((cc) => {
-  TESTGROUPID = BigInt(loadedRooms[0].id);
-  if (!cc) {
-    ccm = new ClaimCodeManager();
-    ccm.generateClaimCodeSet(10, TESTGROUPID, 'TEST');
-    const ccs = ccm.getClaimCodeSets();
-    redisClient.set('ccm', JSON.stringify(ccs));
-  } else {
-    ccm = new ClaimCodeManager(JSON.parse(cc));
 
-    if (ccm.getUsedCount(TESTGROUPID).unusedCount < 5) {
-      ccm.generateClaimCodeSet(10, TESTGROUPID, 'TEST');
-      const ccs = ccm.getClaimCodeSets();
+// if (!process.env.REDIS_URL) {
+//   console.log('Connecting to redis at localhost');
+//   redisClient = createClient();
+//   TESTING = true;
+// } else {
+//   console.log('Connecting to redis at: ' + process.env.REDIS_URL);
+//   console.log(process.env.REDIS_TLS_URL);
+//   redisClient = createClient({
+//     url: process.env.REDIS_URL,
+//     socket: {
+//       tls: true,
+//       rejectUnauthorized: false
+//     }
+//   });
+// }
+// redisClient.connect().then(() => pp('Redis Connected'));
 
-      redisClient.set('ccm', JSON.stringify(ccs));
-    }
-  }
-  const ccs = ccm.getClaimCodeSets();
-});
 
-redisClient.on('error', (err) => pp('Redis Client Error: ' + err, 'error'));
+
+
+// redisClient.get('rooms').then((rooms) => {
+//   rooms = JSON.parse(rooms);
+//   if (rooms) {
+//     loadedRooms = rooms as unknown as RoomGroupI[];
+//   } else {
+//     loadedRooms = defaultRooms;
+//     redisClient.set('rooms', JSON.stringify(loadedRooms));
+//   }
+// });
+
+// let ccm: ClaimCodeManager;
+
+// redisClient.get('ccm').then((cc) => {
+//   TESTGROUPID = BigInt(loadedRooms[0].id);
+//   if (!cc) {
+//     ccm = new ClaimCodeManager();
+//     ccm.generateClaimCodeSet(10, TESTGROUPID, 'TEST');
+//     const ccs = ccm.getClaimCodeSets();
+//     redisClient.set('ccm', JSON.stringify(ccs));
+//   } else {
+//     ccm = new ClaimCodeManager(JSON.parse(cc));
+
+//     if (ccm.getUsedCount(TESTGROUPID).unusedCount < 5) {
+//       ccm.generateClaimCodeSet(10, TESTGROUPID, 'TEST');
+//       const ccs = ccm.getClaimCodeSets();
+
+//       redisClient.set('ccm', JSON.stringify(ccs));
+//     }
+//   }
+//   const ccs = ccm.getClaimCodeSets();
+// });
+
+// redisClient.on('error', (err) => pp('Redis Client Error: ' + err, 'error'));
 
 io.on('connection', (socket: Socket) => {
   pp('SocketIO: a user connected', 'debug');
@@ -246,10 +260,10 @@ socket_server.listen(SOCKET_PORT, () => {
 });
 
 // Disconnect from redis on exit
-process.on('SIGINT', () => {
-  pp('disconnecting redis');
-  redisClient.disconnect().then(process.exit());
-});
+// process.on('SIGINT', () => {
+//   pp('disconnecting redis');
+//   redisClient.disconnect().then(process.exit());
+// });
 
 if (TESTING) {
   class randomMessagePicker {
