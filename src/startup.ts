@@ -168,6 +168,7 @@ export function initExpressEndpoints(
       }
       res.status(201).json({ status: `Created group ${groupName}`, loadedRooms });
     }
+    res.status(401).json({ status: 'Unauthorized' });
   });
 
   app.post('/room/add', (req, res) => {
@@ -180,6 +181,7 @@ export function initExpressEndpoints(
         res.status(201).json({ status: `Created room ${roomName}`, roomGroups });
       });
     }
+    res.status(401).json({ status: 'Unauthorized' });
   });
 
   app.post('/group/createcode', (req, res) => {
