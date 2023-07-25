@@ -11,22 +11,31 @@ datasource db {
 }
 
 model Groups {
-  groupId String  @id @map("_id")
-  name    String
+  id      String  @id @map("_id")
+  groupId String  @unique
+  name    String?
   rooms   Rooms[]
 }
 
 model Rooms {
-  roomId      String       @id @map("_id")
-  name        String
-  group       Groups       @relation(fields: [groupId], references: [groupId])
-  groupId     String
-  Identities  Identities[] @relation(fields: [identityIds], references: [id])
-  identityIds String[]
+  id         String         @id @map("_id")
+  roomId     String         @unique
+  name       String
+  group      Groups         @relation(fields: [groupId], references: [groupId])
+  groupId    String
+  identities IdentityRoom[]
 }
 
 model Identities {
-  id          String   @id @map("_id")
-  rooms       Rooms[]  @relation(fields: [identityIds], references: [roomId])
-  identityIds String[]
+  id         String         @id @map("_id")
+  identityId String         @unique
+  rooms      IdentityRoom[]
+}
+
+model IdentityRoom {
+  id         String     @id @map("_id")
+  identity   Identities @relation(fields: [identityId], references: [identityId])
+  identityId String
+  room       Rooms      @relation(fields: [roomId], references: [roomId])
+  roomId     String
 }

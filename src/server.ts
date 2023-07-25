@@ -46,8 +46,6 @@ let TESTGROUPID: BigInt;
 let redisClient;
 let TESTING = false;
 
-// ievqPdmksWKSpSG8
-
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 
 const prisma = new PrismaClient();
@@ -142,6 +140,30 @@ app.use(
   })
 );
 
+app.get('/groups', async (req, res) => {
+  const groups = await prisma.groups.findMany({
+    include: {
+      rooms: {
+        include: {
+          identities: true
+        }
+      }
+    }
+  })
+  return res.status(200).json(groups);
+})
+
+
+app.get('/groups/:groupId', async (req, res) => {
+  const { groupId } = req.params;
+
+  const group = await prisma.groups.findUnique({
+    where: { id: groupId },
+    include: { rooms: true }
+  })
+  return res.status(200).json(group);
+})
+
 app.get(['/', '/api'], (req, res) => {
   pp('Express: fetching server info');
   res.json(serverConfig);
@@ -162,63 +184,63 @@ app.get('/api/rooms/:id', (req, res) => {
 });
 
 // TODO api endpoint that creates new rooms and generates invite codes for them
-app.post('/join', (req, res) => {
-  const data = req.body;
-  const { code, idc } = data;
-  pp('Express[/join]: claiming code:' + code);
-  const result: ClaimCodeStatus = ccm.claimCode(code);
-  const groupID = result.groupID;
-  if (result.status === 'CLAIMED') {
-    let claimedRooms = [];
-    let alreadyAddedRooms = [];
-    loadedRooms.forEach((group) => {
-      if (group.id == groupID) {
-        group.rooms.forEach((room: RoomI) => {
-          let { status, roomGroups } = addIdentityToRoom(BigInt(room.id), BigInt(idc), loadedRooms);
-          loadedRooms = roomGroups;
-          redisClient.set('rooms', JSON.stringify(loadedRooms));
-          if (status) {
-            claimedRooms.push(room);
-          } else {
-            alreadyAddedRooms.push(room);
-          }
-        });
-      }
-    });
-    let r = [...claimedRooms, ...alreadyAddedRooms];
+// app.post('/join', (req, res) => {
+//   const data = req.body;
+//   const { code, idc } = data;
+//   pp('Express[/join]: claiming code:' + code);
+//   const result: ClaimCodeStatus = ccm.claimCode(code);
+//   const groupID = result.groupID;
+//   if (result.status === 'CLAIMED') {
+//     let claimedRooms = [];
+//     let alreadyAddedRooms = [];
+//     loadedRooms.forEach((group) => {
+//       if (group.id == groupID) {
+//         group.rooms.forEach((room: RoomI) => {
+//           let { status, roomGroups } = addIdentityToRoom(BigInt(room.id), BigInt(idc), loadedRooms);
+//           loadedRooms = roomGroups;
+//           redisClient.set('rooms', JSON.stringify(loadedRooms));
+//           if (status) {
+//             claimedRooms.push(room);
+//           } else {
+//             alreadyAddedRooms.push(room);
+//           }
+//         });
+//       }
+//     });
+//     let r = [...claimedRooms, ...alreadyAddedRooms];
 
-    if (claimedRooms.length > 0) {
-      res.status(200).json({ status: 'valid', rooms: r });
-    } else if (alreadyAddedRooms.length > 0) {
-      res.status(200).json({ status: 'already-added', rooms: r });
-    } else {
-      res.status(451).json({ status: 'invalid' });
-    }
+//     if (claimedRooms.length > 0) {
+//       res.status(200).json({ status: 'valid', rooms: r });
+//     } else if (alreadyAddedRooms.length > 0) {
+//       res.status(200).json({ status: 'already-added', rooms: r });
+//     } else {
+//       res.status(451).json({ status: 'invalid' });
+//     }
 
-    // the DB should be updated after we successfully send a response
-    redisClient.set('ccm', JSON.stringify(ccm.getClaimCodeSets()));
-  } else {
-    res.status(451).json({ status: 'invalid' });
-  }
-});
+//     // the DB should be updated after we successfully send a response
+//     redisClient.set('ccm', JSON.stringify(ccm.getClaimCodeSets()));
+//   } else {
+//     res.status(451).json({ status: 'invalid' });
+//   }
+// });
 
 // TODO we are going to need endpoints that take a password that will be in a .env file to generate new roomGroups, rooms, and claim codes
-app.post('/group/add', (req, res) => {
-  const data = req.body;
-  const { password, groupName, roomNames, codes } = data;
-  if (password === process.env.PASSWORD) {
-    const result = createGroup(groupName, roomNames, loadedRooms);
-    loadedRooms = result.roomGroup;
-    redisClient.set('rooms', JSON.stringify(loadedRooms));
-    if (codes.generate) {
-      codes.amount = codes.amount || 10;
-      ccm.generateClaimCodeSet(codes.amount, result.groupId, groupName);
-      const ccs = ccm.getClaimCodeSets();
-      redisClient.set('ccm', JSON.stringify(ccs));
-    }
-    res.status(201).json({ status: `Created group ${groupName}`, loadedRooms });
-  }
-});
+// app.post('/group/add', (req, res) => {
+//   const data = req.body;
+//   const { password, groupName, roomNames, codes } = data;
+//   if (password === process.env.PASSWORD) {
+//     const result = createGroup(groupName, roomNames, loadedRooms);
+//     loadedRooms = result.roomGroup;
+//     redisClient.set('rooms', JSON.stringify(loadedRooms));
+//     if (codes.generate) {
+//       codes.amount = codes.amount || 10;
+//       ccm.generateClaimCodeSet(codes.amount, result.groupId, groupName);
+//       const ccs = ccm.getClaimCodeSets();
+//       redisClient.set('ccm', JSON.stringify(ccs));
+//     }
+//     res.status(201).json({ status: `Created group ${groupName}`, loadedRooms });
+//   }
+// });
 
 app.post('/room/add', (req, res) => {
   const data = req.body;
@@ -231,25 +253,25 @@ app.post('/room/add', (req, res) => {
   }
 });
 
-app.post('/group/createcode', (req, res) => {
-  const data = req.body;
-  let { password, groupId, amount } = data;
-  if (password === process.env.PASSWORD) {
-    amount = amount || 10;
-    console.log(loadedRooms, groupId);
-    const group = findGroupById(loadedRooms, groupId);
-    const ccs = ccm.generateClaimCodeSet(amount, groupId, group.name);
-    redisClient.set('ccm', JSON.stringify(ccs));
-    res.status(201).json({ stats: `Created ${amount} codes for ${group.name}`, ccm });
-  }
-});
+// app.post('/group/createcode', (req, res) => {
+//   const data = req.body;
+//   let { password, groupId, amount } = data;
+//   if (password === process.env.PASSWORD) {
+//     amount = amount || 10;
+//     console.log(loadedRooms, groupId);
+//     const group = findGroupById(loadedRooms, groupId);
+//     const ccs = ccm.generateClaimCodeSet(amount, groupId, group.name);
+//     redisClient.set('ccm', JSON.stringify(ccs));
+//     res.status(201).json({ stats: `Created ${amount} codes for ${group.name}`, ccm });
+//   }
+// });
 
-app.get('/logclaimcodes', (req, res) => {
-  pp('-----CLAIMCODES-----', 'debug');
-  pp(ccm.getClaimCodeSet(TESTGROUPID));
-  pp('-----ENDOFCODES-----', 'debug');
-  res.status(200).json({ status: 'ok' });
-});
+// app.get('/logclaimcodes', (req, res) => {
+//   pp('-----CLAIMCODES-----', 'debug');
+//   pp(ccm.getClaimCodeSet(TESTGROUPID));
+//   pp('-----ENDOFCODES-----', 'debug');
+//   res.status(200).json({ status: 'ok' });
+// });
 
 app.listen(HTTP_PORT, () => {
   pp(`Express Http Server is running at port ${HTTP_PORT}`);
