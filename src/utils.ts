@@ -22,7 +22,7 @@ export function findRoomById(
   return undefined;
 }
 
-export function findGroupById(roomGroups: RoomGroupI[], groupId: BigInt): RoomGroupI {
+export function findGroupById(roomGroups: RoomGroupI[], groupId: bigint): RoomGroupI {
   const group = roomGroups.find((group) => group.id === groupId);
   console.log(roomGroups, groupId);
   if (!group) {
@@ -36,7 +36,7 @@ export function addIdentityToRoom(
   roomID: bigint,
   identityCommitment: bigint,
   roomGroups: RoomGroupI[]
-): { status: Boolean; roomGroups: RoomGroupI[] } {
+): { status: boolean; roomGroups: RoomGroupI[] } {
   let added = false;
   const r = findRoomById(roomGroups, roomID);
 

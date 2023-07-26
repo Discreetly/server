@@ -2,7 +2,6 @@ import type { MessageI, RoomGroupI } from 'discreetly-interfaces';
 import { str2BigInt } from 'discreetly-interfaces';
 import { RLNVerifier } from 'rlnjs';
 import vkey from './verification_key.js';
-import { poseidon1 } from 'poseidon-lite/poseidon1';
 import { findRoomById } from './utils.js';
 import { Group } from '@semaphore-protocol/group';
 

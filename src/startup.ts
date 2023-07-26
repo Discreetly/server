@@ -49,7 +49,7 @@ export async function initRedisVariables(redisClient: RedisClientType): Promise<
 }
 
 export function initSockets(io: SocketIOServer, loadedRooms: RoomGroupI[]) {
-  let userCount: userCountI = {};
+  const userCount: userCountI = {};
   io.on('connection', (socket: Socket) => {
     pp('SocketIO: a user connected', 'debug');
 
