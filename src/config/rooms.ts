@@ -1,4 +1,4 @@
-import type { MembershipI, RoomGroupI, ServerI } from 'discreetly-interfaces';
+import type { RoomGroupI, ServerI } from 'discreetly-interfaces';
 import { genId } from 'discreetly-interfaces';
 import 'dotenv/config';
 

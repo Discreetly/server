@@ -11,7 +11,7 @@ export default function Mock(io: SocketIOServer) {
       this.weightSums = [];
       let sum = 0;
 
-      for (let weight of weights) {
+      for (const weight of weights) {
         sum += weight;
         this.weightSums.push(sum);
       }
@@ -19,7 +19,7 @@ export default function Mock(io: SocketIOServer) {
 
     pick() {
       const rand = Math.random() * this.weightSums[this.weightSums.length - 1];
-      let index = this.weightSums.findIndex((sum) => rand < sum);
+      const index = this.weightSums.findIndex((sum) => rand < sum);
       return this.values[index]();
     }
   }
