@@ -2,12 +2,11 @@ name: Spellcheck
 on: [pull_request]
 
 jobs:
-  run:
-    name: Spell Check with Typos
+  build:
+    name: Spellcheck
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout Actions Repository
-      uses: actions/checkout@v2
-
-    - name: Writes changes in the local checkout
-      uses: crate-ci/typos@master
+    # The checkout step
+    - uses: actions/checkout@v3
+    - uses: rojopolis/spellcheck-github-actions@0.33.1
+      name: Spellcheck
