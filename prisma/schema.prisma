@@ -18,24 +18,18 @@ model Groups {
 }
 
 model Rooms {
-  id         String         @id @map("_id")
-  roomId     String         @unique
-  name       String
-  group      Groups         @relation(fields: [groupId], references: [groupId])
-  groupId    String
-  identities IdentityRoom[]
+  id                  String       @id @map("_id")
+  roomId              String       @unique
+  name                String
+  groupId             String
+  group               Groups       @relation(fields: [groupId], references: [groupId])
+  identityCommitments String[]     @default([])
+  identities          Identities[] @relation(fields: [identityCommitments], references: [id])
 }
 
 model Identities {
-  id         String         @id @map("_id")
-  identityId String         @unique
-  rooms      IdentityRoom[]
-}
-
-model IdentityRoom {
-  id         String     @id @map("_id")
-  identity   Identities @relation(fields: [identityId], references: [identityId])
-  identityId String
-  room       Rooms      @relation(fields: [roomId], references: [roomId])
-  roomId     String
+  id          String   @id @map("_id")
+  identityId  String   @unique
+  joinedRooms String[] @default([])
+  rooms       Rooms[]  @relation(fields: [joinedRooms], references: [id])
 }

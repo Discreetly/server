@@ -11,7 +11,7 @@ import type { MessageI, RoomI, RoomGroupI } from 'discreetly-interfaces';
 import verifyProof from './verifier.js';
 import { ClaimCodeManager } from 'discreetly-claimcodes';
 import type { ClaimCodeStatus } from 'discreetly-claimcodes';
-import { pp, addIdentityToRoom, createGroup, createRoom, findGroupById } from './utils.js';
+import { pp, addIdentityToRoom, createGroup, createRoom, findGroupById, findRoomById } from './utils.js';
 import { faker } from '@faker-js/faker';
 
 // HTTP is to get info from the server about configuration, rooms, etc
@@ -140,6 +140,11 @@ app.use(
   })
 );
 
+app.get('/identities', async (req, res) => {
+  const identities = await prisma.identities.findMany();
+  res.status(200).json(identities);
+})
+
 app.get('/groups', async (req, res) => {
   const groups = await prisma.groups.findMany({
     include: {
@@ -149,20 +154,13 @@ app.get('/groups', async (req, res) => {
         }
       }
     }
-  })
-  return res.status(200).json(groups);
-})
+  });
+
+  res.status(200).json(groups);
+});
 
 
-app.get('/groups/:groupId', async (req, res) => {
-  const { groupId } = req.params;
 
-  const group = await prisma.groups.findUnique({
-    where: { id: groupId },
-    include: { rooms: true }
-  })
-  return res.status(200).json(group);
-})
 
 app.get(['/', '/api'], (req, res) => {
   pp('Express: fetching server info');
