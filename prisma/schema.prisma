@@ -11,25 +11,35 @@ datasource db {
 }
 
 model Groups {
-  id      String  @id @map("_id")
+  id      String  @id @default(auto()) @map("_id") @db.ObjectId
   groupId String  @unique
   name    String?
   rooms   Rooms[]
 }
 
 model Rooms {
-  id                  String       @id @map("_id")
-  roomId              String       @unique
-  name                String
-  groupId             String
-  group               Groups       @relation(fields: [groupId], references: [groupId])
-  identityCommitments String[]     @default([])
-  identities          Identities[] @relation(fields: [identityCommitments], references: [id])
+  id         String       @id @default(auto()) @map("_id") @db.ObjectId
+  roomId     String       @unique
+  name       String
+  groupId    String
+  group      Groups       @relation(fields: [groupId], references: [groupId])
+  identities String[]     @default([])
+  messages   Messages[]
+  claimCodes ClaimCodes[]
 }
 
-model Identities {
-  id          String   @id @map("_id")
-  identityId  String   @unique
-  joinedRooms String[] @default([])
-  rooms       Rooms[]  @relation(fields: [joinedRooms], references: [id])
+model ClaimCodes {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  roomId    String @unique
+  claimcode String @unique
+  room      Rooms  @relation(fields: [roomId], references: [roomId])
+}
+
+model Messages {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  message   String
+  timeStamp DateTime @default(now())
+  roomId    String
+  room      Rooms    @relation(fields: [roomId], references: [roomId])
+  identity  String
 }

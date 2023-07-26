@@ -140,31 +140,19 @@ app.use(
   })
 );
 
-app.get('/identities', async (req, res) => {
-  const identities = await prisma.identities.findMany();
-  res.status(200).json(identities);
-})
-
-app.get('/groups', async (req, res) => {
-  const groups = await prisma.groups.findMany({
-    include: {
-      rooms: {
-        include: {
-          identities: true
-        }
-      }
-    }
-  });
-
-  res.status(200).json(groups);
-});
-
-
-
 
 app.get(['/', '/api'], (req, res) => {
   pp('Express: fetching server info');
   res.json(serverConfig);
+});
+
+app.get('/groups', async (req, res) => {
+  const groups = await prisma.groups.findMany({
+    include: {
+      rooms: true
+    }
+  });
+  res.status(200).json(groups);
 });
 
 app.get('/api/rooms', (req, res) => {
