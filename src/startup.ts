@@ -21,7 +21,7 @@ export async function initRedisVariables(redisClient: RedisClientType): Promise<
     loadedRooms = JSON.parse(_CachedRooms) as unknown as RoomGroupI[];
   } else {
     console.log('Using default rooms');
-    loadedRooms = defaultRooms as RoomGroupI[];
+    loadedRooms = defaultRooms ;
     redisClient.set('rooms', JSON.stringify(loadedRooms));
   }
 
@@ -115,12 +115,12 @@ export function initExpressEndpoints(
     const result: ClaimCodeStatus = ccm.claimCode(code);
     const groupID = result.groupID;
     if (result.status === 'CLAIMED') {
-      let claimedRooms: any[] = [];
-      let alreadyAddedRooms: any[] = [];
+      const claimedRooms: any[] = [];
+      const alreadyAddedRooms: any[] = [];
       loadedRooms.forEach((group) => {
         if (group.id == groupID) {
           group.rooms.forEach((room: RoomI) => {
-            let { status, roomGroups } = addIdentityToRoom(
+            const { status, roomGroups } = addIdentityToRoom(
               BigInt(room.id),
               BigInt(idc),
               loadedRooms
@@ -135,7 +135,7 @@ export function initExpressEndpoints(
           });
         }
       });
-      let r = [...claimedRooms, ...alreadyAddedRooms];
+      const r = [...claimedRooms, ...alreadyAddedRooms];
 
       if (claimedRooms.length > 0) {
         res.status(200).json({ status: 'valid', rooms: r });
