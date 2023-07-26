@@ -7,7 +7,7 @@ import Prisma from 'prisma';
 import { PrismaClient } from '@prisma/client';
 import { MongoClient, ServerApiVersion } from 'mongodb'
 import { serverConfig, rooms as defaultRooms, rooms } from './config/rooms.js';
-import type { MessageI, RoomI, RoomGroupI } from 'discreetly-interfaces';
+import { type MessageI, type RoomI, type RoomGroupI, genId } from 'discreetly-interfaces';
 import verifyProof from './verifier.js';
 import { ClaimCodeManager } from 'discreetly-claimcodes';
 import type { ClaimCodeStatus } from 'discreetly-claimcodes';
@@ -140,11 +140,11 @@ app.use(
   })
 );
 
-
 app.get(['/', '/api'], (req, res) => {
   pp('Express: fetching server info');
   res.json(serverConfig);
 });
+
 
 app.get('/groups', async (req, res) => {
   const groups = await prisma.groups.findMany({
@@ -155,18 +155,34 @@ app.get('/groups', async (req, res) => {
   res.status(200).json(groups);
 });
 
-app.get('/api/rooms', (req, res) => {
-  pp('Express: fetching rooms');
-  res.json(loadedRooms);
+app.get('/identities', async (req, res) => {
+  pp(String("Express: fetching all identities"))
+  const identities = await prisma.rooms.findMany({
+    select: {
+      name: true,
+      roomId: true,
+      identities: true
+    }
+  })
+  res.status(200).json(identities);
+})
+
+
+app.get('/api/rooms', async (req, res) => {
+  pp(String("Express: fetching all rooms"))
+  const rooms = await prisma.rooms.findMany();
+  res.status(200).json(rooms);
 });
 
-app.get('/api/rooms/:id', (req, res) => {
+app.get('/api/rooms/:id', async (req, res) => {
   // TODO This should return the room info for the given room ID
   pp(String('Express: fetching room info for ' + req.params.id));
-  const room = loadedRooms
-    .flatMap((rooms) => rooms.rooms)
-    .filter((room) => room.id === req.params.id);
-  res.json(room);
+  const room = await prisma.rooms.findUnique({
+    where: {
+      roomId: req.params.id
+    }
+  });
+  res.status(200).json(room);
 });
 
 // TODO api endpoint that creates new rooms and generates invite codes for them
@@ -228,14 +244,18 @@ app.get('/api/rooms/:id', (req, res) => {
 //   }
 // });
 
-app.post('/room/add', (req, res) => {
+app.post('/room/add', async (req, res) => {
   const data = req.body;
   const { password, groupId, roomName } = data;
   if (password === process.env.PASSWORD) {
-    const roomGroups = createRoom(groupId, roomName, loadedRooms);
-    loadedRooms = roomGroups;
-    redisClient.set('rooms', JSON.stringify(loadedRooms));
-    res.status(201).json({ status: `Created room ${roomName}`, loadedRooms });
+    const newRoom = await prisma.rooms.create({
+      data: {
+        roomId: genId(BigInt(999), roomName).toString(),
+        name: roomName,
+        groupId: groupId
+      }
+    })
+    res.status(200).json(newRoom)
   }
 });
 
