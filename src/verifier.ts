@@ -1,28 +1,16 @@
-import type { MessageI, RoomGroupI } from 'discreetly-interfaces';
+import type { MessageI, RoomI } from 'discreetly-interfaces';
 import { str2BigInt } from 'discreetly-interfaces';
 import { RLNVerifier } from 'rlnjs';
 import vkey from './verification_key.js';
-import { poseidon1 } from 'poseidon-lite/poseidon1';
-import { findRoomById } from './utils.js';
 import { Group } from '@semaphore-protocol/group';
 
 const v = new RLNVerifier(vkey);
 
-async function verifyProof(msg: MessageI, roomGroups: RoomGroupI[]): Promise<boolean> {
-  // FIXME NEED TO VALIDATE THE FOLLOWING (IN THIS ORDER):
-  // TODO EPOCH FALLS WITHIN RANGE FOR ROOM
-  // TODO INTERNAL NULLIFIER
-  // TODO MESSAGE HASH IS CORRECT
-  // TODO VERIFY MERKLE ROOT
-  // TODO VERIFY PROOF LAST
-  const { room } = findRoomById(roomGroups, msg.room);
-  if (!room) {
-    console.warn('Room not found');
-    return false;
-  }
+async function verifyProof(msg: MessageI, room: RoomI): Promise<boolean> {
   console.log('check room', room);
   const timestamp = Date.now();
-  const currentEpoch = Math.floor(timestamp / room.rateLimit);
+  const rateLimit = room.rateLimit ? room.rateLimit : 1000;
+  const currentEpoch = Math.floor(timestamp / rateLimit);
   const rlnIdentifier = BigInt(msg.room);
   const msgHash = str2BigInt(msg.message);
   // Check that the epoch falls within the range for the room
@@ -34,7 +22,7 @@ async function verifyProof(msg: MessageI, roomGroups: RoomGroupI[]): Promise<boo
   }
 
   // Check that the internal nullifier doesn't have collisions
-  // TODO RLNjs cache
+  // TODO! INTERNAL NULLIFIER (RLNjs cache)
 
   // Check that the message hash is correct
   if (msgHash !== msg.proof.snarkProof.publicSignals.x) {

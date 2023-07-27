@@ -1,0 +1,19 @@
+version: '3'
+services:
+  node:
+    build: .
+    ports:
+      - '3001:3001'
+      - '3002:3002'
+    volumes:
+      - .:/app
+    restart: always
+    depends_on:
+      - mongodb
+    environment:
+      - NODE_ENV=production
+  mongodb:
+    image: mongo
+    restart: always
+    ports:
+      - '27017:27017'
