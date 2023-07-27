@@ -11,23 +11,24 @@ datasource db {
 }
 
 model Rooms {
-  id               String      @id @default(auto()) @map("_id") @db.ObjectId
-  roomId           String      @unique
+  id               String       @id @default(auto()) @map("_id") @db.ObjectId
+  roomId           String       @unique
   name             String
-  rateLimit        Int         @default(1000) // epoch length in ms
-  userMessageLimit Int         @default(1) // per epoch
-  identities       String[]    @default([])
+  rateLimit        Int          @default(1000) // epoch length in ms
+  userMessageLimit Int          @default(1) // per epoch
+  identities       String[]     @default([])
   epochs           Epoch[]
   messages         Messages[]
-  claimCodes       ClaimCodes? @relation(fields: [claimCodesId], references: [id])
-  claimCodesId     String?     @db.ObjectId
+  claimCodes       ClaimCodes[] @relation(fields: [claimCodeIds], references: [id])
+  claimCodeIds     String[]     @default([]) @db.ObjectId
 }
 
 model ClaimCodes {
-  id        String  @id @default(auto()) @map("_id") @db.ObjectId
-  claimcode String  @unique
-  claimed   Boolean @default(false)
-  rooms     Rooms[]
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  claimcode String   @unique
+  claimed   Boolean  @default(false)
+  roomIds   String[] @default([]) @db.ObjectId
+  rooms     Rooms[]  @relation(fields: [roomIds], references: [id])
 }
 
 model Messages {
