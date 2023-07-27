@@ -82,7 +82,7 @@ console.log("Prisma connected");
 //   }
 // });
 
-// let ccm: ClaimCodeManager;
+let ccm: ClaimCodeManager = new ClaimCodeManager();
 
 // redisClient.get('ccm').then((cc) => {
 //   TESTGROUPID = BigInt(loadedRooms[0].id);
@@ -145,6 +145,11 @@ app.get(['/', '/api'], (req, res) => {
   res.json(serverConfig);
 });
 
+app.get('/claimcodes', async (req, res) => {
+  pp('Express: fetching claim codes');
+  const claimCodes = await prisma.claimCodes.findMany();
+  res.status(200).json(claimCodes);
+})
 
 app.get('/groups', async (req, res) => {
   const groups = await prisma.groups.findMany({
@@ -185,6 +190,16 @@ app.get('/api/rooms/:id', async (req, res) => {
   res.status(200).json(room);
 });
 
+app.post('/join', async (req, res) => {
+  const data = req.body;
+  const { code, idc } = data;
+  pp('Express[/join]: claiming code:' + code);
+  const result: ClaimCodeStatus = ccm.claimCode(code);
+  const groupID = result.groupID;
+  console.log(result);
+
+
+});
 // TODO api endpoint that creates new rooms and generates invite codes for them
 // app.post('/join', (req, res) => {
 //   const data = req.body;

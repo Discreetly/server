@@ -1,7 +1,12 @@
 import { PrismaClient } from '@prisma/client'
 import { genId } from 'discreetly-interfaces';
+import { ClaimCodeManager } from 'discreetly-claimcodes';
 
 const prisma = new PrismaClient();
+const ccm = new ClaimCodeManager();
+const claimCodes = ccm.generateClaimCodeSet(10, genId(0n, "Server Test"), "Server Test");
+const ccs = ccm.getClaimCodeSets()
+
 const idc = genId(0n, "First User").toString();
 const idc2 = genId(0n, "Second User").toString();
 
@@ -35,6 +40,13 @@ async function main() {
         }
       }
     }
+  })
+  claimCodes.claimCodes.forEach(async (claimCode) => {
+    await prisma.claimCodes.create({
+      data: {
+        claimcode: claimCode.code
+      }
+    })
   })
 }
 main();

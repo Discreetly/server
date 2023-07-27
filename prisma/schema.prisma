@@ -25,14 +25,11 @@ model Rooms {
   group      Groups       @relation(fields: [groupId], references: [groupId])
   identities String[]     @default([])
   messages   Messages[]
-  claimCodes ClaimCodes[]
 }
 
 model ClaimCodes {
   id        String @id @default(auto()) @map("_id") @db.ObjectId
-  roomId    String @unique
   claimcode String @unique
-  room      Rooms  @relation(fields: [roomId], references: [roomId])
 }
 
 model Messages {
