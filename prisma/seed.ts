@@ -1,52 +1,37 @@
 import { PrismaClient } from '@prisma/client'
 import { genId } from 'discreetly-interfaces';
-import { ClaimCodeManager } from 'discreetly-claimcodes';
+
 
 const prisma = new PrismaClient();
-const ccm = new ClaimCodeManager();
-const claimCodes = ccm.generateClaimCodeSet(10, genId(0n, "Server Test"), "Server Test");
-const ccs = ccm.getClaimCodeSets()
+
+
+
 
 const idc = genId(0n, "First User").toString();
 const idc2 = genId(0n, "Second User").toString();
 
 async function main() {
-  const groupOne = await prisma.groups.upsert({
-    where: { groupId: genId(0n, "Discreetly Test").toString() },
+  const groupOne = await prisma.rooms.upsert({
+    where: {
+      roomId: genId(0n, "First Room").toString()
+    },
     update: {},
     create: {
-      groupId: genId(0n, "Discreetly Test").toString(),
-      name: "Discreetly Test",
-      rooms: {
-        create: {
-          roomId: genId(0n, "First Room").toString(),
-          name: "First Room",
-          identities: [idc]
-        }
-      }
+      roomId: genId(0n, "First Room").toString(),
+      name: "First Room",
+      identities: [idc, idc2]
     }
   })
-  const groupTwo = await prisma.groups.upsert({
-    where: { groupId: genId(0n, "Server Test").toString() },
+  const groupTwo = await prisma.rooms.upsert({
+    where: {
+      roomId: genId(0n, "Room Two").toString()
+    },
     update: {},
     create: {
-      groupId: genId(0n, "Server Test").toString(),
-      name: "Server Test",
-      rooms: {
-        create: {
-          roomId: genId(0n, "Test").toString(),
-          name: "Test",
-          identities: [idc, idc2]
-        }
-      }
+      roomId: genId(0n, "Room Two").toString(),
+      name: "Room Two",
+      identities: [idc]
     }
-  })
-  claimCodes.claimCodes.forEach(async (claimCode) => {
-    await prisma.claimCodes.create({
-      data: {
-        claimcode: claimCode.code
-      }
-    })
   })
 }
 main();

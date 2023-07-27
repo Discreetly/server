@@ -10,26 +10,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Groups {
-  id      String  @id @default(auto()) @map("_id") @db.ObjectId
-  groupId String  @unique
-  name    String?
-  rooms   Rooms[]
-}
-
 model Rooms {
-  id         String       @id @default(auto()) @map("_id") @db.ObjectId
-  roomId     String       @unique
+  id         String     @id @default(auto()) @map("_id") @db.ObjectId
+  roomId     String     @unique
   name       String
-  groupId    String
-  group      Groups       @relation(fields: [groupId], references: [groupId])
-  identities String[]     @default([])
+  identities String[]   @default([])
   messages   Messages[]
 }
 
 model ClaimCodes {
-  id        String @id @default(auto()) @map("_id") @db.ObjectId
-  claimcode String @unique
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  claimcode String  @unique
+  claimed   Boolean @default(false)
 }
 
 model Messages {

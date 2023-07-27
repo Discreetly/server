@@ -9,7 +9,7 @@ import { MongoClient, ServerApiVersion } from 'mongodb'
 import { serverConfig, rooms as defaultRooms, rooms } from './config/rooms.js';
 import { type MessageI, type RoomI, type RoomGroupI, genId } from 'discreetly-interfaces';
 import verifyProof from './verifier.js';
-import { ClaimCodeManager } from 'discreetly-claimcodes';
+import { generateClaimCodes } from 'discreetly-claimcodes';
 import type { ClaimCodeStatus } from 'discreetly-claimcodes';
 import { pp, addIdentityToRoom, createGroup, createRoom, findGroupById, findRoomById } from './utils.js';
 import { faker } from '@faker-js/faker';
@@ -82,7 +82,7 @@ console.log("Prisma connected");
 //   }
 // });
 
-let ccm: ClaimCodeManager = new ClaimCodeManager();
+
 
 // redisClient.get('ccm').then((cc) => {
 //   TESTGROUPID = BigInt(loadedRooms[0].id);
@@ -145,20 +145,13 @@ app.get(['/', '/api'], (req, res) => {
   res.json(serverConfig);
 });
 
-app.get('/claimcodes', async (req, res) => {
+app.get('/logclaimcodes', async (req, res) => {
   pp('Express: fetching claim codes');
   const claimCodes = await prisma.claimCodes.findMany();
-  res.status(200).json(claimCodes);
+  console.log(claimCodes);
+  res.status(200).json();
 })
 
-app.get('/groups', async (req, res) => {
-  const groups = await prisma.groups.findMany({
-    include: {
-      rooms: true
-    }
-  });
-  res.status(200).json(groups);
-});
 
 app.get('/identities', async (req, res) => {
   pp(String("Express: fetching all identities"))
@@ -194,10 +187,6 @@ app.post('/join', async (req, res) => {
   const data = req.body;
   const { code, idc } = data;
   pp('Express[/join]: claiming code:' + code);
-  const result: ClaimCodeStatus = ccm.claimCode(code);
-  const groupID = result.groupID;
-  console.log(result);
-
 
 });
 // TODO api endpoint that creates new rooms and generates invite codes for them
@@ -266,8 +255,7 @@ app.post('/room/add', async (req, res) => {
     const newRoom = await prisma.rooms.create({
       data: {
         roomId: genId(BigInt(999), roomName).toString(),
-        name: roomName,
-        groupId: groupId
+        name: roomName
       }
     })
     res.status(200).json(newRoom)
