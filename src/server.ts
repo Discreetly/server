@@ -138,36 +138,37 @@ app.post('/join', async (req, res) => {
   const data = req.body;
   const { code, idc } = data;
   pp('Express[/join]: claiming code:' + code);
-  const codeStatus = await prisma.claimCodes.findUnique({
+  const claimCode = await prisma.claimCodes.findUnique({
     where: {
       claimcode: code
+    }, include: {
+      rooms: true
     }
-  });
-  if (codeStatus.claimed === false) {
-    const claimCode = await prisma.claimCodes.update({
+  })
+  if (claimCode.claimed === false) {
+    await prisma.claimCodes.update({
       where: {
         claimcode: code
       },
       data: {
         claimed: true
       }
-    });
-    const roomIds = claimCode['roomIds'].map((room) => room);
-    const updatedRooms = await prisma.rooms.updateMany({
-      where: {
-        roomId: {
-          in: roomIds
+    })
+    claimCode.rooms.forEach(async (room) => {
+      await prisma.rooms.update({
+        where: {
+          roomId: room.roomId
+        },
+        data: {
+          identities: {
+            push: idc
+          }
         }
-      },
-      data: {
-        identities: {
-          push: idc
-        }
-      }
-    });
-    res.status(200).json(updatedRooms);
+      })
+    })
+    res.status(201).json({ message: "Claim code successfully claimed" })
   } else {
-    res.status(400).json({ message: 'Claim code already used' });
+    res.status(400).json({ message: "Claim code already used" })
   }
 });
 // TODO api endpoint that creates new rooms and generates invite codes for them
