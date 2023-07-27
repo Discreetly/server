@@ -10,29 +10,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Groups {
-  id      String  @id @default(auto()) @map("_id") @db.ObjectId
-  groupId String  @unique
-  name    String?
-  rooms   Rooms[]
-}
-
 model Rooms {
-  id         String       @id @default(auto()) @map("_id") @db.ObjectId
-  roomId     String       @unique
-  name       String
-  groupId    String
-  group      Groups       @relation(fields: [groupId], references: [groupId])
-  identities String[]     @default([])
-  messages   Messages[]
-  claimCodes ClaimCodes[]
+  id               String       @id @default(auto()) @map("_id") @db.ObjectId
+  roomId           String       @unique
+  name             String
+  rateLimit        Int          @default(1000) // epoch length in ms
+  userMessageLimit Int          @default(1) // per epoch
+  identities       String[]     @default([])
+  epochs           Epoch[]
+  messages         Messages[]
+  claimCodes       ClaimCodes[] @relation(fields: [claimCodeIds], references: [id])
+  claimCodeIds     String[]     @default([]) @db.ObjectId
 }
 
 model ClaimCodes {
-  id        String @id @default(auto()) @map("_id") @db.ObjectId
-  roomId    String @unique
-  claimcode String @unique
-  room      Rooms  @relation(fields: [roomId], references: [roomId])
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  claimcode String   @unique
+  claimed   Boolean  @default(false)
+  roomIds   String[] @default([]) @db.ObjectId
+  rooms     Rooms[]  @relation(fields: [roomIds], references: [id])
 }
 
 model Messages {
@@ -41,5 +37,15 @@ model Messages {
   timeStamp DateTime @default(now())
   roomId    String
   room      Rooms    @relation(fields: [roomId], references: [roomId])
-  identity  String
+  proof     String
+  epoch     Epoch?   @relation(fields: [epochId], references: [id])
+  epochId   String?  @db.ObjectId
+}
+
+model Epoch {
+  id       String     @id @default(auto()) @map("_id") @db.ObjectId
+  epoch    Int
+  messages Messages[]
+  rooms    Rooms?     @relation(fields: [roomsId], references: [id])
+  roomsId  String?    @db.ObjectId
 }

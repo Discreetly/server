@@ -2,16 +2,14 @@ import express from 'express';
 import { Server } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import cors from 'cors';
-import { createClient } from 'redis';
 import Prisma from 'prisma';
 import { PrismaClient } from '@prisma/client';
-import { MongoClient, ServerApiVersion } from 'mongodb'
 import { serverConfig, rooms as defaultRooms, rooms } from './config/rooms.js';
-import type { MessageI, RoomI, RoomGroupI } from 'discreetly-interfaces';
+import { type MessageI, type RoomI, type RoomGroupI, genId } from 'discreetly-interfaces';
 import verifyProof from './verifier.js';
-import { ClaimCodeManager } from 'discreetly-claimcodes';
+import { generateClaimCodes } from 'discreetly-claimcodes';
 import type { ClaimCodeStatus } from 'discreetly-claimcodes';
-import { pp, addIdentityToRoom, createGroup, createRoom, findGroupById, findRoomById } from './utils.js';
+import { pp } from './utils.js';
 import { faker } from '@faker-js/faker';
 
 // HTTP is to get info from the server about configuration, rooms, etc
@@ -52,60 +50,6 @@ const prisma = new PrismaClient();
 console.log("Prisma connected");
 
 
-// if (!process.env.REDIS_URL) {
-//   console.log('Connecting to redis at localhost');
-//   redisClient = createClient();
-//   TESTING = true;
-// } else {
-//   console.log('Connecting to redis at: ' + process.env.REDIS_URL);
-//   console.log(process.env.REDIS_TLS_URL);
-//   redisClient = createClient({
-//     url: process.env.REDIS_URL,
-//     socket: {
-//       tls: true,
-//       rejectUnauthorized: false
-//     }
-//   });
-// }
-// redisClient.connect().then(() => pp('Redis Connected'));
-
-
-
-
-// redisClient.get('rooms').then((rooms) => {
-//   rooms = JSON.parse(rooms);
-//   if (rooms) {
-//     loadedRooms = rooms as unknown as RoomGroupI[];
-//   } else {
-//     loadedRooms = defaultRooms;
-//     redisClient.set('rooms', JSON.stringify(loadedRooms));
-//   }
-// });
-
-// let ccm: ClaimCodeManager;
-
-// redisClient.get('ccm').then((cc) => {
-//   TESTGROUPID = BigInt(loadedRooms[0].id);
-//   if (!cc) {
-//     ccm = new ClaimCodeManager();
-//     ccm.generateClaimCodeSet(10, TESTGROUPID, 'TEST');
-//     const ccs = ccm.getClaimCodeSets();
-//     redisClient.set('ccm', JSON.stringify(ccs));
-//   } else {
-//     ccm = new ClaimCodeManager(JSON.parse(cc));
-
-//     if (ccm.getUsedCount(TESTGROUPID).unusedCount < 5) {
-//       ccm.generateClaimCodeSet(10, TESTGROUPID, 'TEST');
-//       const ccs = ccm.getClaimCodeSets();
-
-//       redisClient.set('ccm', JSON.stringify(ccs));
-//     }
-//   }
-//   const ccs = ccm.getClaimCodeSets();
-// });
-
-// redisClient.on('error', (err) => pp('Redis Client Error: ' + err, 'error'));
-
 io.on('connection', (socket: Socket) => {
   pp('SocketIO: a user connected', 'debug');
 
@@ -140,124 +84,104 @@ app.use(
   })
 );
 
-
 app.get(['/', '/api'], (req, res) => {
   pp('Express: fetching server info');
   res.json(serverConfig);
 });
 
-app.get('/groups', async (req, res) => {
-  const groups = await prisma.groups.findMany({
-    include: {
-      rooms: true
+app.get('/logclaimcodes', async (req, res) => {
+  pp('Express: fetching claim codes');
+  const claimCodes = await prisma.claimCodes.findMany();
+  res.status(200).json(claimCodes);
+})
+
+
+app.get('/identities', async (req, res) => {
+  pp(String("Express: fetching all identities"))
+  const identities = await prisma.rooms.findMany({
+    select: {
+      name: true,
+      roomId: true,
+      identities: true
     }
-  });
-  res.status(200).json(groups);
+  })
+  res.status(200).json(identities);
+})
+
+
+app.get('/api/rooms', async (req, res) => {
+  pp(String("Express: fetching all rooms"))
+  const rooms = await prisma.rooms.findMany();
+  res.status(200).json(rooms);
 });
 
-app.get('/api/rooms', (req, res) => {
-  pp('Express: fetching rooms');
-  res.json(loadedRooms);
-});
-
-app.get('/api/rooms/:id', (req, res) => {
+app.get('/api/rooms/:id', async (req, res) => {
   // TODO This should return the room info for the given room ID
   pp(String('Express: fetching room info for ' + req.params.id));
-  const room = loadedRooms
-    .flatMap((rooms) => rooms.rooms)
-    .filter((room) => room.id === req.params.id);
-  res.json(room);
+  const room = await prisma.rooms.findUnique({
+    where: {
+      roomId: req.params.id
+    }
+  });
+  res.status(200).json(room);
 });
 
-// TODO api endpoint that creates new rooms and generates invite codes for them
-// app.post('/join', (req, res) => {
-//   const data = req.body;
-//   const { code, idc } = data;
-//   pp('Express[/join]: claiming code:' + code);
-//   const result: ClaimCodeStatus = ccm.claimCode(code);
-//   const groupID = result.groupID;
-//   if (result.status === 'CLAIMED') {
-//     let claimedRooms = [];
-//     let alreadyAddedRooms = [];
-//     loadedRooms.forEach((group) => {
-//       if (group.id == groupID) {
-//         group.rooms.forEach((room: RoomI) => {
-//           let { status, roomGroups } = addIdentityToRoom(BigInt(room.id), BigInt(idc), loadedRooms);
-//           loadedRooms = roomGroups;
-//           redisClient.set('rooms', JSON.stringify(loadedRooms));
-//           if (status) {
-//             claimedRooms.push(room);
-//           } else {
-//             alreadyAddedRooms.push(room);
-//           }
-//         });
-//       }
-//     });
-//     let r = [...claimedRooms, ...alreadyAddedRooms];
-
-//     if (claimedRooms.length > 0) {
-//       res.status(200).json({ status: 'valid', rooms: r });
-//     } else if (alreadyAddedRooms.length > 0) {
-//       res.status(200).json({ status: 'already-added', rooms: r });
-//     } else {
-//       res.status(451).json({ status: 'invalid' });
-//     }
-
-//     // the DB should be updated after we successfully send a response
-//     redisClient.set('ccm', JSON.stringify(ccm.getClaimCodeSets()));
-//   } else {
-//     res.status(451).json({ status: 'invalid' });
-//   }
-// });
-
-// TODO we are going to need endpoints that take a password that will be in a .env file to generate new roomGroups, rooms, and claim codes
-// app.post('/group/add', (req, res) => {
-//   const data = req.body;
-//   const { password, groupName, roomNames, codes } = data;
-//   if (password === process.env.PASSWORD) {
-//     const result = createGroup(groupName, roomNames, loadedRooms);
-//     loadedRooms = result.roomGroup;
-//     redisClient.set('rooms', JSON.stringify(loadedRooms));
-//     if (codes.generate) {
-//       codes.amount = codes.amount || 10;
-//       ccm.generateClaimCodeSet(codes.amount, result.groupId, groupName);
-//       const ccs = ccm.getClaimCodeSets();
-//       redisClient.set('ccm', JSON.stringify(ccs));
-//     }
-//     res.status(201).json({ status: `Created group ${groupName}`, loadedRooms });
-//   }
-// });
-
-app.post('/room/add', (req, res) => {
+app.post('/join', async (req, res) => {
   const data = req.body;
-  const { password, groupId, roomName } = data;
+  const { code, idc } = data;
+  pp('Express[/join]: claiming code:' + code);
+  const codeStatus = await prisma.claimCodes.findUnique({
+    where: {
+      claimcode: code
+    }
+  })
+  if (codeStatus.claimed === false) {
+    const claimCode = await prisma.claimCodes.update({
+      where: {
+        claimcode: code
+      },
+      data: {
+        claimed: true
+      }
+    })
+    const roomIds = claimCode["roomIds"].map((room) => room);
+    const updatedRooms = await prisma.rooms.updateMany({
+      where: {
+        roomId: {
+          in: roomIds
+        }
+      },
+      data: {
+        identities: {
+          push: idc
+        }
+      }
+    })
+    res.status(200).json(updatedRooms);
+  } else {
+    res.status(400).json({ message: "Claim code already used" })
+  }
+});
+// TODO api endpoint that creates new rooms and generates invite codes for them
+
+
+app.post('/room/add', async (req, res) => {
+  const data = req.body;
+  const { password, roomName } = data;
   if (password === process.env.PASSWORD) {
-    const roomGroups = createRoom(groupId, roomName, loadedRooms);
-    loadedRooms = roomGroups;
-    redisClient.set('rooms', JSON.stringify(loadedRooms));
-    res.status(201).json({ status: `Created room ${roomName}`, loadedRooms });
+    const newRoom = await prisma.rooms.create({
+      data: {
+        roomId: genId(BigInt(999), roomName).toString(),
+        name: roomName
+      }
+    })
+    res.status(200).json(newRoom)
   }
 });
 
-// app.post('/group/createcode', (req, res) => {
-//   const data = req.body;
-//   let { password, groupId, amount } = data;
-//   if (password === process.env.PASSWORD) {
-//     amount = amount || 10;
-//     console.log(loadedRooms, groupId);
-//     const group = findGroupById(loadedRooms, groupId);
-//     const ccs = ccm.generateClaimCodeSet(amount, groupId, group.name);
-//     redisClient.set('ccm', JSON.stringify(ccs));
-//     res.status(201).json({ stats: `Created ${amount} codes for ${group.name}`, ccm });
-//   }
-// });
 
-// app.get('/logclaimcodes', (req, res) => {
-//   pp('-----CLAIMCODES-----', 'debug');
-//   pp(ccm.getClaimCodeSet(TESTGROUPID));
-//   pp('-----ENDOFCODES-----', 'debug');
-//   res.status(200).json({ status: 'ok' });
-// });
+
+
 
 app.listen(HTTP_PORT, () => {
   pp(`Express Http Server is running at port ${HTTP_PORT}`);
@@ -267,11 +191,6 @@ socket_server.listen(SOCKET_PORT, () => {
   pp(`SocketIO Server is running at port ${SOCKET_PORT}`);
 });
 
-// Disconnect from redis on exit
-// process.on('SIGINT', () => {
-//   pp('disconnecting redis');
-//   redisClient.disconnect().then(process.exit());
-// });
 
 if (TESTING) {
   class randomMessagePicker {
