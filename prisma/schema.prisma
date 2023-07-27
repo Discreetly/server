@@ -1,0 +1,51 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Rooms {
+  id               String       @id @default(auto()) @map("_id") @db.ObjectId
+  roomId           String       @unique
+  name             String
+  rateLimit        Int          @default(1000) // epoch length in ms
+  userMessageLimit Int          @default(1) // per epoch
+  identities       String[]     @default([])
+  epochs           Epoch[]
+  messages         Messages[]
+  claimCodes       ClaimCodes[] @relation(fields: [claimCodeIds], references: [id])
+  claimCodeIds     String[]     @default([]) @db.ObjectId
+}
+
+model ClaimCodes {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  claimcode String   @unique
+  claimed   Boolean  @default(false)
+  roomIds   String[] @default([]) @db.ObjectId
+  rooms     Rooms[]  @relation(fields: [roomIds], references: [id])
+}
+
+model Messages {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  message   String
+  timeStamp DateTime @default(now())
+  roomId    String
+  room      Rooms    @relation(fields: [roomId], references: [roomId])
+  proof     String
+  epoch     Epoch?   @relation(fields: [epochId], references: [id])
+  epochId   String?  @db.ObjectId
+}
+
+model Epoch {
+  id       String     @id @default(auto()) @map("_id") @db.ObjectId
+  epoch    Int
+  messages Messages[]
+  rooms    Rooms?     @relation(fields: [roomsId], references: [id])
+  roomsId  String?    @db.ObjectId
+}
