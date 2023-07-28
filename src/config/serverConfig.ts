@@ -15,7 +15,7 @@ console.log('SERVERID:', serverID);
 export const serverConfig: ServerI = {
   id: serverID,
   name: 'Localhost',
-  serverInfoEndpoint: 'localhost:3001',
-  messageHandlerSocket: 'http://localhost:3002',
+  serverInfoEndpoint: '3001',
+  messageHandlerSocket: '3002',
   version: '0.0.1'
 };
