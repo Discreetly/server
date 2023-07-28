@@ -33,6 +33,7 @@ model ClaimCodes {
 
 model Messages {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  messageID String // Internal Nullifier
   message   String
   timeStamp DateTime @default(now())
   roomId    String
