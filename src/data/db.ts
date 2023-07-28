@@ -60,13 +60,21 @@ export function createRoom(
   userMessageLimit: number = 1,
   numClaimCodes: number = 0,
   approxNumMockUsers: number = 20
-) {
+): boolean {
   function genMockUsers(numMockUsers: number): string[] {
     // Generates random number of mock users between 0.5 x numMockusers and 2 x numMockUsers
     const newNumMockUsers = randn_bm(numMockUsers / 2, numMockUsers * 2);
     const mockUsers: string[] = [];
     for (let i = 0; i < newNumMockUsers; i++) {
-      mockUsers.push(genId(serverConfig.id, 'Mock User ' + i).toString());
+      mockUsers.push(
+        genId(
+          serverConfig.id,
+          // Generates a random string of length 10
+          Math.random()
+            .toString(36)
+            .substring(2, 2 + 10) + i
+        ).toString()
+      );
     }
     return mockUsers;
   }
@@ -100,6 +108,9 @@ export function createRoom(
 
   prisma.rooms
     .upsert(roomData)
-    .then(() => {})
+    .then(() => {
+      return true;
+    })
     .catch((err) => console.error(err));
+  return false;
 }
