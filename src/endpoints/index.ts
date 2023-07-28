@@ -1,13 +1,14 @@
+import type { Express } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { serverConfig } from '../config/serverConfig';
 import { pp } from '../utils.js';
 import { getRoomByID } from '../data/db';
 import { genId } from 'discreetly-interfaces';
 
-// TODO! Properly handle authentication for admin controls
+// TODO! Properly handle authentication for admin endpoints
 // TODO api endpoint that creates new rooms and generates invite codes for them
 
-export function initEndpoints(app) {
+export function initEndpoints(app: Express) {
   const prisma = new PrismaClient();
 
   app.get(['/', '/api'], (req, res) => {

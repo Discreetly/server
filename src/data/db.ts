@@ -11,6 +11,7 @@ export function getRoomByID(id: string): RoomI | null {
       }
     })
     .then((room) => {
+      //TODO NEED TO FILTER OUT CLAIMCODE REFERENCES
       return room;
     })
     .catch((err) => console.error(err));
