@@ -5,7 +5,7 @@ import cors from 'cors';
 import { serverConfig } from './config/serverConfig';
 import { pp, shim } from './utils';
 import mock from './data/mock';
-import { websocketSetup } from './websockets/index';
+import { websocketSetup as initWebsockets } from './websockets/index';
 import { initEndpoints } from './endpoints/index';
 
 const app = express();
@@ -41,12 +41,12 @@ function initAppListeners() {
  */
 if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   console.log('~~~~DEVELOPMENT MODE~~~~');
-  websocketSetup(io);
+  initWebsockets(io);
   initEndpoints(app);
   initAppListeners();
   mock(io);
 } else {
-  websocketSetup(io);
+  initWebsockets(io);
   initEndpoints(app);
   initAppListeners();
 }
