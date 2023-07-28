@@ -2,8 +2,8 @@ import type { Express } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { serverConfig } from '../config/serverConfig';
 import { pp } from '../utils.js';
-import { getRoomByID } from '../data/db';
-import { genId } from 'discreetly-interfaces';
+import { getRoomByID, getRoomsByIdentity } from '../data/db';
+import { RoomI, genId } from 'discreetly-interfaces';
 
 // TODO! Properly handle authentication for admin endpoints
 // TODO api endpoint that creates new rooms and generates invite codes for them
@@ -43,14 +43,23 @@ export function initEndpoints(app: Express) {
       });
   });
 
-  app.get('/api/rooms/:id', (req, res) => {
-    // TODO This should return the room info for the given room ID
+  app.get('/api/room/:id', (req, res) => {
     pp(String('Express: fetching room info for ' + req.params.id));
-    const room = getRoomByID(req.params.id);
-    if (!room) {
-      res.status(500).json({ error: 'Internal Server Error' });
-    }
-    res.status(200).json(room);
+    getRoomByID(req.params.id)
+      .then((room: RoomI) => {
+        if (!room) {
+          // This is set as a timeout to prevent someone from trying to brute force room ids
+          setTimeout(() => res.status(500).json({ error: 'Internal Server Error' }), 1000);
+        } else {
+          res.status(200).json(room);
+        }
+      })
+      .catch((err) => console.error(err));
+  });
+
+  app.get('/api/rooms/:idc', (req, res) => {
+    pp(String('Express: fetching rooms by identityCommitment ' + req.params.idc));
+    res.json(getRoomsByIdentity(req.params.idc));
   });
 
   app.post('/join', (req, res) => {
@@ -105,7 +114,9 @@ export function initEndpoints(app: Express) {
                       }
                     }
                   });
-                  res.status(200).json(updatedRooms.map((room) => room.roomId));
+                  res
+                    .status(200)
+                    .json({ status: 'valid', roomIds: updatedRooms.map((room) => room.roomId) });
                 })
                 .catch((err) => {
                   console.error(err);

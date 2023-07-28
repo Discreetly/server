@@ -15,23 +15,26 @@ export function websocketSetup(io: SocketIOServer) {
     socket.on('validateMessage', (msg: MessageI) => {
       pp({ 'VALIDATING MESSAGE ID': msg.id.slice(0, 11), 'MSG:': msg.message });
       let valid: boolean;
-      const room: RoomI = getRoomByID(msg.room.toString());
-      if (!room) {
-        pp('INVALID ROOM', 'warn');
-        return;
-      }
-      verifyProof(msg, room)
-        .then((v) => {
-          valid = v;
+      getRoomByID(msg.room.toString())
+        .then((room: RoomI) => {
+          if (!room) {
+            pp('INVALID ROOM', 'warn');
+            return;
+          }
+          verifyProof(msg, room)
+            .then((v) => {
+              valid = v;
+            })
+            .catch((err) => {
+              err;
+            });
+          if (!valid) {
+            pp('INVALID MESSAGE', 'warn');
+            return;
+          }
+          io.emit('messageBroadcast', msg);
         })
-        .catch((err) => {
-          err;
-        });
-      if (!valid) {
-        pp('INVALID MESSAGE', 'warn');
-        return;
-      }
-      io.emit('messageBroadcast', msg);
+        .catch((err) => pp(err, 'error'));
     });
 
     socket.on('disconnect', () => {

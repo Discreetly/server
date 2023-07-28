@@ -10,8 +10,8 @@ import type { ClaimCodeT } from 'discreetly-claimcodes';
 
 const prisma = new PrismaClient();
 
-export function getRoomByID(id: string): RoomI | null {
-  prisma.rooms
+export function getRoomByID(id: string): Promise<RoomI> {
+  return prisma.rooms
     .findUnique({
       where: {
         roomId: id
@@ -21,8 +21,29 @@ export function getRoomByID(id: string): RoomI | null {
       //TODO NEED TO FILTER OUT CLAIMCODE REFERENCES
       return room;
     })
+    .catch((err) => {
+      console.error(err);
+      throw err; // Add this line to throw the error
+    });
+}
+
+export function getRoomsByIdentity(identity: string): RoomI[] {
+  // TODO Need to create a system here where the client needs to provide a proof they know the secrets to some Identity Commitment with a unix epoch time stamp to prevent replay attacks
+  prisma.rooms
+    .findMany({
+      where: {
+        identities: {
+          has: identity
+        }
+      }
+    })
+    .then((rooms) => {
+      return rooms.map((room) => {
+        room.roomId;
+      });
+    })
     .catch((err) => console.error(err));
-  return null;
+  return [];
 }
 
 /**
