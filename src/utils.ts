@@ -9,7 +9,11 @@ export function shim() {
   };
 }
 
-// Pretty Print to console
+/**
+ * Logs the provided string to the console with the specified log level.
+ * @param {any} str - The string to log.
+ * @param {string} [level='log'] - The log level to use. Can be one of 'log', 'debug', 'info', 'warn', 'warning', 'error', 'err', 'table', or 'assert'.
+ */
 export const pp = (str: any, level = 'log') => {
   str = JSON.stringify(str, null, 2);
   switch (level) {
@@ -37,3 +41,22 @@ export const pp = (str: any, level = 'log') => {
       console.log(str);
   }
 };
+
+// from: https://stackoverflow.com/a/49434653/957648
+export function randn_bm(min: number, max: number, skew: number = 1) {
+  let u = 0,
+    v = 0;
+  while (u === 0) u = Math.random(); //Converting [0,1) to (0,1)
+  while (v === 0) v = Math.random();
+  let num = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+
+  num = num / 10.0 + 0.5; // Translate to 0 -> 1
+  if (num > 1 || num < 0)
+    num = randn_bm(min, max, skew); // resample between 0 and 1 if out of range
+  else {
+    num = Math.pow(num, skew); // Skew
+    num *= max - min; // Stretch to fill range
+    num += min; // offset to min
+  }
+  return num;
+}

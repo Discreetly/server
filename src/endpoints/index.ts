@@ -16,15 +16,17 @@ export function initEndpoints(app: Express) {
     res.json(serverConfig);
   });
 
-  app.get('/logclaimcodes', () => {
+  app.get('/logclaimcodes', (req, res) => {
     pp('Express: fetching claim codes');
     prisma.claimCodes
       .findMany()
       .then((claimCodes) => {
         console.log(claimCodes);
+        res.status(401).send('Unauthorized');
       })
       .catch((err) => {
         console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
       });
   });
 
@@ -56,7 +58,7 @@ export function initEndpoints(app: Express) {
       code: string;
       idc: string;
     }
-
+    console.log(req.body);
     const { code, idc } = req.body as JoinRequestBody;
 
     pp(`Express[/join]: claiming code: ${code}`);
@@ -68,6 +70,7 @@ export function initEndpoints(app: Express) {
         }
       })
       .then((codeStatus: { claimed: boolean; roomIds: string[] }) => {
+        console.log(codeStatus);
         if (codeStatus.claimed === false) {
           prisma.claimCodes
             .update({
@@ -75,7 +78,7 @@ export function initEndpoints(app: Express) {
                 claimcode: code
               },
               data: {
-                claimed: true
+                claimed: false //TODO! This should be true and is only false for testing
               }
             })
             .then((claimCode: { roomIds: string[] }) => {
@@ -93,8 +96,16 @@ export function initEndpoints(app: Express) {
                     }
                   }
                 })
-                .then((updatedRooms) => {
-                  res.status(200).json(updatedRooms);
+                .then(async () => {
+                  // return the room name of all the rooms that were updated
+                  const updatedRooms = await prisma.rooms.findMany({
+                    where: {
+                      id: {
+                        in: roomIds
+                      }
+                    }
+                  });
+                  res.status(200).json(updatedRooms.map((room) => room.roomId));
                 })
                 .catch((err) => {
                   console.error(err);

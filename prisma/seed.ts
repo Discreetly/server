@@ -1,53 +1,9 @@
-import { PrismaClient } from '@prisma/client'
-import { genId } from 'discreetly-interfaces';
-import { generateClaimCodes } from 'discreetly-claimcodes';
+import { createRoom } from '../src/data/db';
 
-const prisma = new PrismaClient();
-
-
-
-
-const idc = genId(0n, "First User").toString();
-const idc2 = genId(0n, "Second User").toString();
-const claimCodes = generateClaimCodes(10);
-// console.log(claimCodes);
-let codeArr: any[] = [];
-claimCodes.forEach(code => {
-  codeArr.push({ claimcode: code.code })
-})
-
-const seedData = {
-  where: {
-    roomId: genId(0n, "First Room").toString()
-  },
-  update: {},
-  create: {
-    roomId: genId(0n, "First Room").toString(),
-    name: "First Room",
-    identities: [idc, idc2],
-    claimCodes: {
-      create: codeArr
-
-    }
-  }
+function main() {
+  createRoom('1 Second Room', 1000, 1, 10);
+  createRoom('10 Second Room', 10000, 2, 10);
+  createRoom('100 Second Room', 100000, 10, 10);
 }
-async function main() {
 
-  await prisma.rooms.upsert(seedData)
-  await prisma.rooms.upsert({
-    where: {
-      roomId: genId(0n, "Room Two").toString()
-    },
-    update: {},
-    create: {
-      roomId: genId(0n, "Room Two").toString(),
-      name: "Room Two",
-      identities: [idc],
-      claimCodes: {
-        create: codeArr
-      }
-    }
-  })
-  console.log(seedData);
-}
 main();

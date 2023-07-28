@@ -27,12 +27,14 @@ const io = new SocketIOServer(socket_server, {
 });
 
 function initAppListeners() {
-  app.listen(serverConfig.serverInfoEndpoint, () => {
-    pp(`Express Http Server is running at port ${serverConfig.serverInfoEndpoint}`);
+  const expressServerPort = serverConfig.serverInfoEndpoint.split(':')[1];
+  const socketServerPort = serverConfig.messageHandlerSocket.split(':')[1];
+  app.listen(expressServerPort, () => {
+    pp(`Express Http Server is running at port ${expressServerPort}`);
   });
 
-  socket_server.listen(serverConfig.messageHandlerSocket, () => {
-    pp(`SocketIO Server is running at port ${serverConfig.messageHandlerSocket}`);
+  socket_server.listen(socketServerPort, () => {
+    pp(`SocketIO Server is running at port ${socketServerPort}`);
   });
 }
 
