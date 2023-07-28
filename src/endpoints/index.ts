@@ -87,7 +87,7 @@ export function initEndpoints(app: Express) {
                 claimcode: code
               },
               data: {
-                claimed: false //TODO! This should be true and is only false for testing
+                claimed: true
               }
             })
             .then((claimCode: { roomIds: string[] }) => {
