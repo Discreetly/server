@@ -1,11 +1,16 @@
+/* eslint-disable @typescript-eslint/unbound-method */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { faker } from '@faker-js/faker';
 import { MessageI } from 'discreetly-interfaces';
 import { Server as SocketIOServer } from 'socket.io';
 
 export default function Mock(io: SocketIOServer) {
   class randomMessagePicker {
-    values: any;
-    weightSums: any[];
+    values: any[];
+    weightSums: number[];
     constructor(values, weights) {
       this.values = values;
       this.weightSums = [];
