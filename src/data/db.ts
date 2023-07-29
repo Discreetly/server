@@ -10,17 +10,32 @@ import type { ClaimCodeT } from 'discreetly-claimcodes';
 
 const prisma = new PrismaClient();
 
+
+interface CodeStatus {
+  claimed: boolean;
+  roomIds: string[];
+}
+
+interface ClaimCode {
+  roomIds: string[];
+}
+
 export function getRoomByID(id: string): Promise<RoomI> {
-  return prisma.rooms
-    .findUnique({
-      where: {
-        roomId: id
-      }
-    })
-    .then((room) => {
-      //TODO NEED TO FILTER OUT CLAIMCODE REFERENCES
-      return room;
-    })
+  return prisma.rooms.findUnique({
+    where: {
+      roomId: id
+    },
+    select: {
+      id: true,
+      roomId: true,
+      name: true,
+      identities: true,
+      rateLimit: true,
+      userMessageLimit: true,
+    }
+  }).then((room) => {
+    return room
+  })
     .catch((err) => {
       console.error(err);
       throw err; // Add this line to throw the error
@@ -28,7 +43,10 @@ export function getRoomByID(id: string): Promise<RoomI> {
 }
 
 export function getRoomsByIdentity(identity: string): RoomI[] {
-  // TODO Need to create a system here where the client needs to provide a proof they know the secrets to some Identity Commitment with a unix epoch time stamp to prevent replay attacks
+  /* TODO Need to create a system here where the client needs to provide a
+  proof they know the secrets to some Identity Commitment with a unix epoch
+  time stamp to prevent replay attacks
+  */
   prisma.rooms
     .findMany({
       where: {
@@ -100,6 +118,36 @@ export function createRoom(
 
   prisma.rooms
     .upsert(roomData)
-    .then(() => {})
+    .then(() => { })
     .catch((err) => console.error(err));
+}
+
+export function findClaimCode(code: string): Promise<CodeStatus> {
+  return prisma.claimCodes.findUnique({
+    where: { claimcode: code },
+  });
+}
+
+export function updateClaimCode(code: string): Promise<ClaimCode> {
+  return prisma.claimCodes.update({
+    where: { claimcode: code },
+    data: { claimed: true },
+  });
+}
+
+export function updateRoomIdentities(idc: string, roomIds: string[]): Promise<any> {
+  return prisma.rooms.updateMany({
+    where: { id: { in: roomIds } },
+    data: {
+      identities: {
+        push: idc
+      },
+    },
+  });
+}
+
+export function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
+  return prisma.rooms.findMany({
+    where: { id: { in: roomIds } },
+  });
 }

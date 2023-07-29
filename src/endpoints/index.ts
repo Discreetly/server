@@ -2,7 +2,7 @@ import type { Express } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { serverConfig } from '../config/serverConfig';
 import { pp } from '../utils.js';
-import { getRoomByID, getRoomsByIdentity } from '../data/db';
+import { getRoomByID, getRoomsByIdentity, findClaimCode, updateClaimCode, updateRoomIdentities, findUpdatedRooms } from '../data/db';
 import { RoomI, genId } from 'discreetly-interfaces';
 
 // TODO! Properly handle authentication for admin endpoints
@@ -62,80 +62,36 @@ export function initEndpoints(app: Express) {
     res.json(getRoomsByIdentity(req.params.idc));
   });
 
-  app.post('/join', (req, res) => {
-    interface JoinRequestBody {
-      code: string;
-      idc: string;
-    }
-    console.log(req.body);
-    const { code, idc } = req.body as JoinRequestBody;
+  app.post("/join", (req, res) => {
+    const { code, idc } = req.body;
 
-    pp(`Express[/join]: claiming code: ${code}`);
-
-    prisma.claimCodes
-      .findUnique({
-        where: {
-          claimcode: code
-        }
-      })
-      .then((codeStatus: { claimed: boolean; roomIds: string[] }) => {
-        console.log(codeStatus);
-        if (codeStatus.claimed === false) {
-          prisma.claimCodes
-            .update({
-              where: {
-                claimcode: code
-              },
-              data: {
-                claimed: true
-              }
-            })
-            .then((claimCode: { roomIds: string[] }) => {
+    findClaimCode(code)
+      .then((codeStatus) => {
+        if (codeStatus && codeStatus.claimed === false) {
+          return updateClaimCode(code)
+            .then((claimCode) => {
               const roomIds = claimCode.roomIds.map((room) => room);
-              prisma.rooms
-                .updateMany({
-                  where: {
-                    roomId: {
-                      in: roomIds
-                    }
-                  },
-                  data: {
-                    identities: {
-                      push: idc
-                    }
-                  }
-                })
-                .then(async () => {
-                  // return the room name of all the rooms that were updated
-                  const updatedRooms = await prisma.rooms.findMany({
-                    where: {
-                      id: {
-                        in: roomIds
-                      }
-                    }
-                  });
-                  res
-                    .status(200)
-                    .json({ status: 'valid', roomIds: updatedRooms.map((room) => room.roomId) });
-                })
-                .catch((err) => {
-                  console.error(err);
-                  res.status(500).json({ error: 'Internal Server Error' });
+              return updateRoomIdentities(idc, roomIds)
+                .then(() => {
+                  return findUpdatedRooms(roomIds)
+                    .then((updatedRooms: RoomI[]) => {
+                      return res.status(200).json({
+                        status: "valid",
+                        roomIds: updatedRooms.map((room) => room.roomId),
+                      });
+                    });
                 });
-            })
-            .catch((err) => {
-              console.error(err);
-              res.status(500).json({ error: 'Internal Server Error' });
             });
         } else {
-          res.status(400).json({ message: 'Claim code already used' });
+          res.status(400).json({ message: "Claim code already used" });
         }
       })
-      .catch((err) => {
+      .catch((err: Error) => {
         console.error(err);
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(500).json({ error: "Internal Server Error" });
       });
   });
+
 
   app.post('/room/add', (req, res) => {
     interface RoomData {

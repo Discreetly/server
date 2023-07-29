@@ -7,10 +7,10 @@ import { pp, shim } from './utils';
 import mock from './data/mock';
 import { websocketSetup as initWebsockets } from './websockets/index';
 import { initEndpoints } from './endpoints/index';
+import { createMessage } from './data/messages';
 
 const app = express();
 const socket_server = new Server(app);
-
 shim();
 
 app.use(express.json());
