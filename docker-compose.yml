@@ -8,12 +8,5 @@ services:
     volumes:
       - .:/app
     restart: always
-    depends_on:
-      - mongodb
     environment:
       - NODE_ENV=production
-  mongodb:
-    image: mongo
-    restart: always
-    ports:
-      - '27017:27017'

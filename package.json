@@ -11,8 +11,7 @@
     "start": "node dist/server.cjs",
     "watch": "rollup --config rollup.config.mjs --watch",
     "serve": "nodemon -q dist/server.jcs",
-    "dev": "concurrently \"npm run watch\" \"npm run serve\"",
-    "docker": "docker-compose up --build"
+    "dev": "concurrently \"npm run watch\" \"npm run serve\""
   },
   "engines": {
     "node": "18.x.x"
