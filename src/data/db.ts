@@ -10,7 +10,6 @@ import type { ClaimCodeT } from 'discreetly-claimcodes';
 
 const prisma = new PrismaClient();
 
-
 interface CodeStatus {
   claimed: boolean;
   roomIds: string[];
@@ -21,21 +20,23 @@ interface ClaimCode {
 }
 
 export function getRoomByID(id: string): Promise<RoomI> {
-  return prisma.rooms.findUnique({
-    where: {
-      roomId: id
-    },
-    select: {
-      id: true,
-      roomId: true,
-      name: true,
-      identities: true,
-      rateLimit: true,
-      userMessageLimit: true,
-    }
-  }).then((room) => {
-    return room
-  })
+  return prisma.rooms
+    .findUnique({
+      where: {
+        roomId: id
+      },
+      select: {
+        id: true,
+        roomId: true,
+        name: true,
+        identities: true,
+        rateLimit: true,
+        userMessageLimit: true
+      }
+    })
+    .then((room) => {
+      return room;
+    })
     .catch((err) => {
       console.error(err);
       throw err; // Add this line to throw the error
@@ -78,13 +79,21 @@ export function createRoom(
   userMessageLimit: number = 1,
   numClaimCodes: number = 0,
   approxNumMockUsers: number = 20
-) {
+): boolean {
   function genMockUsers(numMockUsers: number): string[] {
     // Generates random number of mock users between 0.5 x numMockusers and 2 x numMockUsers
     const newNumMockUsers = randn_bm(numMockUsers / 2, numMockUsers * 2);
     const mockUsers: string[] = [];
     for (let i = 0; i < newNumMockUsers; i++) {
-      mockUsers.push(genId(serverConfig.id, 'Mock User ' + i).toString());
+      mockUsers.push(
+        genId(
+          serverConfig.id,
+          // Generates a random string of length 10
+          Math.random()
+            .toString(36)
+            .substring(2, 2 + 10) + i
+        ).toString()
+      );
     }
     return mockUsers;
   }
@@ -118,36 +127,39 @@ export function createRoom(
 
   prisma.rooms
     .upsert(roomData)
-    .then(() => { })
+    .then(() => {
+      return true;
+    })
     .catch((err) => console.error(err));
+  return false;
 }
 
 export function findClaimCode(code: string): Promise<CodeStatus> {
   return prisma.claimCodes.findUnique({
-    where: { claimcode: code },
+    where: { claimcode: code }
   });
 }
 
 export function updateClaimCode(code: string): Promise<ClaimCode> {
   return prisma.claimCodes.update({
     where: { claimcode: code },
-    data: { claimed: true },
+    data: { claimed: true }
   });
 }
 
-export function updateRoomIdentities(idc: string, roomIds: string[]): Promise<any> {
+export function updateRoomIdentities(idc: string, roomIds: string[]): Promise<unknown> {
   return prisma.rooms.updateMany({
     where: { id: { in: roomIds } },
     data: {
       identities: {
         push: idc
-      },
-    },
+      }
+    }
   });
 }
 
 export function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
   return prisma.rooms.findMany({
-    where: { id: { in: roomIds } },
+    where: { id: { in: roomIds } }
   });
 }

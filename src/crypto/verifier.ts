@@ -6,7 +6,7 @@ import { Group } from '@semaphore-protocol/group';
 
 const v = new RLNVerifier(vkey);
 
-async function verifyProof(msg: MessageI, room: RoomI): Promise<boolean> {
+async function verifyProof(msg: MessageI, room: RoomI, epochErrorRange = 5): Promise<boolean> {
   console.log('check room', room);
   const timestamp = Date.now();
   const rateLimit = room.rateLimit ? room.rateLimit : 1000;
@@ -15,7 +15,7 @@ async function verifyProof(msg: MessageI, room: RoomI): Promise<boolean> {
   const msgHash = str2BigInt(msg.message);
   // Check that the epoch falls within the range for the room
   const epoch = BigInt(msg.epoch);
-  if (epoch < currentEpoch - 1 || epoch > currentEpoch + 1) {
+  if (epoch < currentEpoch - epochErrorRange || epoch > currentEpoch + epochErrorRange) {
     // Too old or too far in the future
     console.warn('Epoch out of range:', epoch, 'currentEpoch:', currentEpoch);
     return false;
