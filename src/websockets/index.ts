@@ -14,7 +14,6 @@ export function websocketSetup(io: SocketIOServer) {
 
     socket.on('validateMessage', (msg: MessageI) => {
       pp({ 'VALIDATING MESSAGE ID': msg.id.slice(0, 11), 'MSG:': msg.message });
-      let valid: boolean;
       getRoomByID(msg.room.toString())
         .then((room: RoomI) => {
           if (!room) {
@@ -22,17 +21,18 @@ export function websocketSetup(io: SocketIOServer) {
             return;
           }
           verifyProof(msg, room)
-            .then((v) => {
-              valid = v;
+            .then((valid) => {
+              if (valid) {
+                // TODO STORE MESSAGE HERE
+                io.emit('messageBroadcast', msg);
+              } else {
+                pp('INVALID MESSAGE', 'warn');
+                return;
+              }
             })
             .catch((err) => {
               err;
             });
-          if (!valid) {
-            pp('INVALID MESSAGE', 'warn');
-            return;
-          }
-          io.emit('messageBroadcast', msg);
         })
         .catch((err) => pp(err, 'error'));
     });

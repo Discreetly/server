@@ -15,6 +15,7 @@ model Rooms {
   roomId           String       @unique
   name             String
   rateLimit        Int          @default(1000) // epoch length in ms
+  banRateLimit     Int          @default(1000000) // starting number of epochs banned for
   userMessageLimit Int          @default(1) // per epoch
   identities       String[]     @default([])
   epochs           Epoch[]
@@ -32,15 +33,15 @@ model ClaimCodes {
 }
 
 model Messages {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  messageID String // Internal Nullifier
-  message   String
-  timeStamp DateTime @default(now())
-  roomId    String
-  room      Rooms    @relation(fields: [roomId], references: [roomId])
-  proof     String
-  epoch     Epoch?   @relation(fields: [epochId], references: [id])
-  epochId   String?  @db.ObjectId
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  internalNullifier String
+  message           String
+  timeStamp         DateTime @default(now())
+  roomId            String
+  room              Rooms    @relation(fields: [roomId], references: [roomId])
+  proof             String
+  epoch             Epoch?   @relation(fields: [epochId], references: [id])
+  epochId           String?  @db.ObjectId
 }
 
 model Epoch {
