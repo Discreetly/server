@@ -3,6 +3,7 @@ import { Socket, Server as SocketIOServer } from 'socket.io';
 import verifyProof from '../crypto/verifier';
 import { getRoomByID } from '../data/db';
 import { pp } from '../utils';
+import { createMessage } from '../data/messages';
 
 const userCount: {
   [key: string]: number;
@@ -14,25 +15,26 @@ export function websocketSetup(io: SocketIOServer) {
 
     socket.on('validateMessage', (msg: MessageI) => {
       pp({ 'VALIDATING MESSAGE ID': msg.id.slice(0, 11), 'MSG:': msg.message });
-      getRoomByID(msg.room.toString())
+      let valid: boolean;
+      getRoomByID(String(msg.roomId))
         .then((room: RoomI) => {
           if (!room) {
             pp('INVALID ROOM', 'warn');
             return;
           }
           verifyProof(msg, room)
-            .then((valid) => {
-              if (valid) {
-                // TODO STORE MESSAGE HERE
-                io.emit('messageBroadcast', msg);
-              } else {
-                pp('INVALID MESSAGE', 'warn');
-                return;
-              }
+            .then((v) => {
+              valid = v;
+              createMessage(String(msg.roomId), msg);
+              io.emit('messageBroadcast', msg);
             })
             .catch((err) => {
               err;
             });
+          if (!valid) {
+            pp('INVALID MESSAGE', 'warn');
+            return;
+          }
         })
         .catch((err) => pp(err, 'error'));
     });

@@ -10,18 +10,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum RoomMembershipType {
+  IDENTITY_LIST
+  RLN_CONTRACT
+  BANDADA
+}
+
 model Rooms {
-  id               String       @id @default(auto()) @map("_id") @db.ObjectId
-  roomId           String       @unique
+  id               String             @id @default(auto()) @map("_id") @db.ObjectId
+  roomId           String             @unique
   name             String
-  rateLimit        Int          @default(1000) // epoch length in ms
-  banRateLimit     Int          @default(1000000) // starting number of epochs banned for
-  userMessageLimit Int          @default(1) // per epoch
-  identities       String[]     @default([])
+  rateLimit        Int                @default(1000) // epoch length in ms
+  banRateLimit     Int                @default(1000000) // starting number of epochs banned for
+  userMessageLimit Int                @default(1) // per epoch
+  membershipType   RoomMembershipType @default(IDENTITY_LIST)
+  identities       String[]           @default([])
+  contractAddress  String? // RLN_CONTRACT as "chainID:0xADDRESS"
+  bandadaAddress   String? // BANDADA as "url:groupID"
   epochs           Epoch[]
   messages         Messages[]
-  claimCodes       ClaimCodes[] @relation(fields: [claimCodeIds], references: [id])
-  claimCodeIds     String[]     @default([]) @db.ObjectId
+  claimCodes       ClaimCodes[]       @relation(fields: [claimCodeIds], references: [id])
+  claimCodeIds     String[]           @default([]) @db.ObjectId
 }
 
 model ClaimCodes {
@@ -33,15 +42,15 @@ model ClaimCodes {
 }
 
 model Messages {
-  id                String   @id @default(auto()) @map("_id") @db.ObjectId
-  internalNullifier String
-  message           String
-  timeStamp         DateTime @default(now())
-  roomId            String
-  room              Rooms    @relation(fields: [roomId], references: [roomId])
-  proof             String
-  epoch             Epoch?   @relation(fields: [epochId], references: [id])
-  epochId           String?  @db.ObjectId
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  messageId String // Internal Nullifier
+  message   String
+  timeStamp DateTime @default(now())
+  roomId    String
+  room      Rooms    @relation(fields: [roomId], references: [roomId])
+  proof     String
+  epoch     Epoch?   @relation(fields: [epochId], references: [id])
+  epochId   String?  @db.ObjectId
 }
 
 model Epoch {

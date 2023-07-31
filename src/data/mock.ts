@@ -41,7 +41,7 @@ export default function Mock(io: SocketIOServer) {
   setInterval(() => {
     const message: MessageI = {
       id: faker.number.bigInt().toString(),
-      room: BigInt('20945462742745557191488383979949684808523754877925170533224967224808050898610'),
+      roomId: BigInt('20945462742745557191488383979949684808523754877925170533224967224808050898610'),
       message: picker.pick(),
       timestamp: Date.now().toString(),
       epoch: Math.floor(Date.now() / 10000)

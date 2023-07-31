@@ -17,7 +17,6 @@ import { listEndpoints } from './endpoints/utils';
 
 const app = express();
 const socket_server = new Server(app);
-
 shim();
 
 app.use(express.json());
