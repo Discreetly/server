@@ -38,9 +38,9 @@ const adminAuth = basicAuth({
 });
 
 function initAppListeners() {
-  const serverPort = serverConfig.serverInfoEndpoint;
-  const httpServer = http.createServer(app).listen(serverPort, () => {
-    pp(`Server is running at port ${serverPort}`);
+  const PORT = process.env.SERVER_PORT ? process.env.SERVER_PORT : '3001';
+  const httpServer = http.createServer(app).listen(PORT, () => {
+    pp(`Server is running at port ${PORT}`);
   });
 
   const io = new SocketIOServer(httpServer);
