@@ -10,7 +10,6 @@ import type { ClaimCodeT } from 'discreetly-claimcodes';
 
 const prisma = new PrismaClient();
 
-
 interface CodeStatus {
   claimed: boolean;
   roomIds: string[];
@@ -62,6 +61,36 @@ export function getRoomsByIdentity(identity: string): RoomI[] {
     })
     .catch((err) => console.error(err));
   return [];
+}
+
+export function findClaimCode(code: string): Promise<CodeStatus> {
+  return prisma.claimCodes.findUnique({
+    where: { claimcode: code },
+  });
+}
+
+export function updateClaimCode(code: string): Promise<ClaimCode> {
+  return prisma.claimCodes.update({
+    where: { claimcode: code },
+    data: { claimed: true },
+  });
+}
+
+export function updateRoomIdentities(idc: string, roomIds: string[]): Promise<any> {
+  return prisma.rooms.updateMany({
+    where: { id: { in: roomIds } },
+    data: {
+      identities: {
+        push: idc
+      },
+    },
+  });
+}
+
+export function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
+  return prisma.rooms.findMany({
+    where: { id: { in: roomIds } },
+  });
 }
 
 /**
@@ -120,34 +149,4 @@ export function createRoom(
     .upsert(roomData)
     .then(() => { })
     .catch((err) => console.error(err));
-}
-
-export function findClaimCode(code: string): Promise<CodeStatus> {
-  return prisma.claimCodes.findUnique({
-    where: { claimcode: code },
-  });
-}
-
-export function updateClaimCode(code: string): Promise<ClaimCode> {
-  return prisma.claimCodes.update({
-    where: { claimcode: code },
-    data: { claimed: true },
-  });
-}
-
-export function updateRoomIdentities(idc: string, roomIds: string[]): Promise<any> {
-  return prisma.rooms.updateMany({
-    where: { id: { in: roomIds } },
-    data: {
-      identities: {
-        push: idc
-      },
-    },
-  });
-}
-
-export function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
-  return prisma.rooms.findMany({
-    where: { id: { in: roomIds } },
-  });
 }

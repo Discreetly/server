@@ -63,8 +63,11 @@ export function initEndpoints(app: Express) {
   });
 
   app.post("/join", (req, res) => {
-    const { code, idc } = req.body;
-
+    interface JoinRequestBody {
+      code: string;
+      idc: string;
+    }
+    const { code, idc } = req.body as JoinRequestBody;
     findClaimCode(code)
       .then((codeStatus) => {
         if (codeStatus && codeStatus.claimed === false) {
@@ -92,7 +95,6 @@ export function initEndpoints(app: Express) {
       });
   });
 
-
   app.post('/room/add', (req, res) => {
     interface RoomData {
       password: string;
@@ -119,4 +121,23 @@ export function initEndpoints(app: Express) {
       res.status(401).send('Unauthorized');
     }
   });
-}
+
+  app.get('/api/room/:id/messages', (req, res) => {
+    const { id } = req.params;
+    prisma.messages
+      .findMany({
+        where: {
+          roomId: id
+        }
+      })
+      .then((messages) => {
+        pp('Express: fetching messages for room ' + id)
+        res.status(200).json(messages);
+      })
+      .catch((error: Error) => {
+        pp(error, 'error')
+        res.status(500).send('Error fetching messages');
+      });
+  }
+  )
+};
