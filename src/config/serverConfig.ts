@@ -5,7 +5,6 @@ import 'dotenv/config';
 // IF THIS FILE DOESN'T EXIST, GENERATE A RANDOM ID AND STORE IT IN THE FILE
 let SERVER_ID: bigint;
 let PORT: string;
-let WS_PORT: string;
 let NAME: string;
 
 try {
@@ -22,12 +21,6 @@ try {
 }
 
 try {
-  WS_PORT = process.env.WS_PORT ? process.env.WS_PORT : '3002';
-} catch (err) {
-  console.error('Error reading PORT from .env file!');
-}
-
-try {
   NAME = process.env.NAME ? process.env.NAME : 'localhost';
 } catch (err) {
   console.error('Error reading PORT from .env file!');
@@ -37,6 +30,6 @@ export const serverConfig: ServerI = {
   id: SERVER_ID,
   name: NAME,
   serverInfoEndpoint: PORT,
-  messageHandlerSocket: WS_PORT,
+  messageHandlerSocket: PORT,
   version: '0.0.1'
 };
