@@ -27,6 +27,7 @@ model Rooms {
   identities       String[]           @default([])
   contractAddress  String? // RLN_CONTRACT as "chainID:0xADDRESS"
   bandadaAddress   String? // BANDADA as "url:groupID"
+  bandadaAPIKey    String? // Bandada API Key
   epochs           Epoch[]
   messages         Messages[]
   claimCodes       ClaimCodes[]       @relation(fields: [claimCodeIds], references: [id])
