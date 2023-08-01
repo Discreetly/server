@@ -37,8 +37,7 @@ const adminAuth = basicAuth({
   }
 });
 
-function initAppListeners() {
-  const PORT = process.env.PORT ? process.env.PORT : '3001';
+function initAppListeners(PORT) {
   const httpServer = http.createServer(app).listen(PORT, () => {
     pp(`Server is running at port ${PORT}`);
   });
@@ -53,8 +52,9 @@ function initAppListeners() {
 if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   console.log('~~~~DEVELOPMENT MODE~~~~');
   console.log(serverConfig);
+  const PORT = 3001;
   initEndpoints(app, adminAuth);
-  const io = initAppListeners();
+  const io = initAppListeners(PORT);
   initWebsockets(io);
   listEndpoints(app);
   mock(io);
@@ -62,6 +62,6 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   console.log('Admin password: ' + admin_password);
 } else {
   initEndpoints(app, adminAuth);
-  const io = initAppListeners();
+  const io = initAppListeners(process.env.PORT);
   initWebsockets(io);
 }
