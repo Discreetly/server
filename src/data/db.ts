@@ -67,14 +67,14 @@ export function getRoomsByIdentity(identity: string): RoomI[] {
 
 export function findClaimCode(code: string): Promise<CodeStatus> {
   return prisma.claimCodes.findUnique({
-    where: { claimcode: code },
+    where: { claimcode: code }
   });
 }
 
 export function updateClaimCode(code: string): Promise<ClaimCode> {
   return prisma.claimCodes.update({
     where: { claimcode: code },
-    data: { claimed: true },
+    data: { claimed: true }
   });
 }
 
@@ -84,14 +84,14 @@ export function updateRoomIdentities(idc: string, roomIds: string[]): Promise<an
     data: {
       identities: {
         push: idc
-      },
-    },
+      }
+    }
   });
 }
 
 export function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
   return prisma.rooms.findMany({
-    where: { id: { in: roomIds } },
+    where: { id: { in: roomIds } }
   });
 }
 
@@ -162,35 +162,4 @@ export function createRoom(
     })
     .catch((err) => console.error(err));
   return false;
-}
-
-
-export function findClaimCode(code: string): Promise<CodeStatus> {
-  return prisma.claimCodes.findUnique({
-    where: { claimcode: code }
-  });
-}
-
-export function updateClaimCode(code: string): Promise<ClaimCode> {
-  return prisma.claimCodes.update({
-    where: { claimcode: code },
-    data: { claimed: true }
-  });
-}
-
-export function updateRoomIdentities(idc: string, roomIds: string[]): Promise<unknown> {
-  return prisma.rooms.updateMany({
-    where: { id: { in: roomIds } },
-    data: {
-      identities: {
-        push: idc
-      }
-    }
-  });
-}
-
-export function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
-  return prisma.rooms.findMany({
-    where: { id: { in: roomIds } }
-  });
 }
