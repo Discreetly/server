@@ -1,46 +1,25 @@
-import type { Express } from 'express';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+import type { Express, RequestHandler } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { serverConfig } from '../config/serverConfig';
 import { pp } from '../utils.js';
-import { getRoomByID, getRoomsByIdentity, findClaimCode, updateClaimCode, updateRoomIdentities, findUpdatedRooms } from '../data/db';
-import { RoomI, genId } from 'discreetly-interfaces';
+import {
+  getRoomByID,
+  getRoomsByIdentity,
+  findClaimCode,
+  updateClaimCode,
+  updateRoomIdentities,
+  findUpdatedRooms,
+  createRoom
+} from '../data/db';
+import { RoomI } from 'discreetly-interfaces';
 
-// TODO! Properly handle authentication for admin endpoints
-// TODO api endpoint that creates new rooms and generates invite codes for them
-
-export function initEndpoints(app: Express) {
+export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   const prisma = new PrismaClient();
 
   app.get(['/', '/api'], (req, res) => {
     pp('Express: fetching server info');
     res.json(serverConfig);
-  });
-
-  app.get('/logclaimcodes', (req, res) => {
-    pp('Express: fetching claim codes');
-    prisma.claimCodes
-      .findMany()
-      .then((claimCodes) => {
-        console.log(claimCodes);
-        res.status(401).send('Unauthorized');
-      })
-      .catch((err) => {
-        console.error(err);
-        res.status(500).json({ error: 'Internal Server Error' });
-      });
-  });
-
-  app.get('/api/rooms', (req, res) => {
-    pp(String('Express: fetching all rooms'));
-    prisma.rooms
-      .findMany()
-      .then((rooms) => {
-        res.status(200).json(rooms);
-      })
-      .catch((err) => {
-        console.error(err);
-        res.status(500).json({ error: 'Internal Server Error' });
-      });
   });
 
   app.get('/api/room/:id', (req, res) => {
@@ -71,56 +50,50 @@ export function initEndpoints(app: Express) {
     findClaimCode(code)
       .then((codeStatus) => {
         if (codeStatus && codeStatus.claimed === false) {
-          return updateClaimCode(code)
-            .then((claimCode) => {
-              const roomIds = claimCode.roomIds.map((room) => room);
-              return updateRoomIdentities(idc, roomIds)
-                .then(() => {
-                  return findUpdatedRooms(roomIds)
-                    .then((updatedRooms: RoomI[]) => {
-                      return res.status(200).json({
-                        status: "valid",
-                        roomIds: updatedRooms.map((room) => room.roomId),
-                      });
-                    });
+          return updateClaimCode(code).then((claimCode) => {
+            const roomIds = claimCode.roomIds.map((room) => room);
+            return updateRoomIdentities(idc, roomIds).then(() => {
+              return findUpdatedRooms(roomIds).then((updatedRooms: RoomI[]) => {
+                return res.status(200).json({
+                  status: 'valid',
+                  roomIds: updatedRooms.map((room) => room.roomId as string)
                 });
+              });
             });
+          });
         } else {
-          res.status(400).json({ message: "Claim code already used" });
+          res.status(400).json({ message: 'Claim code already used' });
         }
       })
       .catch((err: Error) => {
         console.error(err);
-        res.status(500).json({ error: "Internal Server Error" });
+        res.status(500).json({ error: 'Internal Server Error' });
       });
   });
 
-  app.post('/room/add', (req, res) => {
+  /* ~~~~ ADMIN ENDPOINTS ~~~~ */
+  app.post('/room/add', adminAuth, (req, res) => {
     interface RoomData {
-      password: string;
       roomName: string;
+      rateLimit: number;
+      userMessageLimit: number;
+      numClaimCodes?: number;
     }
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    const { password, roomName } = req.body.data as RoomData;
-    if (password === process.env.PASSWORD) {
-      prisma.rooms
-        .create({
-          data: {
-            roomId: genId(BigInt(serverConfig.id), roomName).toString(),
-            name: roomName
-          }
-        })
-        .then((newRoom) => {
-          res.status(200).json(newRoom);
-        })
-        .catch((error: Error) => {
-          console.error(error);
-          res.status(500).send('Error creating new room');
-        });
+    const roomMetadata = req.body.data as RoomData;
+    const roomName = roomMetadata.roomName;
+    const rateLimit = roomMetadata.rateLimit;
+    const userMessageLimit = roomMetadata.userMessageLimit;
+    const numClaimCodes = roomMetadata.numClaimCodes || 0;
+    const result = createRoom(roomName, rateLimit, userMessageLimit, numClaimCodes);
+    if (result) {
+      // TODO should return roomID and claim codes if they are generated
+      res.status(200).json({ message: 'Room created successfully' });
     } else {
-      res.status(401).send('Unauthorized');
+      return res.status(500).json({ error: 'Internal Server Error' });
     }
   });
+
 
   app.get('/api/room/:id/messages', (req, res) => {
     const { id } = req.params;
@@ -140,4 +113,30 @@ export function initEndpoints(app: Express) {
       });
   }
   )
-};
+
+  app.get('/logclaimcodes', adminAuth, (req, res) => {
+    pp('Express: fetching claim codes');
+    prisma.claimCodes
+      .findMany()
+      .then((claimCodes) => {
+        res.status(401).json(claimCodes);
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      });
+  });
+
+  app.get('/api/rooms', adminAuth, (req, res) => {
+    pp(String('Express: fetching all rooms'));
+    prisma.rooms
+      .findMany()
+      .then((rooms) => {
+        res.status(200).json(rooms);
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      });
+  });
+}
