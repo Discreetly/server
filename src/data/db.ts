@@ -65,6 +65,36 @@ export function getRoomsByIdentity(identity: string): RoomI[] {
   return [];
 }
 
+export function findClaimCode(code: string): Promise<CodeStatus> {
+  return prisma.claimCodes.findUnique({
+    where: { claimcode: code }
+  });
+}
+
+export function updateClaimCode(code: string): Promise<ClaimCode> {
+  return prisma.claimCodes.update({
+    where: { claimcode: code },
+    data: { claimed: true }
+  });
+}
+
+export function updateRoomIdentities(idc: string, roomIds: string[]): Promise<any> {
+  return prisma.rooms.updateMany({
+    where: { id: { in: roomIds } },
+    data: {
+      identities: {
+        push: idc
+      }
+    }
+  });
+}
+
+export function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
+  return prisma.rooms.findMany({
+    where: { id: { in: roomIds } }
+  });
+}
+
 /**
  * Creates a new room with the given name and optional parameters.
  * @param {string} name - The name of the room.
@@ -132,34 +162,4 @@ export function createRoom(
     })
     .catch((err) => console.error(err));
   return false;
-}
-
-export function findClaimCode(code: string): Promise<CodeStatus> {
-  return prisma.claimCodes.findUnique({
-    where: { claimcode: code }
-  });
-}
-
-export function updateClaimCode(code: string): Promise<ClaimCode> {
-  return prisma.claimCodes.update({
-    where: { claimcode: code },
-    data: { claimed: true }
-  });
-}
-
-export function updateRoomIdentities(idc: string, roomIds: string[]): Promise<unknown> {
-  return prisma.rooms.updateMany({
-    where: { id: { in: roomIds } },
-    data: {
-      identities: {
-        push: idc
-      }
-    }
-  });
-}
-
-export function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
-  return prisma.rooms.findMany({
-    where: { id: { in: roomIds } }
-  });
 }
