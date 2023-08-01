@@ -15,13 +15,13 @@ try {
 console.log('SERVERID:', SERVER_ID);
 
 try {
-  PORT = process.env.PORT ? process.env.PORT : '3001';
+  PORT = process.env.SERVER_PORT ? process.env.SERVER_PORT : '8000';
 } catch (err) {
   console.error('Error reading PORT from .env file!');
 }
 
 try {
-  NAME = process.env.NAME ? process.env.NAME : 'localhost';
+  NAME = process.env.SERVER_NAME ? process.env.SERVER_NAME : 'localhost';
 } catch (err) {
   console.error('Error reading PORT from .env file!');
 }
