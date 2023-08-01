@@ -46,8 +46,8 @@ const io = new SocketIOServer(socket_server, {
 });
 
 function initAppListeners() {
-  const expressServerPort = serverConfig.serverInfoEndpoint.split(':')[1];
-  const socketServerPort = serverConfig.messageHandlerSocket.split(':')[1];
+  const expressServerPort = serverConfig.serverInfoEndpoint;
+  const socketServerPort = serverConfig.messageHandlerSocket;
   app.listen(expressServerPort, () => {
     pp(`Express Http Server is running at port ${expressServerPort}`);
   });
@@ -62,6 +62,7 @@ function initAppListeners() {
  */
 if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   console.log('~~~~DEVELOPMENT MODE~~~~');
+  console.log(serverConfig);
   initWebsockets(io);
   initEndpoints(app, adminAuth);
   listEndpoints(app);
