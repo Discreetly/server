@@ -47,6 +47,8 @@ export function getRoomsByIdentity(identity: string): RoomI[] {
   /* TODO Need to create a system here where the client needs to provide a
   proof they know the secrets to some Identity Commitment with a unix epoch
   time stamp to prevent replay attacks
+
+  https://github.com/Discreetly/IdentityCommitmentNullifierCircuit <- Circuit and JS to do this
   */
   prisma.rooms
     .findMany({
