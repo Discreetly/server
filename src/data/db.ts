@@ -108,11 +108,11 @@ export function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
  * @param {number} [approxNumMockUsers=20] - The approximate number of mock users to generate for the room.
  */
 export async function createRoom(
-  name: string,
-  rateLimit: number = 1000,
-  userMessageLimit: number = 1,
-  numClaimCodes: number = 0,
-  approxNumMockUsers: number = 20,
+  name: string
+  rateLimit = 1000,
+  userMessageLimit = 1,
+  numClaimCodes = 0,
+  approxNumMockUsers = 20,
 ): Promise<boolean> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
   console.log(claimCodes);
