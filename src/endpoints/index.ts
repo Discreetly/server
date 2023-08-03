@@ -14,6 +14,16 @@ import {
 import { RoomI } from 'discreetly-interfaces';
 
 const prisma = new PrismaClient();
+
+function asyncHandler(fn: {
+  (req: Request, res: Response): Promise<void>;
+  (arg0: any, arg1: any, arg2: any): any;
+}) {
+  return (req, res, next) => {
+    void Promise.resolve(fn(req, res, next)).catch(next);
+  };
+}
+
 export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   app.get(['/', '/api'], (req, res) => {
     pp('Express: fetching server info');
@@ -52,8 +62,8 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   }
 
   app.post(['/join', '/api/join'], (req, res) => {
-    const { code, idc } = req.body as JoinData;
-    console.log('Invite Code:', code);
+      const { code, idc } = req.body as JoinData;
+      console.log('Invite Code:', code);
     findClaimCode(code)
       .then((codeStatus) => {
         if (codeStatus && codeStatus.claimed === false) {
@@ -62,46 +72,50 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
             return updateRoomIdentities(idc, roomIds).then(() => {
               return findUpdatedRooms(roomIds).then((updatedRooms: RoomI[]) => {
                 return res.status(200).json({
-                  status: 'valid',
-                  roomIds: updatedRooms.map((room: RoomI) => room.roomId)
-                });
+        status: 'valid',
+        roomIds: updatedRooms.map((room: RoomI) => room.roomId)
+      });
               });
             });
           });
         } else {
           return res.status(400).json({ message: 'Claim code already used' });
         }
-      })
+    })
       .catch((err: Error) => {
         console.error(err);
         return res.status(500).json({ error: 'Internal Server Error' });
       });
   });
 
-  /* ~~~~ ADMIN ENDPOINTS ~~~~ */
-  app.post(['/room/add', '/api/room/add'], adminAuth, async (req, res) => {
-    interface RoomData {
-      roomName: string;
-      rateLimit: number;
-      userMessageLimit: number;
-      numClaimCodes?: number;
-    }
+  interface addRoomData {
+    roomName: string;
+    rateLimit: number;
+    userMessageLimit: number;
+    numClaimCodes?: number;
+  }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    const roomMetadata = req.body as RoomData;
+  /* ~~~~ ADMIN ENDPOINTS ~~~~ */
+  app.post(['/room/add', '/api/room/add'], adminAuth, (req, res) => {
+    const roomMetadata = req.body as addRoomData;
     console.log(roomMetadata);
     const roomName = roomMetadata.roomName;
     const rateLimit = roomMetadata.rateLimit;
     const userMessageLimit = roomMetadata.userMessageLimit;
     const numClaimCodes = roomMetadata.numClaimCodes || 0;
-    const result = await createRoom(roomName, rateLimit, userMessageLimit, numClaimCodes);
-    console.log(result);
-    if (result) {
-      // TODO should return roomID and claim codes if they are generated
-      res.status(200).json({ message: 'Room created successfully' });
-    } else {
-      return res.status(500).json({ error: 'Internal Server Error' });
-    }
+    createRoom(roomName, rateLimit, userMessageLimit, numClaimCodes)
+      .then((result) => {
+        if (result) {
+          // TODO should return roomID and claim codes if they are generated
+          res.status(200).json({ message: 'Room created successfully' });
+        } else {
+          res.status(500).json({ error: 'Internal Server Error' });
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: String(err) });
+      });
   });
 
   app.get('/api/room/:id/messages', (req, res) => {

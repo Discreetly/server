@@ -6,7 +6,6 @@ import { RoomI, genId } from 'discreetly-interfaces';
 import { serverConfig } from '../config/serverConfig';
 import { genMockUsers, genClaimCodeArray } from '../utils';
 
-
 const prisma = new PrismaClient();
 
 interface CodeStatus {
@@ -14,7 +13,7 @@ interface CodeStatus {
   roomIds: string[];
 }
 
-interface ClaimCode {
+interface RoomsFromClaimCode {
   roomIds: string[];
 }
 
@@ -69,13 +68,13 @@ export async function getRoomsByIdentity(identity: string): Promise<string[]> {
   }
 }
 
-export function findClaimCode(code: string): Promise<CodeStatus> {
+export function findClaimCode(code: string): Promise<CodeStatus | null> {
   return prisma.claimCodes.findUnique({
     where: { claimcode: code }
   });
 }
 
-export function updateClaimCode(code: string): Promise<ClaimCode> {
+export function updateClaimCode(code: string): Promise<RoomsFromClaimCode> {
   return prisma.claimCodes.update({
     where: { claimcode: code },
     data: { claimed: true }
@@ -108,11 +107,11 @@ export function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
  * @param {number} [approxNumMockUsers=20] - The approximate number of mock users to generate for the room.
  */
 export async function createRoom(
-  name: string
+  name: string,
   rateLimit = 1000,
   userMessageLimit = 1,
   numClaimCodes = 0,
-  approxNumMockUsers = 20,
+  approxNumMockUsers = 20
 ): Promise<boolean> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
   console.log(claimCodes);
