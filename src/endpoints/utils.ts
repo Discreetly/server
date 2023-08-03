@@ -4,7 +4,7 @@
 export function listEndpoints(app) {
   const table = [];
   for (const r of app._router.stack) {
-    if (r.route && r.route.path) {
+    if (r.route?.path) {
       const methods = Object.keys(r.route.methods).join(', ').toUpperCase();
       table.push({
         Path: r.route.path,

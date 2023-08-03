@@ -4,7 +4,7 @@ import { MessageI } from 'discreetly-interfaces';
 
 const prisma = new PrismaClient();
 
-function updateRoom(roomId: string, message: MessageI): Promise<any> {
+function updateRoom(roomId: string, message: MessageI, epoch: number): Promise<unknown> {
   return prisma.rooms.update({
     where: {
       roomId: roomId
@@ -12,11 +12,11 @@ function updateRoom(roomId: string, message: MessageI): Promise<any> {
     data: {
       epochs: {
         create: {
-          epoch: +message.epoch.toString(),
+          epoch: epoch,
           messages: {
             create: {
-              message: message.message,
-              messageId: message.messageId,
+              message: message.message ? message.message.toString() : '',
+              messageId: message.messageId ? message.messageId.toString() : '',
               proof: JSON.stringify(message.proof),
               roomId: roomId
             }

@@ -75,10 +75,10 @@ export function getRoomsByIdentity(identity: string): RoomI[] {
  */
 export function createRoom(
   name: string,
-  rateLimit: number = 1000,
-  userMessageLimit: number = 1,
-  numClaimCodes: number = 0,
-  approxNumMockUsers: number = 20
+  rateLimit = 1000,
+  userMessageLimit = 1,
+  numClaimCodes = 0,
+  approxNumMockUsers = 20
 ): boolean {
   function genMockUsers(numMockUsers: number): string[] {
     // Generates random number of mock users between 0.5 x numMockusers and 2 x numMockUsers

@@ -11,7 +11,8 @@
     "start": "node dist/server.cjs",
     "watch": "rollup --config rollup.config.mjs --watch",
     "serve": "nodemon -q dist/server.jcs",
-    "dev": "concurrently \"npm run watch\" \"npm run serve\""
+    "dev": "concurrently \"npm run watch\" \"npm run serve\"",
+    "lint": "eslint ."
   },
   "engines": {
     "node": "18.x.x"
@@ -47,10 +48,10 @@
     "@types/cors": "^2.8.13",
     "@types/express": "^4.17.17",
     "@types/node": "^20.4.5",
-    "@typescript-eslint/eslint-plugin": "^6.2.0",
-    "@typescript-eslint/parser": "^6.2.0",
+    "@typescript-eslint/eslint-plugin": "^6.2.1",
+    "@typescript-eslint/parser": "^6.2.1",
     "concurrently": "^8.2.0",
-    "eslint": "^8.45.0",
+    "eslint": "^8.46.0",
     "nodemon": "^3.0.1",
     "prisma": "^5.0.0",
     "rollup": "^3.26.2",

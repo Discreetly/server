@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import type { Express, RequestHandler } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { serverConfig } from '../config/serverConfig';
@@ -42,29 +41,33 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   });
 
   app.post('/join', (req, res) => {
-    const { code, idc }: { code: string; idc: string } = req.body;
+    interface JoinData {
+      code: string;
+      idc: string;
+    }
+    const { code, idc } = req.body as JoinData;
 
     findClaimCode(code)
       .then((codeStatus) => {
         if (codeStatus && codeStatus.claimed === false) {
           return updateClaimCode(code).then((claimCode) => {
-            const roomIds = claimCode.roomIds.map((room) => room);
+            const roomIds = claimCode.roomIds.map((room) => room.roomId);
             return updateRoomIdentities(idc, roomIds).then(() => {
               return findUpdatedRooms(roomIds).then((updatedRooms: RoomI[]) => {
                 return res.status(200).json({
                   status: 'valid',
-                  roomIds: updatedRooms.map((room) => room.roomId as string)
+                  roomIds: updatedRooms.map((room: RoomI) => room.roomId)
                 });
               });
             });
           });
         } else {
-          res.status(400).json({ message: 'Claim code already used' });
+          return res.status(400).json({ message: 'Claim code already used' });
         }
       })
       .catch((err: Error) => {
         console.error(err);
-        res.status(500).json({ error: 'Internal Server Error' });
+        return res.status(500).json({ error: 'Internal Server Error' });
       });
   });
 

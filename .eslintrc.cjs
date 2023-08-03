@@ -1,21 +1,19 @@
 /* eslint-env node */
 module.exports = {
-  parser: '@typescript-eslint/parser',
-  plugins: ["@typescript-eslint"],
-  overrides: [
-    {
-      files: ['*.ts', '*.tsx'],
-      extends: [
-        'plugin:@typescript-eslint/recommended',
-        'plugin:@typescript-eslint/recommended-requiring-type-checking',
-      ],
-
-      parserOptions: {
-        project: ['./tsconfig.json'], // Specify it only for TypeScript files
-      },
-    },
+  parserOptions: {
+    parser: '@typescript-eslint/parser',
+    sourceType: 'module',
+    tsconfigRootDir: __dirname,
+    project: 'tsconfig.json',
+  },
+  plugins: ['@typescript-eslint/eslint-plugin'],
+  extends: [
+    'eslint:recommended',
+    'plugin:@typescript-eslint/recommended-type-checked',
+    'plugin:@typescript-eslint/stylistic-type-checked',
   ],
-  "rules": {
+  ignorePatterns: ['node_modules', 'dist'],
+  rules: {
     "@typescript-eslint/no-explicit-any": "warn"
   }
-}
+};
