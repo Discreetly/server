@@ -41,13 +41,13 @@ function initAppListeners(PORT) {
   const httpServer = http.createServer(app).listen(PORT, () => {
     pp(`Server is running at port ${PORT}`);
   });
-  return app
+  return app;
 }
 
 /**
  * This is the main entry point for the server
  */
-let _app
+let _app: express.Express;
 if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   console.log('~~~~DEVELOPMENT MODE~~~~');
   console.log(serverConfig);
@@ -64,6 +64,5 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   _app = initAppListeners(process.env.PORT);
   initWebsockets(_app);
 }
-
 
 export default _app;

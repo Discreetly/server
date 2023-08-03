@@ -1,5 +1,5 @@
-import { genId } from 'discreetly-interfaces'
-import { serverConfig } from './config/serverConfig'
+import { genId } from 'discreetly-interfaces';
+import { serverConfig } from './config/serverConfig';
 import { generateClaimCodes } from 'discreetly-claimcodes';
 import type { ClaimCodeT } from 'discreetly-claimcodes';
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -32,9 +32,9 @@ export function genMockUsers(numMockUsers: number): string[] {
 }
 
 export function genClaimCodeArray(numClaimCodes: number): { claimcode: string }[] {
-  const claimCodes = generateClaimCodes(numClaimCodes);
+  const claimCodes: ClaimCodeT[] = generateClaimCodes(numClaimCodes) as ClaimCodeT[];
   const codeArr: { claimcode: string }[] = claimCodes.map((code: ClaimCodeT) => ({
-    claimcode: code.code
+    claimcode: String(code.code)
   }));
   return codeArr;
 }

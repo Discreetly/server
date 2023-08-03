@@ -3,7 +3,6 @@ import { str2BigInt } from 'discreetly-interfaces';
 import { RLNVerifier } from 'rlnjs';
 import vkey from './verification_key';
 import { Group } from '@semaphore-protocol/group';
-import { pp } from '../utils';
 
 const v = new RLNVerifier(vkey);
 

@@ -17,7 +17,7 @@ const prisma = new PrismaClient();
 
 function asyncHandler(fn: {
   (req: Request, res: Response): Promise<void>;
-  (arg0: any, arg1: any): any;
+  (arg0: unknown, arg1: unknown): unknown;
 }) {
   return (req, res) => {
     void Promise.resolve(fn(req, res)).catch((err) => {

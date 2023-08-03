@@ -1,8 +1,8 @@
 import type { ServerI } from 'discreetly-interfaces';
 import 'dotenv/config';
 
-let SERVER_ID: bigint = 0n;
-let NAME: string = 'undefined';
+let SERVER_ID = 0n;
+let NAME = 'undefined';
 
 try {
   SERVER_ID = process.env.SERVER_ID ? (process.env.SERVER_ID as unknown as bigint) : 0n;
