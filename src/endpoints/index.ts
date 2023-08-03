@@ -73,7 +73,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   });
 
   /* ~~~~ ADMIN ENDPOINTS ~~~~ */
-  app.post(['/room/add', '/api/room/add'], adminAuth, (req, res) => {
+  app.post(['/room/add', '/api/room/add'], adminAuth, async (req, res) => {
     interface RoomData {
       roomName: string;
       rateLimit: number;
@@ -88,7 +88,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     const rateLimit = roomMetadata.rateLimit;
     const userMessageLimit = roomMetadata.userMessageLimit;
     const numClaimCodes = roomMetadata.numClaimCodes || 0;
-    const result = createRoom(roomName, rateLimit, userMessageLimit, numClaimCodes);
+    const result = await createRoom(roomName, rateLimit, userMessageLimit, numClaimCodes);
     console.log(result);
     if (result) {
       // TODO should return roomID and claim codes if they are generated
