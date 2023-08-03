@@ -4,6 +4,7 @@ import _app from '../src/server'
 import { genId } from 'discreetly-interfaces';
 import { serverConfig } from '../src/config/serverConfig';
 import { describe } from 'node:test';
+import expressBasicAuth from 'express-basic-auth';
 
 process.env.DATABASE_URL = process.env.DATABASE_URL_TEST
 
@@ -39,7 +40,6 @@ describe("POST /room/add", () => {
       .then(res => {
         expect(res.json === '{message :"Room created successfully"}')
       });
-
   });
 });
 
@@ -56,10 +56,15 @@ describe("GET /api/room/:id", () => {
 
 describe("GET /api/rooms", () => {
   test("It should return all rooms", async () => {
+    const username = 'admin';
+    const password = process.env.PASSWORD;
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
     await request(_app)
       .get("/api/rooms")
+      .set('Authorization', `Basic ${base64Credentials}`)
       .then(res => {
-        expect(res.body.length > 0)
+        expect(200)
+        expect(res.bodyname === room.roomName)
       });
   });
 })
@@ -73,6 +78,7 @@ describe("GET /logclaimcodes", () => {
       .get("/logclaimcodes")
       .set('Authorization', `Basic ${base64Credentials}`)
       .then(res => {
+        expect(401)
         expect(res.body.length > 0)
       });
   });
