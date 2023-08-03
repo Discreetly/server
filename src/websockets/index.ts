@@ -12,7 +12,7 @@ export function websocketSetup(io: SocketIOServer) {
     pp('SocketIO: a user connected', 'debug');
 
     socket.on('validateMessage', (msg: MessageI) => {
-      pp({ 'VALIDATING MESSAGE ID': msg.id.slice(0, 11), 'MSG:': msg.message });
+      pp({ 'VALIDATING MESSAGE ID': String(msg.roomId).slice(0, 11), 'MSG:': msg.message });
       let valid: boolean;
       getRoomByID(String(msg.roomId))
         .then((room: RoomI) => {

@@ -15,24 +15,30 @@ import { RoomI } from 'discreetly-interfaces';
 
 const prisma = new PrismaClient();
 export function initEndpoints(app: Express, adminAuth: RequestHandler) {
-
   app.get(['/', '/api'], (req, res) => {
     pp('Express: fetching server info');
     res.status(200).json(serverConfig);
   });
 
   app.get(['/room/:id', '/api/room/:id'], (req, res) => {
-    pp(String('Express: fetching room info for ' + req.params.id));
-    getRoomByID(req.params.id)
-      .then((room: RoomI) => {
-        if (!room) {
-          // This is set as a timeout to prevent someone from trying to brute force room ids
-          setTimeout(() => res.status(500).json({ error: 'Internal Server Error' }), 1000);
-        } else {
-          res.status(200).json(room);
-        }
-      })
-      .catch((err) => console.error(err));
+    if (!req.params.id) {
+      res.status(400).json({ error: 'Bad Request' });
+    } else {
+      const requestRoomId = req.params.id ?? '0';
+      pp(String('Express: fetching room info for ' + req.params.id));
+      getRoomByID(requestRoomId)
+        .then((room: RoomI) => {
+          if (!room) {
+            // This is set as a timeout to prevent someone from trying to brute force room ids
+            setTimeout(() => res.status(500).json({ error: 'Internal Server Error' }), 1000);
+          } else {
+            // Add null check before accessing properties of room object
+            const { roomId, name, rateLimit, userMessageLimit } = room || {};
+            res.status(200).json({ roomId, name, rateLimit, userMessageLimit });
+          }
+        })
+        .catch((err) => console.error(err));
+    }
   });
 
   app.get(['/rooms/:idc', '/api/rooms/:idc'], (req, res) => {
@@ -83,7 +89,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const roomMetadata = req.body as RoomData;
-    console.log(roomMetadata)
+    console.log(roomMetadata);
     const roomName = roomMetadata.roomName;
     const rateLimit = roomMetadata.rateLimit;
     const userMessageLimit = roomMetadata.userMessageLimit;
@@ -141,5 +147,4 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         res.status(500).json({ error: 'Internal Server Error' });
       });
   });
-
 }

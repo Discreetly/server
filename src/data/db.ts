@@ -18,7 +18,7 @@ interface ClaimCode {
   roomIds: string[];
 }
 
-export function getRoomByID(id: string): Promise<RoomI | null> | null {
+export function getRoomByID(id: string): Promise<RoomI | null> {
   return prisma.rooms
     .findUnique({
       where: {
