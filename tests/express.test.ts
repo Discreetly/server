@@ -1,10 +1,11 @@
 const request = require('supertest');
-import { assert } from 'console';
 import _app from '../src/server'
 import { genId } from 'discreetly-interfaces';
 import { serverConfig } from '../src/config/serverConfig';
 import { describe } from 'node:test';
 import expressBasicAuth from 'express-basic-auth';
+import { transferableAbortController } from 'node:util';
+
 
 process.env.DATABASE_URL = process.env.DATABASE_URL_TEST
 
@@ -19,6 +20,11 @@ const room = {
 }
 
 const roomByIdTest = genId(serverConfig.id, room.roomName).toString();
+
+const joinTest = {
+  code: "coast-filter-noise-feature", //needs to be changed to a valid code
+  idc: "12345678901234567890"
+}
 
 describe('GET /', () => {
   test('It should respond with server info', () => {
@@ -38,7 +44,7 @@ describe("POST /room/add", () => {
       .set('Authorization', `Basic ${base64Credentials}`)
       .send(room)
       .then(res => {
-        expect(res.json === '{message :"Room created successfully"}')
+        expect(res.json).toBe('{message :"Room created successfully"}')
       });
   });
 });
@@ -49,7 +55,7 @@ describe("GET /api/room/:id", () => {
       .get(`/api/room/${roomByIdTest}`)
       .then(res => {
         console.log(res.body);
-        expect(res.body.roomName === room.roomName)
+        expect(res.body.roomName).toBe(room.roomName)
       });
   });
 });
@@ -63,8 +69,8 @@ describe("GET /api/rooms", () => {
       .get("/api/rooms")
       .set('Authorization', `Basic ${base64Credentials}`)
       .then(res => {
-        expect(200)
-        expect(res.bodyname === room.roomName)
+        expect(res.status).toBe(200)
+        expect(res.bodyname).toBe(room.roomName)
       });
   });
 })
@@ -78,8 +84,20 @@ describe("GET /logclaimcodes", () => {
       .get("/logclaimcodes")
       .set('Authorization', `Basic ${base64Credentials}`)
       .then(res => {
-        expect(401)
-        expect(res.body.length > 0)
+        expect(res.status).toBe(401)
+        expect(res.body.length).toBeGreaterThan(0)
       });
   });
 });
+
+describe("POST /join", () => {
+  test("It should add a users identity to the rooms the claim code is associated with", async () => {
+    await request(_app)
+    .post("/join")
+    .send(joinTest)
+    .then(res => {
+      expect(res.statusCode).toBe(200)
+      expect(res.body.status).toBe('valid')
+    })
+  })
+})
