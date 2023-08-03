@@ -1,3 +1,1 @@
-export interface userCountI {
-  [key: string]: number;
-}
+export type userCountI = Record<string, number>;

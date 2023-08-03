@@ -5,9 +5,7 @@ import { getRoomByID } from '../data/db';
 import { pp } from '../utils';
 import { createMessage } from '../data/messages';
 
-const userCount: {
-  [key: string]: number;
-} = {};
+const userCount: Record<string, number> = {};
 
 export function websocketSetup(io: SocketIOServer) {
   io.on('connection', (socket: Socket) => {
