@@ -22,7 +22,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     res.json(serverConfig);
   });
 
-  app.get('/api/room/:id', (req, res) => {
+  app.get(['/room/:id', '/api/room/:id'], (req, res) => {
     pp(String('Express: fetching room info for ' + req.params.id));
     getRoomByID(req.params.id)
       .then((room: RoomI) => {
@@ -36,17 +36,15 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       .catch((err) => console.error(err));
   });
 
-  app.get('/api/rooms/:idc', (req, res) => {
+  app.get(['/rooms/:idc', '/api/rooms/:idc'], (req, res) => {
     pp(String('Express: fetching rooms by identityCommitment ' + req.params.idc));
     res.json(getRoomsByIdentity(req.params.idc));
   });
 
-  app.post("/join", (req, res) => {
-    interface JoinRequestBody {
-      code: string;
-      idc: string;
-    }
-    const { code, idc } = req.body as JoinRequestBody;
+
+  app.post(['/join', '/api/join'], (req, res) => {
+    const { code, idc }: { code: string; idc: string } = req.body;
+    console.log('Invite Code:', code);
     findClaimCode(code)
       .then((codeStatus) => {
         if (codeStatus && codeStatus.claimed === false) {
@@ -72,7 +70,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   });
 
   /* ~~~~ ADMIN ENDPOINTS ~~~~ */
-  app.post('/room/add', adminAuth, (req, res) => {
+  app.post(['/room/add', '/api/room/add'], adminAuth, (req, res) => {
     interface RoomData {
       roomName: string;
       rateLimit: number;
@@ -94,7 +92,6 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     }
   });
 
-
   app.get('/api/room/:id/messages', (req, res) => {
     const { id } = req.params;
     prisma.messages
@@ -111,10 +108,10 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         pp(error, 'error')
         res.status(500).send('Error fetching messages');
       });
-  }
-  )
+  })
 
-  app.get('/logclaimcodes', adminAuth, (req, res) => {
+ app.get(['/logclaimcodes', '/api/logclaimcodes'], adminAuth, (req, res) => {
+
     pp('Express: fetching claim codes');
     prisma.claimCodes
       .findMany()
@@ -127,7 +124,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
-  app.get('/api/rooms', adminAuth, (req, res) => {
+  app.get(['/rooms', '/api/rooms'], adminAuth, (req, res) => {
     pp(String('Express: fetching all rooms'));
     prisma.rooms
       .findMany()

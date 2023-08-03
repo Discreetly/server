@@ -1,10 +1,9 @@
-import { Server } from 'http';
 import express from 'express';
+import http from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import basicAuth from 'express-basic-auth';
 import { Server as SocketIOServer } from 'socket.io';
-
 import { serverConfig } from './config/serverConfig';
 import { pp, shim } from './utils';
 import mock from './data/mock';
@@ -16,7 +15,6 @@ import { listEndpoints } from './endpoints/utils';
 // TODO https://www.npmjs.com/package/winston
 
 const app = express();
-const socket_server = new Server(app);
 shim();
 
 app.use(express.json());
@@ -39,22 +37,13 @@ const adminAuth = basicAuth({
   }
 });
 
-const io = new SocketIOServer(socket_server, {
-  cors: {
-    origin: '*'
-  }
-});
-
-function initAppListeners() {
-  const expressServerPort = serverConfig.serverInfoEndpoint;
-  const socketServerPort = serverConfig.messageHandlerSocket;
-  app.listen(expressServerPort, () => {
-    pp(`Express Http Server is running at port ${expressServerPort}`);
+function initAppListeners(PORT) {
+  const httpServer = http.createServer(app).listen(PORT, () => {
+    pp(`Server is running at port ${PORT}`);
   });
 
-  socket_server.listen(socketServerPort, () => {
-    pp(`SocketIO Server is running at port ${socketServerPort}`);
-  });
+  const io = new SocketIOServer(httpServer);
+  return io;
 }
 
 /**
@@ -63,15 +52,16 @@ function initAppListeners() {
 if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   console.log('~~~~DEVELOPMENT MODE~~~~');
   console.log(serverConfig);
-  initWebsockets(io);
+  const PORT = 3001;
   initEndpoints(app, adminAuth);
+  const io = initAppListeners(PORT);
+  initWebsockets(io);
   listEndpoints(app);
-  initAppListeners();
   mock(io);
   // TODO! This is dangerous and only for development
   console.log('Admin password: ' + admin_password);
 } else {
-  initWebsockets(io);
   initEndpoints(app, adminAuth);
-  initAppListeners();
+  const io = initAppListeners(process.env.PORT);
+  initWebsockets(io);
 }
