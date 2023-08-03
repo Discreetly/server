@@ -40,35 +40,42 @@ export function genClaimCodeArray(numClaimCodes: number): { claimcode: string }[
 }
 /**
  * Logs the provided string to the console with the specified log level.
- * @param {any} str - The string to log.
+ * @param {any} data - The string to log.
  * @param {string} [level='log'] - The log level to use. Can be one of 'log', 'debug', 'info', 'warn', 'warning', 'error', 'err', 'table', or 'assert'.
  */
-export const pp = (str: any, level = 'log') => {
-  str = JSON.stringify(str, null, 2);
+export const pp = (data: any, level = 'log') => {
+  data = JSON.stringify(data, null, 2);
   switch (level) {
     case 'log':
-      console.log(str);
+      console.log(data);
       break;
     case 'debug':
-      console.debug(str);
+      console.debug(data);
       break;
     case 'info':
-      console.info(str);
+      console.info(data);
       break;
     case 'warn' || 'warning':
-      console.warn(str);
+      console.warn(data);
       break;
     case 'error' || 'err':
-      console.error(str);
+      console.error(data);
       break;
     case 'table':
-      console.table(str);
+      if (typeof data === 'object') {
+        // converts an object into a table of keys and values
+        data = Object.entries(data).reduce((acc, [key, value]) => {
+          acc[key] = value;
+          return acc;
+        }, {});
+      }
+      console.table(data);
       break;
     case 'assert':
-      console.assert(str);
+      console.assert(data);
       break;
     default:
-      console.log(str);
+      console.log(data);
   }
 };
 

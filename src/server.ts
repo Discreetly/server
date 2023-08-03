@@ -3,7 +3,9 @@ import http from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import basicAuth from 'express-basic-auth';
+import type { Server } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
+import type { Server as SocketIOServerT } from 'socket.io';
 import { serverConfig } from './config/serverConfig';
 import { pp, shim } from './utils';
 import mock from './data/mock';
@@ -41,28 +43,43 @@ function initAppListeners(PORT) {
   const httpServer = http.createServer(app).listen(PORT, () => {
     pp(`Server is running at port ${PORT}`);
   });
-  return app;
+  return httpServer;
 }
 
 /**
  * This is the main entry point for the server
  */
-let _app: express.Express;
+let _app: Server;
+let io: SocketIOServerT;
+
+interface ServerConfigStartupI {
+  id?: string;
+  name?: string;
+  version?: string;
+  port?: number | string;
+  admin_password?: string;
+}
+const serverConfigStartup: ServerConfigStartupI = serverConfig as unknown as ServerConfigStartupI;
 if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   console.log('~~~~DEVELOPMENT MODE~~~~');
-  console.log(serverConfig);
   const PORT = 3001;
+  serverConfigStartup.port = PORT;
+  serverConfigStartup.admin_password = admin_password;
   initEndpoints(app, adminAuth);
   _app = initAppListeners(PORT);
-  initWebsockets(_app);
-  listEndpoints(_app);
-  mock(_app);
-  // TODO! This is dangerous and only for development
-  console.log('Admin password: ' + admin_password);
+  listEndpoints(app);
+  io = new SocketIOServer(_app, {});
+  initWebsockets(io);
+  mock(io);
 } else {
+  const PORT = process.env.PORT;
+  serverConfigStartup.port = PORT;
   initEndpoints(app, adminAuth);
-  _app = initAppListeners(process.env.PORT);
-  initWebsockets(_app);
+  _app = initAppListeners(PORT);
+  io = new SocketIOServer(_app, {});
+  initWebsockets(io);
 }
+
+pp(serverConfigStartup, 'table');
 
 export default _app;
