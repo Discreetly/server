@@ -1,4 +1,4 @@
-import type { Express, RequestHandler } from 'express';
+import type { Express, RequestHandler, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { serverConfig } from '../config/serverConfig';
 import { pp } from '../utils';
@@ -17,10 +17,13 @@ const prisma = new PrismaClient();
 
 function asyncHandler(fn: {
   (req: Request, res: Response): Promise<void>;
-  (arg0: any, arg1: any, arg2: any): any;
+  (arg0: any, arg1: any): any;
 }) {
-  return (req, res, next) => {
-    void Promise.resolve(fn(req, res, next)).catch(next);
+  return (req, res) => {
+    void Promise.resolve(fn(req, res)).catch((err) => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      throw new Error(err);
+    });
   };
 }
 
@@ -61,32 +64,41 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     idc: string;
   }
 
-  app.post(['/join', '/api/join'], (req, res) => {
-      const { code, idc } = req.body as JoinData;
+  app.post(
+    ['/join', '/api/join'],
+    asyncHandler(async (req: Request, res: Response) => {
+      const parsedBody: JoinData = req.body as JoinData;
+
+      if (!parsedBody.code || !parsedBody.idc) {
+        res.status(400).json({ message: '{code: string, idc: string} expected' });
+      }
+      const { code, idc } = parsedBody;
       console.log('Invite Code:', code);
-    findClaimCode(code)
-      .then((codeStatus) => {
-        if (codeStatus && codeStatus.claimed === false) {
-          return updateClaimCode(code).then((claimCode) => {
-            const roomIds = claimCode.roomIds.map((room) => room.roomId);
-            return updateRoomIdentities(idc, roomIds).then(() => {
-              return findUpdatedRooms(roomIds).then((updatedRooms: RoomI[]) => {
-                return res.status(200).json({
+
+      // Check if claim code is valid and not used before
+      const codeStatus = await findClaimCode(code);
+      if (!codeStatus || codeStatus.claimed) {
+        res.status(400).json({ message: 'Claim code already used' });
+        return;
+      }
+
+      // Update claim code
+      const claimCode = await updateClaimCode(code);
+      const roomIds = claimCode.roomIds;
+
+      // Update Room Identities
+      await updateRoomIdentities(idc, roomIds);
+
+      // Find updated rooms
+      const updatedRooms: RoomI[] = await findUpdatedRooms(roomIds);
+
+      // Return the room ids of the updated rooms
+      res.status(200).json({
         status: 'valid',
         roomIds: updatedRooms.map((room: RoomI) => room.roomId)
       });
-              });
-            });
-          });
-        } else {
-          return res.status(400).json({ message: 'Claim code already used' });
-        }
     })
-      .catch((err: Error) => {
-        console.error(err);
-        return res.status(500).json({ error: 'Internal Server Error' });
-      });
-  });
+  );
 
   interface addRoomData {
     roomName: string;
