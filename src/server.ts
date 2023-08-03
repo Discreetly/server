@@ -1,10 +1,9 @@
-import { Server } from 'http';
 import express from 'express';
+import http from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import basicAuth from 'express-basic-auth';
 import { Server as SocketIOServer } from 'socket.io';
-
 import { serverConfig } from './config/serverConfig';
 import { pp, shim } from './utils';
 import mock from './data/mock';
@@ -16,7 +15,6 @@ import { listEndpoints } from './endpoints/utils';
 // TODO https://www.npmjs.com/package/winston
 
 const app = express();
-const socket_server = new Server(app);
 shim();
 
 app.use(express.json());
@@ -39,23 +37,11 @@ const adminAuth = basicAuth({
   }
 });
 
-const io = new SocketIOServer(socket_server, {
-  cors: {
-    origin: '*'
-  }
-});
-
-function initAppListeners() {
-  const expressServerPort = serverConfig.serverInfoEndpoint.split(':')[1];
-  const socketServerPort = serverConfig.messageHandlerSocket.split(':')[1];
-  app.listen(expressServerPort, () => {
-    pp(`Express Http Server is running at port ${expressServerPort}`);
+function initAppListeners(PORT) {
+  const httpServer = http.createServer(app).listen(PORT, () => {
+    pp(`Server is running at port ${PORT}`);
   });
-
-  socket_server.listen(socketServerPort, () => {
-    pp(`SocketIO Server is running at port ${socketServerPort}`);
-  });
-  return app;
+  return app
 }
 
 /**
@@ -64,17 +50,19 @@ function initAppListeners() {
 let _app
 if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   console.log('~~~~DEVELOPMENT MODE~~~~');
-  initWebsockets(io);
+  console.log(serverConfig);
+  const PORT = 3001;
   initEndpoints(app, adminAuth);
-  listEndpoints(app);
-  _app = initAppListeners();
-  mock(io);
+  _app = initAppListeners(PORT);
+  initWebsockets(_app);
+  listEndpoints(_app);
+  mock(_app);
   // TODO! This is dangerous and only for development
   console.log('Admin password: ' + admin_password);
 } else {
-  initWebsockets(io);
   initEndpoints(app, adminAuth);
-  _app = initAppListeners();
+  _app = initAppListeners(process.env.PORT);
+  initWebsockets(_app);
 }
 
 

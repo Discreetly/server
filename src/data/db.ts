@@ -42,26 +42,61 @@ export function getRoomByID(id: string): Promise<RoomI | null> | null {
     });
 }
 
-export function getRoomsByIdentity(identity: string): RoomI[] {
+export async function getRoomsByIdentity(identity: string): Promise<string[]> {
   /* TODO Need to create a system here where the client needs to provide a
   proof they know the secrets to some Identity Commitment with a unix epoch
   time stamp to prevent replay attacks
+
+  https://github.com/Discreetly/IdentityCommitmentNullifierCircuit <- Circuit and JS to do this
   */
-  prisma.rooms
-    .findMany({
+  const r: string[] = [];
+  try {
+    const rooms = await prisma.rooms.findMany({
       where: {
         identities: {
           has: identity
         }
       }
-    })
-    .then((rooms) => {
-      return rooms.map((room) => {
-        room.roomId;
-      });
-    })
-    .catch((err) => console.error(err));
-  return [];
+    });
+    rooms.forEach((room) => {
+      r.push(room.roomId);
+    });
+    console.log(r);
+    return r;
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+}
+
+export function findClaimCode(code: string): Promise<CodeStatus> {
+  return prisma.claimCodes.findUnique({
+    where: { claimcode: code }
+  });
+}
+
+export function updateClaimCode(code: string): Promise<ClaimCode> {
+  return prisma.claimCodes.update({
+    where: { claimcode: code },
+    data: { claimed: true }
+  });
+}
+
+export function updateRoomIdentities(idc: string, roomIds: string[]): Promise<any> {
+  return prisma.rooms.updateMany({
+    where: { id: { in: roomIds } },
+    data: {
+      identities: {
+        push: idc
+      }
+    }
+  });
+}
+
+export function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
+  return prisma.rooms.findMany({
+    where: { id: { in: roomIds } }
+  });
 }
 
 /**
@@ -106,34 +141,4 @@ export async function createRoom(
     })
     .catch((err) => console.error(err));
   return false;
-}
-
-export function findClaimCode(code: string): Promise<CodeStatus | null> {
-  return prisma.claimCodes.findUnique({
-    where: { claimcode: code }
-  });
-}
-
-export function updateClaimCode(code: string): Promise<ClaimCode> {
-  return prisma.claimCodes.update({
-    where: { claimcode: code },
-    data: { claimed: true }
-  });
-}
-
-export function updateRoomIdentities(idc: string, roomIds: string[]): Promise<unknown> {
-  return prisma.rooms.updateMany({
-    where: { id: { in: roomIds } },
-    data: {
-      identities: {
-        push: idc
-      }
-    }
-  });
-}
-
-export function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
-  return prisma.rooms.findMany({
-    where: { id: { in: roomIds } }
-  });
 }
