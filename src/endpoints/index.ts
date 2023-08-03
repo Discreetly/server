@@ -2,7 +2,7 @@
 import type { Express, RequestHandler } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { serverConfig } from '../config/serverConfig';
-import { pp } from '../utils.js';
+import { pp } from '../utils';
 import {
   getRoomByID,
   getRoomsByIdentity,
@@ -14,12 +14,12 @@ import {
 } from '../data/db';
 import { RoomI } from 'discreetly-interfaces';
 
+const prisma = new PrismaClient();
 export function initEndpoints(app: Express, adminAuth: RequestHandler) {
-  const prisma = new PrismaClient();
 
   app.get(['/', '/api'], (req, res) => {
     pp('Express: fetching server info');
-    res.json(serverConfig);
+    res.status(200).json(serverConfig);
   });
 
   app.get('/api/room/:id', (req, res) => {
@@ -76,13 +76,16 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       userMessageLimit: number;
       numClaimCodes?: number;
     }
+
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    const roomMetadata = req.body.data as RoomData;
+    const roomMetadata = req.body as RoomData;
+    console.log(roomMetadata)
     const roomName = roomMetadata.roomName;
     const rateLimit = roomMetadata.rateLimit;
     const userMessageLimit = roomMetadata.userMessageLimit;
     const numClaimCodes = roomMetadata.numClaimCodes || 0;
     const result = createRoom(roomName, rateLimit, userMessageLimit, numClaimCodes);
+    console.log(result);
     if (result) {
       // TODO should return roomID and claim codes if they are generated
       res.status(200).json({ message: 'Room created successfully' });
@@ -116,4 +119,5 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         res.status(500).json({ error: 'Internal Server Error' });
       });
   });
+
 }

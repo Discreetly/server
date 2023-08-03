@@ -55,22 +55,27 @@ function initAppListeners() {
   socket_server.listen(socketServerPort, () => {
     pp(`SocketIO Server is running at port ${socketServerPort}`);
   });
+  return app;
 }
 
 /**
  * This is the main entry point for the server
  */
+let _app
 if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   console.log('~~~~DEVELOPMENT MODE~~~~');
   initWebsockets(io);
   initEndpoints(app, adminAuth);
   listEndpoints(app);
-  initAppListeners();
+  _app = initAppListeners();
   mock(io);
   // TODO! This is dangerous and only for development
   console.log('Admin password: ' + admin_password);
 } else {
   initWebsockets(io);
   initEndpoints(app, adminAuth);
-  initAppListeners();
+  _app = initAppListeners();
 }
+
+
+export default _app;

@@ -1,7 +1,7 @@
 import type { MessageI, RoomI } from 'discreetly-interfaces';
 import { str2BigInt } from 'discreetly-interfaces';
 import { RLNVerifier } from 'rlnjs';
-import vkey from './verification_key.js';
+import vkey from './verification_key'
 import { Group } from '@semaphore-protocol/group';
 
 const v = new RLNVerifier(vkey);

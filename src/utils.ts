@@ -1,3 +1,7 @@
+import { genId } from 'discreetly-interfaces'
+import { serverConfig } from './config/serverConfig'
+import { generateClaimCodes } from 'discreetly-claimcodes';
+import type { ClaimCodeT } from 'discreetly-claimcodes';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
@@ -9,6 +13,31 @@ export function shim() {
   };
 }
 
+export function genMockUsers(numMockUsers: number): string[] {
+  // Generates random number of mock users between 0.5 x numMockusers and 2 x numMockUsers
+  const newNumMockUsers = randn_bm(numMockUsers / 2, numMockUsers * 2);
+  const mockUsers: string[] = [];
+  for (let i = 0; i < newNumMockUsers; i++) {
+    mockUsers.push(
+      genId(
+        serverConfig.id,
+        // Generates a random string of length 10
+        Math.random()
+          .toString(36)
+          .substring(2, 2 + 10) + i
+      ).toString()
+    );
+  }
+  return mockUsers;
+}
+
+export function genClaimCodeArray(numClaimCodes: number): { claimcode: string }[] {
+  const claimCodes = generateClaimCodes(numClaimCodes);
+  const codeArr: { claimcode: string }[] = claimCodes.map((code: ClaimCodeT) => ({
+    claimcode: code.code
+  }));
+  return codeArr;
+}
 /**
  * Logs the provided string to the console with the specified log level.
  * @param {any} str - The string to log.
