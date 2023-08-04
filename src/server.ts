@@ -59,7 +59,9 @@ interface ServerConfigStartupI {
   port?: number | string;
   admin_password?: string;
 }
-const serverConfigStartup: ServerConfigStartupI = serverConfig as unknown as ServerConfigStartupI;
+const serverConfigStartup: ServerConfigStartupI = {
+  ...(serverConfig as unknown as ServerConfigStartupI)
+};
 if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   console.log('~~~~DEVELOPMENT MODE~~~~');
   const PORT = 3001;
