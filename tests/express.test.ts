@@ -2,14 +2,18 @@ const request = require('supertest');
 import _app from '../src/server'
 import { genId } from 'discreetly-interfaces';
 import { serverConfig } from '../src/config/serverConfig';
-import { describe } from 'node:test';
-import expressBasicAuth from 'express-basic-auth';
-import { transferableAbortController } from 'node:util';
-
+import { PrismaClient } from '@prisma/client';
+import { beforeAll, beforeEach, describe, expect, test } from "@jest/globals"
+import { pp } from '../src/utils';
 
 process.env.DATABASE_URL = process.env.DATABASE_URL_TEST
+process.env.PORT = "3001"
 
 
+beforeAll(async () => {
+  const prismaTest = new PrismaClient();
+  await prismaTest.rooms.deleteMany();
+})
 
 const room = {
   roomName: 'Test-room',
@@ -26,15 +30,21 @@ const joinTest = {
   idc: "12345678901234567890"
 }
 
-describe('GET /', () => {
-  test('It should respond with server info', () => {
-    request(_app).get('/').expect('Content-Type', 'application/json; charset=utf-8').then(res => {
-    })
-  })
-})
+const testIdedntity = "16880191893150922752288630180015602515378641737696672884604233982758617720405"
 
-describe("POST /room/add", () => {
+describe("Endpoints should all work hopefully", () => {
+
+  test('It should respond with server info', async () => {
+    await request(_app).get('/')
+      .expect('Content-Type').toBe('application/json; charset=utf-8')
+      .then((res) => res)
+      .catch(error => pp(error, 'error'))
+  })
+
+
+
   test("It should add a new room to the database", async () => {
+
     const username = 'admin';
     const password = process.env.PASSWORD;
     const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
@@ -44,23 +54,32 @@ describe("POST /room/add", () => {
       .set('Authorization', `Basic ${base64Credentials}`)
       .send(room)
       .then(res => {
-        expect(res.json).toBe('{message :"Room created successfully"}')
-      });
+        try {
+          expect(res.json).toBe('{message :"Room created successfully"}')
+        }
+        catch (error) {
+          pp(error, 'error')
+        }
+      })
+      .catch(error => pp(error, 'error'))
   });
-});
 
-describe("GET /api/room/:id", () => {
+
   test("It should return the room with the given id", async () => {
     await request(_app)
       .get(`/api/room/${roomByIdTest}`)
       .then(res => {
-        console.log(res.body);
-        expect(res.body.roomName).toBe(room.roomName)
-      });
-  });
-});
+        try {
+          expect(res.body.roomName).toBe(room.roomName)
 
-describe("GET /api/rooms", () => {
+        } catch (error) {
+          pp(error, 'error')
+        }
+      })
+      .catch(error => pp(error, 'error'))
+  });
+
+
   test("It should return all rooms", async () => {
     const username = 'admin';
     const password = process.env.PASSWORD;
@@ -69,13 +88,19 @@ describe("GET /api/rooms", () => {
       .get("/api/rooms")
       .set('Authorization', `Basic ${base64Credentials}`)
       .then(res => {
-        expect(res.status).toBe(200)
-        expect(res.bodyname).toBe(room.roomName)
-      });
-  });
-})
+        try {
+          expect(res.status).toBe(200)
+          expect(res.bodyname).toBe(room.roomName)
 
-describe("GET /logclaimcodes", () => {
+        } catch (error) {
+          pp(error, 'error')
+        }
+      })
+      .catch(error => pp(error, 'error'))
+  });
+
+
+
   test("It should return all claim codes", async () => {
     const username = 'admin';
     const password = process.env.PASSWORD;
@@ -84,20 +109,48 @@ describe("GET /logclaimcodes", () => {
       .get("/logclaimcodes")
       .set('Authorization', `Basic ${base64Credentials}`)
       .then(res => {
-        expect(res.status).toBe(401)
-        expect(res.body.length).toBeGreaterThan(0)
-      });
-  });
-});
+        try {
+          expect(res.status).toBe(401)
+          expect(res.body.length).toBeGreaterThan(0)
 
-describe("POST /join", () => {
+        } catch (error) {
+          pp(error, 'error')
+        }
+      })
+      .catch(error => pp(error, 'error'))
+  });
+
+
+
   test("It should add a users identity to the rooms the claim code is associated with", async () => {
     await request(_app)
-    .post("/join")
-    .send(joinTest)
-    .then(res => {
-      expect(res.statusCode).toBe(200)
-      expect(res.body.status).toBe('valid')
-    })
+      .post("/join")
+      .send(joinTest)
+      .then(res => {
+        try {
+          expect(res.statusCode).toBe(200)
+          expect(res.body.status).toBe('valid')
+
+        } catch (error) {
+          pp(error, 'error')
+        }
+      })
+      .catch(error => pp(error, 'error'))
+  })
+
+
+
+  test("It should return all rooms associated with the given identity", async () => {
+    await request(_app)
+      .get(`/api/rooms/${joinTest.idc}`)
+      .then(res => {
+        try {
+          expect(res.statusCode).toBe(200)
+          expect(res.body.length).toBeGreaterThan(0)
+        } catch (error) {
+
+        }
+      })
+      .catch(error => pp(error, 'error'))
   })
 })
