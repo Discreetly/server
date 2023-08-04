@@ -54,9 +54,9 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     }
   });
 
-  app.get(['/rooms/:idc', '/api/rooms/:idc'], (req, res) => {
+  app.get(['/rooms/:idc', '/api/rooms/:idc'], async (req, res) => {
     pp(String('Express: fetching rooms by identityCommitment ' + req.params.idc));
-    res.json(getRoomsByIdentity(req.params.idc));
+    res.status(200).json(await getRoomsByIdentity(req.params.idc));
   });
 
   interface JoinData {
@@ -109,6 +109,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
 
   /* ~~~~ ADMIN ENDPOINTS ~~~~ */
   app.post(['/room/add', '/api/room/add'], adminAuth, (req, res) => {
+    console.log(req.body)
     const roomMetadata = req.body as addRoomData;
     console.log(roomMetadata);
     const roomName = roomMetadata.roomName;
@@ -117,6 +118,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     const numClaimCodes = roomMetadata.numClaimCodes || 0;
     createRoom(roomName, rateLimit, userMessageLimit, numClaimCodes)
       .then((result) => {
+        console.log(result);
         if (result) {
           // TODO should return roomID and claim codes if they are generated
           res.status(200).json({ message: 'Room created successfully' });
