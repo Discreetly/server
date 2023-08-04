@@ -54,9 +54,9 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     }
   });
 
-  app.get(['/rooms/:idc', '/api/rooms/:idc'], (req, res) => {
+  app.get(['/rooms/:idc', '/api/rooms/:idc'], async (req, res) => {
     pp(String('Express: fetching rooms by identityCommitment ' + req.params.idc));
-    res.status(200).json(getRoomsByIdentity(req.params.idc));
+    res.status(200).json(await getRoomsByIdentity(req.params.idc));
   });
 
   interface JoinData {

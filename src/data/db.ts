@@ -142,11 +142,13 @@ export async function createRoom(
     }
   };
 
-  await prisma.rooms
+  return await prisma.rooms
     .upsert(roomData)
     .then(() => {
       return true;
     })
-    .catch((err) => console.error(err));
-  return false;
+    .catch((err) => {
+      console.error(err);
+      return false;
+    });
 }
