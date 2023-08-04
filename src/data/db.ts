@@ -4,9 +4,7 @@
 import { PrismaClient } from '@prisma/client';
 import { RoomI, genId } from 'discreetly-interfaces';
 import { serverConfig } from '../config/serverConfig';
-import { randn_bm } from '../utils';
-import { generateClaimCodes } from 'discreetly-claimcodes';
-import type { ClaimCodeT } from 'discreetly-claimcodes';
+import { genMockUsers, genClaimCodeArray, pp } from '../utils';
 
 const prisma = new PrismaClient();
 
@@ -15,11 +13,11 @@ interface CodeStatus {
   roomIds: string[];
 }
 
-interface ClaimCode {
+interface RoomsFromClaimCode {
   roomIds: string[];
 }
 
-export function getRoomByID(id: string): Promise<RoomI> {
+export function getRoomByID(id: string): Promise<RoomI | null> {
   return prisma.rooms
     .findUnique({
       where: {
@@ -70,13 +68,13 @@ export async function getRoomsByIdentity(identity: string): Promise<string[]> {
   }
 }
 
-export function findClaimCode(code: string): Promise<CodeStatus> {
+export function findClaimCode(code: string): Promise<CodeStatus | null> {
   return prisma.claimCodes.findUnique({
     where: { claimcode: code }
   });
 }
 
-export function updateClaimCode(code: string): Promise<ClaimCode> {
+export function updateClaimCode(code: string): Promise<RoomsFromClaimCode> {
   return prisma.claimCodes.update({
     where: { claimcode: code },
     data: { claimed: true }
@@ -84,14 +82,23 @@ export function updateClaimCode(code: string): Promise<ClaimCode> {
 }
 
 export function updateRoomIdentities(idc: string, roomIds: string[]): Promise<any> {
-  return prisma.rooms.updateMany({
+  return prisma.rooms.findMany({
     where: { id: { in: roomIds } },
-    data: {
-      identities: {
-        push: idc
-      }
+  })
+  .then((rooms) => {
+    const roomsToUpdate = rooms
+      .filter(room => !room.identities.includes(idc))
+      .map(room => room.id);
+
+    if (roomsToUpdate) {
+      return prisma.rooms.updateMany({
+        where: { id: { in: roomsToUpdate } },
+        data: { identities: { push: idc } }
+      });
     }
-  });
+  }).catch(err => {
+    pp(err, 'error')
+  })
 }
 
 export function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
@@ -108,40 +115,15 @@ export function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
  * @param {number} [numClaimCodes=0] - The number of claim codes to generate for the room.
  * @param {number} [approxNumMockUsers=20] - The approximate number of mock users to generate for the room.
  */
-export function createRoom(
+export async function createRoom(
   name: string,
   rateLimit = 1000,
   userMessageLimit = 1,
   numClaimCodes = 0,
   approxNumMockUsers = 20
-): boolean {
-  function genMockUsers(numMockUsers: number): string[] {
-    // Generates random number of mock users between 0.5 x numMockusers and 2 x numMockUsers
-    const newNumMockUsers = randn_bm(numMockUsers / 2, numMockUsers * 2);
-    const mockUsers: string[] = [];
-    for (let i = 0; i < newNumMockUsers; i++) {
-      mockUsers.push(
-        genId(
-          serverConfig.id,
-          // Generates a random string of length 10
-          Math.random()
-            .toString(36)
-            .substring(2, 2 + 10) + i
-        ).toString()
-      );
-    }
-    return mockUsers;
-  }
-
-  function genClaimCodeArray(numClaimCodes: number): { claimcode: string }[] {
-    const claimCodes = generateClaimCodes(numClaimCodes);
-    const codeArr: { claimcode: string }[] = claimCodes.map((code: ClaimCodeT) => ({
-      claimcode: code.code
-    }));
-    return codeArr;
-  }
-
+): Promise<boolean> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
+  console.log(claimCodes);
   const mockUsers: string[] = genMockUsers(approxNumMockUsers);
   const roomData = {
     where: {
@@ -160,7 +142,7 @@ export function createRoom(
     }
   };
 
-  prisma.rooms
+  await prisma.rooms
     .upsert(roomData)
     .then(() => {
       return true;

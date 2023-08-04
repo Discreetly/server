@@ -4,7 +4,10 @@ import { MessageI } from 'discreetly-interfaces';
 
 const prisma = new PrismaClient();
 
-function updateRoom(roomId: string, message: MessageI, epoch: number): Promise<unknown> {
+function addMessageToRoom(roomId: string, message: MessageI): Promise<unknown> {
+  if (!message.epoch) {
+    throw new Error('Epoch not provided');
+  }
   return prisma.rooms.update({
     where: {
       roomId: roomId
@@ -12,7 +15,7 @@ function updateRoom(roomId: string, message: MessageI, epoch: number): Promise<u
     data: {
       epochs: {
         create: {
-          epoch: epoch,
+          epoch: String(message.epoch),
           messages: {
             create: {
               message: message.message ? message.message.toString() : '',
@@ -27,22 +30,28 @@ function updateRoom(roomId: string, message: MessageI, epoch: number): Promise<u
   });
 }
 
-export function createMessage(roomId: string, message: MessageI) {
+export function createMessage(roomId: string, message: MessageI): boolean {
   getRoomByID(roomId)
     .then((room) => {
       if (room) {
-        updateRoom(roomId, message)
+        // Todo This should check that there is no duplicate messageId with in this room and epoch, if there is, we need to return an error and reconstruct the secret from both messages, and ban the user
+        addMessageToRoom(roomId, message)
           .then((roomToUpdate) => {
             console.log(roomToUpdate);
+            return true;
           })
           .catch((error) => {
             console.error(`Error updating room: ${error}`);
+            return false;
           });
       } else {
         console.log('Room not found');
+        return false;
       }
     })
     .catch((error) => {
       console.error(`Error getting room: ${error}`);
+      return false;
     });
+  return false;
 }

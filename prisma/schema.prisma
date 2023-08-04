@@ -55,7 +55,7 @@ model Messages {
 
 model Epoch {
   id       String     @id @default(auto()) @map("_id") @db.ObjectId
-  epoch    Int
+  epoch    String
   messages Messages[]
   rooms    Rooms?     @relation(fields: [roomsId], references: [id])
   roomsId  String?    @db.ObjectId

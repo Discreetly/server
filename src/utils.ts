@@ -1,3 +1,7 @@
+import { genId } from 'discreetly-interfaces';
+import { serverConfig } from './config/serverConfig';
+import { generateClaimCodes } from 'discreetly-claimcodes';
+import type { ClaimCodeT } from 'discreetly-claimcodes';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
@@ -9,37 +13,75 @@ export function shim() {
   };
 }
 
+export function genMockUsers(numMockUsers: number): string[] {
+  // Generates random number of mock users between 0.5 x numMockusers and 2 x numMockUsers
+  const newNumMockUsers = randn_bm(numMockUsers / 2, numMockUsers * 2);
+  const mockUsers: string[] = [];
+  for (let i = 0; i < newNumMockUsers; i++) {
+    mockUsers.push(
+      genId(
+        serverConfig.id,
+        // Generates a random string of length 10
+        Math.random()
+          .toString(36)
+          .substring(2, 2 + 10) + i
+      ).toString()
+    );
+  }
+  return mockUsers;
+}
+
+export function genClaimCodeArray(numClaimCodes: number): { claimcode: string }[] {
+  const claimCodes: ClaimCodeT[] = generateClaimCodes(numClaimCodes) as ClaimCodeT[];
+  const codeArr: { claimcode: string }[] = claimCodes.map((code: ClaimCodeT) => ({
+    claimcode: String(code.code)
+  }));
+  return codeArr;
+}
 /**
  * Logs the provided string to the console with the specified log level.
- * @param {any} str - The string to log.
+ * @param {any} data - The string to log.
  * @param {string} [level='log'] - The log level to use. Can be one of 'log', 'debug', 'info', 'warn', 'warning', 'error', 'err', 'table', or 'assert'.
  */
-export const pp = (str: any, level = 'log') => {
-  str = JSON.stringify(str, null, 2);
+export const pp = (data: any, level = 'log') => {
   switch (level) {
     case 'log':
-      console.log(str);
+      data = JSON.stringify(data, null, 2);
+      console.log(data);
       break;
     case 'debug':
-      console.debug(str);
+      data = JSON.stringify(data, null, 2);
+      console.debug(data);
       break;
     case 'info':
-      console.info(str);
+      data = JSON.stringify(data, null, 2);
+      console.info(data);
       break;
     case 'warn' || 'warning':
-      console.warn(str);
+      data = JSON.stringify(data, null, 2);
+      console.warn(data);
       break;
     case 'error' || 'err':
-      console.error(str);
+      data = JSON.stringify(data, null, 2);
+      console.error(data);
       break;
     case 'table':
-      console.table(str);
+      if (typeof data === 'object') {
+        // converts an object into a table of keys and values
+        const newData: { key: any; value: any }[] = [];
+        Object.entries(data as Record<string, unknown>).forEach(([key, value]) => {
+          newData.push({ key: key, value: value });
+        });
+        console.table(newData);
+      } else {
+        console.table(data);
+      }
       break;
     case 'assert':
-      console.assert(str);
+      console.assert(data);
       break;
     default:
-      console.log(str);
+      console.log(data);
   }
 };
 
