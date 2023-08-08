@@ -107,6 +107,25 @@ export function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
   });
 }
 
+export function createSystemMessages(message: string): Promise<any> {
+  return prisma.rooms.findMany()
+    .then(rooms => {
+      const createMessages = rooms.map(room => {
+        return prisma.messages.create({
+          data: {
+            message,
+            roomId: room.roomId,
+            messageId: "0",
+            proof: JSON.stringify({}),
+          },
+        });
+      });
+
+      return Promise.all(createMessages);
+    });
+}
+
+
 /**
  * Creates a new room with the given name and optional parameters.
  * @param {string} name - The name of the room.
