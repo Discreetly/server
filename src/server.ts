@@ -70,7 +70,11 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   initEndpoints(app, adminAuth);
   _app = initAppListeners(PORT);
   listEndpoints(app);
-  io = new SocketIOServer(_app, {});
+  io = new SocketIOServer(_app, {
+    cors: {
+      origin: '*'
+    }
+  });
   initWebsockets(io);
   mock(io);
 } else {
@@ -78,7 +82,11 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   serverConfigStartup.port = PORT;
   initEndpoints(app, adminAuth);
   _app = initAppListeners(PORT);
-  io = new SocketIOServer(_app, {});
+  io = new SocketIOServer(_app, {
+    cors: {
+      origin: '*'
+    }
+  });
   initWebsockets(io);
 }
 
