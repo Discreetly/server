@@ -107,9 +107,13 @@ export function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
   });
 }
 
-export function createSystemMessages(message: string): Promise<any> {
-  return prisma.rooms.findMany()
+export function createSystemMessages(message: string, roomId?: string): Promise<any> {
+  const query = roomId ? { where: { roomId } } : undefined;
+  return prisma.rooms.findMany(query)
     .then(rooms => {
+      if (roomId && rooms.length === 0) {
+        Promise.reject('Room not found')
+      }
       const createMessages = rooms.map(room => {
         return prisma.messages.create({
           data: {

@@ -195,4 +195,17 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       res.status(500).json({ error: "Internal Server Error" });
     }
   });
+
+  app.post("/admin/message/:roomId", adminAuth, async (req, res) => {
+    const { roomId } = req.params;
+    const { message } = req.body;
+    pp(String("Express: sending system message: " + message + " to " + roomId));
+    try {
+      await createSystemMessages(message, roomId);
+      res.status(200).json({ message: "Message sent to room " + roomId });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
 }
