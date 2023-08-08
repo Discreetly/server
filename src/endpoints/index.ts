@@ -10,6 +10,7 @@ import {
   updateRoomIdentities,
   findUpdatedRooms,
   createRoom,
+  createSystemMessages,
 } from "../data/db";
 import { RoomI } from "discreetly-interfaces";
 
@@ -124,6 +125,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     const numClaimCodes = roomMetadata.numClaimCodes || 0;
     createRoom(roomName, rateLimit, userMessageLimit, numClaimCodes)
       .then((result) => {
+        console.log(result);
         if (result) {
           // TODO should return roomID and claim codes if they are generated
           res.status(200).json({ message: "Room created successfully" });
@@ -179,5 +181,30 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         console.error(err);
         res.status(500).json({ error: "Internal Server Error" });
       });
+  });
+
+  app.post("/admin/message", adminAuth, async (req, res) => {
+    const { message } = req.body;
+    pp(String("Express: sending system message: " + message));
+    try {
+      await createSystemMessages(message);
+      res.status(200).json({ message: "Messages sent to all rooms" });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
+
+  app.post("/admin/message/:roomId", adminAuth, async (req, res) => {
+    const { roomId } = req.params;
+    const { message } = req.body;
+    pp(String("Express: sending system message: " + message + " to " + roomId));
+    try {
+      await createSystemMessages(message, roomId);
+      res.status(200).json({ message: "Message sent to room " + roomId });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
   });
 }
