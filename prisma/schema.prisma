@@ -10,17 +10,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum RoomMembershipType {
-  IDENTITY_LIST
-  RLN_CONTRACT
-  BANDADA
-}
-
-enum RoomType {
-  PUBLIC
-  PRIVATE
-  PIXEL
-}
 
 model Rooms {
   id               String             @id @default(auto()) @map("_id") @db.ObjectId
@@ -29,7 +18,7 @@ model Rooms {
   rateLimit        Int                @default(1000) // epoch length in ms
   banRateLimit     Int                @default(1000000) // starting number of epochs banned for
   userMessageLimit Int                @default(1) // per epoch
-  membershipType   RoomMembershipType @default(IDENTITY_LIST)
+  membershipType   String             @default("IDENTITY_LIST")
   identities       String[]           @default([])
   contractAddress  String? // RLN_CONTRACT as "chainID:0xADDRESS"
   bandadaAddress   String? // BANDADA as "url:groupID"
@@ -37,7 +26,7 @@ model Rooms {
   messages         Messages[]
   claimCodes       ClaimCodes[]       @relation(fields: [claimCodeIds], references: [id])
   claimCodeIds     String[]           @default([]) @db.ObjectId
-  type            RoomType           @default(PUBLIC)
+  type             String
 }
 
 model ClaimCodes {

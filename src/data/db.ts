@@ -18,8 +18,8 @@ interface RoomsFromClaimCode {
   roomIds: string[];
 }
 
-export function getRoomByID(id: string): Promise<RoomI | null> {
-  return prisma.rooms
+export async function getRoomByID(id: string): Promise<RoomI | null> {
+  const room = await prisma.rooms
     .findUnique({
       where: {
         roomId: id
@@ -44,6 +44,12 @@ export function getRoomByID(id: string): Promise<RoomI | null> {
       console.error(err);
       throw err; // Add this line to throw the error
     });
+  return new Promise((resolve, reject) => {
+    if (room) {
+      resolve(room as RoomI);
+    }
+    reject('Room not found');
+  });
 }
 
 export async function getRoomsByIdentity(identity: string): Promise<string[]> {
@@ -108,9 +114,15 @@ export function updateRoomIdentities(idc: string, roomIds: string[]): Promise<an
     });
 }
 
-export function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
-  return prisma.rooms.findMany({
+export async function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
+  const rooms = await prisma.rooms.findMany({
     where: { id: { in: roomIds } }
+  });
+  return new Promise((resolve, reject) => {
+    if (rooms) {
+      resolve(rooms as RoomI[]);
+    }
+    reject('No rooms found');
   });
 }
 
