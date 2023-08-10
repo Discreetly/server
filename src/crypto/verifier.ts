@@ -40,9 +40,11 @@ async function verifyProof(msg: MessageI, room: RoomI, epochErrorRange = 5): Pro
   }
 
   // Check that the merkle root is correct
-  const group = new Group(room.id, 20, room.membership?.identityCommitments);
-  if (group.root !== msg.proof.snarkProof.publicSignals.root) {
-    return false;
+  if (room.identities && Array.isArray(room.identities)) {
+    const group = new Group(room.id, 20, room.identities as bigint[] | undefined);
+    if (group.root !== msg.proof.snarkProof.publicSignals.root) {
+      return false;
+    }
   }
 
   // Check that the proof is correct

@@ -2,7 +2,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 import { PrismaClient } from '@prisma/client';
-import { RoomI, genId } from 'discreetly-interfaces';
+import { genId } from 'discreetly-interfaces';
+import type { RoomI } from 'discreetly-interfaces';
 import { serverConfig } from '../config/serverConfig';
 import { genMockUsers, genClaimCodeArray, pp } from '../utils';
 
@@ -29,7 +30,11 @@ export function getRoomByID(id: string): Promise<RoomI | null> {
         name: true,
         identities: true,
         rateLimit: true,
-        userMessageLimit: true
+        userMessageLimit: true,
+        membershipType: true,
+        contractAddress: true,
+        bandadaAddress: true,
+        type: true
       }
     })
     .then((room) => {
@@ -82,23 +87,25 @@ export function updateClaimCode(code: string): Promise<RoomsFromClaimCode> {
 }
 
 export function updateRoomIdentities(idc: string, roomIds: string[]): Promise<any> {
-  return prisma.rooms.findMany({
-    where: { id: { in: roomIds } },
-  })
-  .then((rooms) => {
-    const roomsToUpdate = rooms
-      .filter(room => !room.identities.includes(idc))
-      .map(room => room.id);
+  return prisma.rooms
+    .findMany({
+      where: { id: { in: roomIds } }
+    })
+    .then((rooms) => {
+      const roomsToUpdate = rooms
+        .filter((room) => !room.identities.includes(idc))
+        .map((room) => room.id);
 
-    if (roomsToUpdate) {
-      return prisma.rooms.updateMany({
-        where: { id: { in: roomsToUpdate } },
-        data: { identities: { push: idc } }
-      });
-    }
-  }).catch(err => {
-    pp(err, 'error')
-  })
+      if (roomsToUpdate) {
+        return prisma.rooms.updateMany({
+          where: { id: { in: roomsToUpdate } },
+          data: { identities: { push: idc } }
+        });
+      }
+    })
+    .catch((err) => {
+      pp(err, 'error');
+    });
 }
 
 export function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {

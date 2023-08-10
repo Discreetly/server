@@ -16,6 +16,12 @@ enum RoomMembershipType {
   BANDADA
 }
 
+enum RoomType {
+  PUBLIC
+  PRIVATE
+  PIXEL
+}
+
 model Rooms {
   id               String             @id @default(auto()) @map("_id") @db.ObjectId
   roomId           String             @unique
@@ -31,6 +37,7 @@ model Rooms {
   messages         Messages[]
   claimCodes       ClaimCodes[]       @relation(fields: [claimCodeIds], references: [id])
   claimCodeIds     String[]           @default([]) @db.ObjectId
+  type            RoomType           @default(PUBLIC)
 }
 
 model ClaimCodes {
