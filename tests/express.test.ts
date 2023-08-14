@@ -6,7 +6,8 @@ import { PrismaClient } from "@prisma/client";
 import { beforeAll, beforeEach, describe, expect, test } from "@jest/globals";
 import { pp } from "../src/utils";
 import { randBigint, randomRoomName } from "./utils";
-
+console.log(process.env.DATABASE_URL.slice(0, 10))
+console.log(process.env.DATABASE_URL_TEST.slice(0, 10))
 process.env.DATABASE_URL = process.env.DATABASE_URL_TEST;
 process.env.PORT = "3001";
 
