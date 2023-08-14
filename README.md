@@ -68,7 +68,7 @@ npm i
 PASSWORD= //password for admin endpoints
 NODE_ENV= //development
 DATABASE_URL= //MongoDB Atlas URL
-DATABASE_URL_TEST= //MongoDB Atlas URL same or a seperate cluster for testing
+DATABASE_URL_TEST= //MongoDB Atlas URL same as above or a seperate cluster for testing
 ```
 
 ### Initialize Prisma
