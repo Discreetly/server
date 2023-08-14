@@ -2,7 +2,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 import { PrismaClient } from '@prisma/client';
-import { RoomI, genId } from 'discreetly-interfaces';
+import { genId } from 'discreetly-interfaces';
+import type { RoomI } from 'discreetly-interfaces';
 import { serverConfig } from '../config/serverConfig';
 import { genMockUsers, genClaimCodeArray, pp } from '../utils';
 
@@ -17,8 +18,8 @@ interface RoomsFromClaimCode {
   roomIds: string[];
 }
 
-export function getRoomByID(id: string): Promise<RoomI | null> {
-  return prisma.rooms
+export async function getRoomByID(id: string): Promise<RoomI | null> {
+  const room = await prisma.rooms
     .findUnique({
       where: {
         roomId: id
@@ -29,7 +30,11 @@ export function getRoomByID(id: string): Promise<RoomI | null> {
         name: true,
         identities: true,
         rateLimit: true,
-        userMessageLimit: true
+        userMessageLimit: true,
+        membershipType: true,
+        contractAddress: true,
+        bandadaAddress: true,
+        type: true
       }
     })
     .then((room) => {
@@ -39,6 +44,12 @@ export function getRoomByID(id: string): Promise<RoomI | null> {
       console.error(err);
       throw err; // Add this line to throw the error
     });
+  return new Promise((resolve, reject) => {
+    if (room) {
+      resolve(room as RoomI);
+    }
+    reject('Room not found');
+  });
 }
 
 export async function getRoomsByIdentity(identity: string): Promise<string[]> {
@@ -82,28 +93,36 @@ export function updateClaimCode(code: string): Promise<RoomsFromClaimCode> {
 }
 
 export function updateRoomIdentities(idc: string, roomIds: string[]): Promise<any> {
-  return prisma.rooms.findMany({
-    where: { id: { in: roomIds } },
-  })
-  .then((rooms) => {
-    const roomsToUpdate = rooms
-      .filter(room => !room.identities.includes(idc))
-      .map(room => room.id);
+  return prisma.rooms
+    .findMany({
+      where: { id: { in: roomIds } }
+    })
+    .then((rooms) => {
+      const roomsToUpdate = rooms
+        .filter((room) => !room.identities.includes(idc))
+        .map((room) => room.id);
 
-    if (roomsToUpdate) {
-      return prisma.rooms.updateMany({
-        where: { id: { in: roomsToUpdate } },
-        data: { identities: { push: idc } }
-      });
-    }
-  }).catch(err => {
-    pp(err, 'error')
-  })
+      if (roomsToUpdate) {
+        return prisma.rooms.updateMany({
+          where: { id: { in: roomsToUpdate } },
+          data: { identities: { push: idc } }
+        });
+      }
+    })
+    .catch((err) => {
+      pp(err, 'error');
+    });
 }
 
-export function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
-  return prisma.rooms.findMany({
+export async function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
+  const rooms = await prisma.rooms.findMany({
     where: { id: { in: roomIds } }
+  });
+  return new Promise((resolve, reject) => {
+    if (rooms) {
+      resolve(rooms as RoomI[]);
+    }
+    reject('No rooms found');
   });
 }
 
@@ -143,7 +162,8 @@ export async function createRoom(
   rateLimit = 1000,
   userMessageLimit = 1,
   numClaimCodes = 0,
-  approxNumMockUsers = 20
+  approxNumMockUsers = 20,
+  type: string = 'PUBLIC'
 ): Promise<boolean> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
   console.log(claimCodes);
@@ -159,13 +179,14 @@ export async function createRoom(
       rateLimit: rateLimit,
       userMessageLimit: userMessageLimit,
       identities: mockUsers,
+      type,
       claimCodes: {
         create: claimCodes
       }
     }
-  };
+  }; 
 
-  return prisma.rooms
+  return await prisma.rooms
     .upsert(roomData)
     .then(() => {
       return true;
@@ -174,5 +195,4 @@ export async function createRoom(
       console.error(err);
       return false;
     });
-
 }

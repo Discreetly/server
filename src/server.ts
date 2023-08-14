@@ -59,7 +59,9 @@ interface ServerConfigStartupI {
   port?: number | string;
   admin_password?: string;
 }
-const serverConfigStartup: ServerConfigStartupI = serverConfig as unknown as ServerConfigStartupI;
+const serverConfigStartup: ServerConfigStartupI = {
+  ...(serverConfig as unknown as ServerConfigStartupI)
+};
 if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   console.log('~~~~DEVELOPMENT MODE~~~~');
   const PORT = 3001;
@@ -68,7 +70,11 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   initEndpoints(app, adminAuth);
   _app = initAppListeners(PORT);
   listEndpoints(app);
-  io = new SocketIOServer(_app, {});
+  io = new SocketIOServer(_app, {
+    cors: {
+      origin: '*'
+    }
+  });
   initWebsockets(io);
   mock(io);
 } else {
@@ -76,7 +82,11 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   serverConfigStartup.port = PORT;
   initEndpoints(app, adminAuth);
   _app = initAppListeners(PORT);
-  io = new SocketIOServer(_app, {});
+  io = new SocketIOServer(_app, {
+    cors: {
+      origin: '*'
+    }
+  });
   initWebsockets(io);
 }
 
