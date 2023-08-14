@@ -1,5 +1,5 @@
 <div align='center'>
-<img align='center' src="../frontend/static/logo-text.png" width='200px' />
+<img align='center' src="https://drive.google.com/uc?id=1_IJSt_pmpOFNfRg7zDDzSF-LYLp__pjE" width='200px' />
 </div>
 <br>
 </br>
