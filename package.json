@@ -12,7 +12,7 @@
     "watch": "rollup --config rollup.config.mjs --watch",
     "serve": "nodemon -q dist/server.jcs",
     "dev": "concurrently \"npm run watch\" \"npm run serve\"",
-    "test": "jest --detectOpenHandles",
+    "test": "jest --detectOpenHandles --forceExit",
     "lint": "eslint ."
   },
   "engines": {

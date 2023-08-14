@@ -17,13 +17,6 @@ beforeAll(async () => {
   await prismaTest.claimCodes.deleteMany();
 });
 
-beforeAll(async () => {
-  const prismaTest = new PrismaClient();
-  await prismaTest.messages.deleteMany();
-  await prismaTest.rooms.deleteMany();
-  await prismaTest.claimCodes.deleteMany();
-});
-
 const room = {
   roomName: randomRoomName(),
   rateLimit: 1000,
