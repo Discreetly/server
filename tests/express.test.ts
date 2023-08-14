@@ -9,6 +9,7 @@ import { randBigint, randomRoomName } from "./utils";
 
 process.env.DATABASE_URL = process.env.DATABASE_URL_TEST;
 process.env.PORT = "3001";
+console.log(process.env.DATABASE_URL.slice(0, 10))
 
 beforeAll(async () => {
   const prismaTest = new PrismaClient();
