@@ -1,7 +1,7 @@
-import type { Express, RequestHandler, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
-import { serverConfig } from '../config/serverConfig';
-import { pp } from '../utils';
+import type { Express, RequestHandler, Request, Response } from "express";
+import { PrismaClient } from "@prisma/client";
+import { serverConfig } from "../config/serverConfig";
+import { pp } from "../utils";
 import {
   getRoomByID,
   getRoomsByIdentity,
@@ -9,9 +9,10 @@ import {
   updateClaimCode,
   updateRoomIdentities,
   findUpdatedRooms,
-  createRoom
-} from '../data/db';
-import { RoomI } from 'discreetly-interfaces';
+  createRoom,
+  createSystemMessages,
+} from "../data/db";
+import { RoomI } from "discreetly-interfaces";
 
 const prisma = new PrismaClient();
 
@@ -28,22 +29,25 @@ function asyncHandler(fn: {
 }
 
 export function initEndpoints(app: Express, adminAuth: RequestHandler) {
-  app.get(['/', '/api'], (req, res) => {
-    pp('Express: fetching server info');
+  app.get(["/", "/api"], (req, res) => {
+    pp("Express: fetching server info");
     res.status(200).json(serverConfig);
   });
 
-  app.get(['/room/:id', '/api/room/:id'], (req, res) => {
+  app.get(["/room/:id", "/api/room/:id"], (req, res) => {
     if (!req.params.id) {
-      res.status(400).json({ error: 'Bad Request' });
+      res.status(400).json({ error: "Bad Request" });
     } else {
-      const requestRoomId = req.params.id ?? '0';
-      pp(String('Express: fetching room info for ' + req.params.id));
+      const requestRoomId = req.params.id ?? "0";
+      pp(String("Express: fetching room info for " + req.params.id));
       getRoomByID(requestRoomId)
         .then((room: RoomI) => {
           if (!room) {
             // This is set as a timeout to prevent someone from trying to brute force room ids
-            setTimeout(() => res.status(500).json({ error: 'Internal Server Error' }), 1000);
+            setTimeout(
+              () => res.status(500).json({ error: "Internal Server Error" }),
+              1000
+            );
           } else {
             // Add null check before accessing properties of room object
             const { roomId, name, rateLimit, userMessageLimit } = room || {};
@@ -65,20 +69,22 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   }
 
   app.post(
-    ['/join', '/api/join'],
+    ["/join", "/api/join"],
     asyncHandler(async (req: Request, res: Response) => {
       const parsedBody: JoinData = req.body as JoinData;
 
       if (!parsedBody.code || !parsedBody.idc) {
-        res.status(400).json({ message: '{code: string, idc: string} expected' });
+        res
+          .status(400)
+          .json({ message: "{code: string, idc: string} expected" });
       }
       const { code, idc } = parsedBody;
-      console.log('Invite Code:', code);
+      console.log("Invite Code:", code);
 
       // Check if claim code is valid and not used before
       const codeStatus = await findClaimCode(code);
       if (!codeStatus || codeStatus.claimed) {
-        res.status(400).json({ message: 'Claim code already used' });
+        res.status(400).json({ message: "Claim code already used" });
         return;
       }
 
@@ -94,8 +100,8 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
 
       // Return the room ids of the updated rooms
       res.status(200).json({
-        status: 'valid',
-        roomIds: updatedRooms.map((room: RoomI) => room.roomId)
+        status: "valid",
+        roomIds: updatedRooms.map((room: RoomI) => room.roomId),
       });
     })
   );
@@ -110,7 +116,8 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   }
 
   /* ~~~~ ADMIN ENDPOINTS ~~~~ */
-  app.post(['/room/add', '/api/room/add'], adminAuth, (req, res) => {
+  app.post(["/room/add", "/api/room/add"], adminAuth, (req, res) => {
+    console.log(req.body);
     const roomMetadata = req.body as addRoomData;
     console.log(roomMetadata);
     const roomName = roomMetadata.roomName;
@@ -121,11 +128,12 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     const type = roomMetadata.roomType;
     createRoom(roomName, rateLimit, userMessageLimit, numClaimCodes, approxNumMockUsers, type)
       .then((result) => {
+        console.log(result);
         if (result) {
           // TODO should return roomID and claim codes if they are generated
-          res.status(200).json({ message: 'Room created successfully' });
+          res.status(200).json({ message: "Room created successfully" });
         } else {
-          res.status(500).json({ error: 'Internal Server Error' });
+          res.status(500).json({ error: "Internal Server Error" });
         }
       })
       .catch((err) => {
@@ -134,26 +142,26 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
-  app.get('/api/room/:id/messages', (req, res) => {
+  app.get("/api/room/:id/messages", (req, res) => {
     const { id } = req.params;
     prisma.messages
       .findMany({
         where: {
-          roomId: id
-        }
+          roomId: id,
+        },
       })
       .then((messages) => {
-        pp('Express: fetching messages for room ' + id);
+        pp("Express: fetching messages for room " + id);
         res.status(200).json(messages);
       })
       .catch((error: Error) => {
-        pp(error, 'error');
-        res.status(500).send('Error fetching messages');
+        pp(error, "error");
+        res.status(500).send("Error fetching messages");
       });
   });
 
-  app.get(['/logclaimcodes', '/api/logclaimcodes'], adminAuth, (req, res) => {
-    pp('Express: fetching claim codes');
+  app.get(["/logclaimcodes", "/api/logclaimcodes"], adminAuth, (req, res) => {
+    pp("Express: fetching claim codes");
     prisma.claimCodes
       .findMany()
       .then((claimCodes) => {
@@ -161,12 +169,12 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       })
       .catch((err) => {
         console.error(err);
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(500).json({ error: "Internal Server Error" });
       });
   });
 
-  app.get(['/rooms', '/api/rooms'], adminAuth, (req, res) => {
-    pp(String('Express: fetching all rooms'));
+  app.get(["/rooms", "/api/rooms"], adminAuth, (req, res) => {
+    pp(String("Express: fetching all rooms"));
     prisma.rooms
       .findMany()
       .then((rooms) => {
@@ -174,7 +182,32 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       })
       .catch((err) => {
         console.error(err);
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(500).json({ error: "Internal Server Error" });
       });
+  });
+
+  app.post("/admin/message", adminAuth, async (req, res) => {
+    const { message } = req.body;
+    pp(String("Express: sending system message: " + message));
+    try {
+      await createSystemMessages(message);
+      res.status(200).json({ message: "Messages sent to all rooms" });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
+
+  app.post("/admin/message/:roomId", adminAuth, async (req, res) => {
+    const { roomId } = req.params;
+    const { message } = req.body;
+    pp(String("Express: sending system message: " + message + " to " + roomId));
+    try {
+      await createSystemMessages(message, roomId);
+      res.status(200).json({ message: "Message sent to room " + roomId });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
   });
 }
