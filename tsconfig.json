@@ -2,11 +2,13 @@
   "compilerOptions": {
     "moduleResolution": "node",
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "./",
     "target": "ES2022",
     "module": "ES2022",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
+    "allowJs": true,
+    "strictNullChecks": true
   },
   "ts-node": {
     "esm": true,
@@ -16,7 +18,7 @@
     "./src/server.ts"
   ],
   "include": [
-    "./src/**/*",
-    "./src/types/index.ts"
+    "src/**/*.ts",
+    "prisma/**/*.ts"
   ]
 }

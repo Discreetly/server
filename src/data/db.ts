@@ -2,11 +2,10 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 import { PrismaClient } from '@prisma/client';
-import { RoomI, genId } from 'discreetly-interfaces';
+import { genId } from 'discreetly-interfaces';
+import type { RoomI } from 'discreetly-interfaces';
 import { serverConfig } from '../config/serverConfig';
-import { randn_bm } from '../utils';
-import { generateClaimCodes } from 'discreetly-claimcodes';
-import type { ClaimCodeT } from 'discreetly-claimcodes';
+import { genMockUsers, genClaimCodeArray, pp } from '../utils';
 
 const prisma = new PrismaClient();
 
@@ -15,12 +14,12 @@ interface CodeStatus {
   roomIds: string[];
 }
 
-interface ClaimCode {
+interface RoomsFromClaimCode {
   roomIds: string[];
 }
 
-export function getRoomByID(id: string): Promise<RoomI> {
-  return prisma.rooms
+export async function getRoomByID(id: string): Promise<RoomI | null> {
+  const room = await prisma.rooms
     .findUnique({
       where: {
         roomId: id
@@ -31,7 +30,11 @@ export function getRoomByID(id: string): Promise<RoomI> {
         name: true,
         identities: true,
         rateLimit: true,
-        userMessageLimit: true
+        userMessageLimit: true,
+        membershipType: true,
+        contractAddress: true,
+        bandadaAddress: true,
+        type: true
       }
     })
     .then((room) => {
@@ -41,29 +44,110 @@ export function getRoomByID(id: string): Promise<RoomI> {
       console.error(err);
       throw err; // Add this line to throw the error
     });
+  return new Promise((resolve, reject) => {
+    if (room) {
+      resolve(room as RoomI);
+    }
+    reject('Room not found');
+  });
 }
 
-export function getRoomsByIdentity(identity: string): RoomI[] {
+export async function getRoomsByIdentity(identity: string): Promise<string[]> {
   /* TODO Need to create a system here where the client needs to provide a
   proof they know the secrets to some Identity Commitment with a unix epoch
   time stamp to prevent replay attacks
+
+  https://github.com/Discreetly/IdentityCommitmentNullifierCircuit <- Circuit and JS to do this
   */
-  prisma.rooms
-    .findMany({
+  const r: string[] = [];
+  try {
+    const rooms = await prisma.rooms.findMany({
       where: {
         identities: {
           has: identity
         }
       }
+    });
+    rooms.forEach((room) => {
+      r.push(room.roomId);
+    });
+    console.log(r);
+    return r;
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+}
+
+export function findClaimCode(code: string): Promise<CodeStatus | null> {
+  return prisma.claimCodes.findUnique({
+    where: { claimcode: code }
+  });
+}
+
+export function updateClaimCode(code: string): Promise<RoomsFromClaimCode> {
+  return prisma.claimCodes.update({
+    where: { claimcode: code },
+    data: { claimed: true }
+  });
+}
+
+export function updateRoomIdentities(idc: string, roomIds: string[]): Promise<any> {
+  return prisma.rooms
+    .findMany({
+      where: { id: { in: roomIds } }
     })
     .then((rooms) => {
-      return rooms.map((room) => {
-        room.roomId;
-      });
+      const roomsToUpdate = rooms
+        .filter((room) => !room.identities.includes(idc))
+        .map((room) => room.id);
+
+      if (roomsToUpdate) {
+        return prisma.rooms.updateMany({
+          where: { id: { in: roomsToUpdate } },
+          data: { identities: { push: idc } }
+        });
+      }
     })
-    .catch((err) => console.error(err));
-  return [];
+    .catch((err) => {
+      pp(err, 'error');
+    });
 }
+
+export async function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
+  const rooms = await prisma.rooms.findMany({
+    where: { id: { in: roomIds } }
+  });
+  return new Promise((resolve, reject) => {
+    if (rooms) {
+      resolve(rooms as RoomI[]);
+    }
+    reject('No rooms found');
+  });
+}
+
+export function createSystemMessages(message: string, roomId?: string): Promise<any> {
+  const query = roomId ? { where: { roomId } } : undefined;
+  return prisma.rooms.findMany(query)
+    .then(rooms => {
+      if (roomId && rooms.length === 0) {
+        Promise.reject('Room not found')
+      }
+      const createMessages = rooms.map(room => {
+        return prisma.messages.create({
+          data: {
+            message,
+            roomId: room.roomId,
+            messageId: "0",
+            proof: JSON.stringify({}),
+          },
+        });
+      });
+
+      return Promise.all(createMessages);
+    });
+}
+
 
 /**
  * Creates a new room with the given name and optional parameters.
@@ -73,40 +157,16 @@ export function getRoomsByIdentity(identity: string): RoomI[] {
  * @param {number} [numClaimCodes=0] - The number of claim codes to generate for the room.
  * @param {number} [approxNumMockUsers=20] - The approximate number of mock users to generate for the room.
  */
-export function createRoom(
+export async function createRoom(
   name: string,
-  rateLimit: number = 1000,
-  userMessageLimit: number = 1,
-  numClaimCodes: number = 0,
-  approxNumMockUsers: number = 20
-): boolean {
-  function genMockUsers(numMockUsers: number): string[] {
-    // Generates random number of mock users between 0.5 x numMockusers and 2 x numMockUsers
-    const newNumMockUsers = randn_bm(numMockUsers / 2, numMockUsers * 2);
-    const mockUsers: string[] = [];
-    for (let i = 0; i < newNumMockUsers; i++) {
-      mockUsers.push(
-        genId(
-          serverConfig.id,
-          // Generates a random string of length 10
-          Math.random()
-            .toString(36)
-            .substring(2, 2 + 10) + i
-        ).toString()
-      );
-    }
-    return mockUsers;
-  }
-
-  function genClaimCodeArray(numClaimCodes: number): { claimcode: string }[] {
-    const claimCodes = generateClaimCodes(numClaimCodes);
-    const codeArr: { claimcode: string }[] = claimCodes.map((code: ClaimCodeT) => ({
-      claimcode: code.code
-    }));
-    return codeArr;
-  }
-
+  rateLimit = 1000,
+  userMessageLimit = 1,
+  numClaimCodes = 0,
+  approxNumMockUsers = 20,
+  type: string = 'PUBLIC'
+): Promise<boolean> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
+  console.log(claimCodes);
   const mockUsers: string[] = genMockUsers(approxNumMockUsers);
   const roomData = {
     where: {
@@ -119,47 +179,20 @@ export function createRoom(
       rateLimit: rateLimit,
       userMessageLimit: userMessageLimit,
       identities: mockUsers,
+      type,
       claimCodes: {
         create: claimCodes
       }
     }
-  };
+  }; 
 
-  prisma.rooms
+  return await prisma.rooms
     .upsert(roomData)
     .then(() => {
       return true;
     })
-    .catch((err) => console.error(err));
-  return false;
-}
-
-export function findClaimCode(code: string): Promise<CodeStatus> {
-  return prisma.claimCodes.findUnique({
-    where: { claimcode: code }
-  });
-}
-
-export function updateClaimCode(code: string): Promise<ClaimCode> {
-  return prisma.claimCodes.update({
-    where: { claimcode: code },
-    data: { claimed: true }
-  });
-}
-
-export function updateRoomIdentities(idc: string, roomIds: string[]): Promise<unknown> {
-  return prisma.rooms.updateMany({
-    where: { id: { in: roomIds } },
-    data: {
-      identities: {
-        push: idc
-      }
-    }
-  });
-}
-
-export function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
-  return prisma.rooms.findMany({
-    where: { id: { in: roomIds } }
-  });
+    .catch((err) => {
+      console.error(err);
+      return false;
+    });
 }

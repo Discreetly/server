@@ -1,10 +1,11 @@
-import { Server } from 'http';
 import express from 'express';
+import http from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import basicAuth from 'express-basic-auth';
+import type { Server } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
-
+import type { Server as SocketIOServerT } from 'socket.io';
 import { serverConfig } from './config/serverConfig';
 import { pp, shim } from './utils';
 import mock from './data/mock';
@@ -16,7 +17,6 @@ import { listEndpoints } from './endpoints/utils';
 // TODO https://www.npmjs.com/package/winston
 
 const app = express();
-const socket_server = new Server(app);
 shim();
 
 app.use(express.json());
@@ -39,38 +39,57 @@ const adminAuth = basicAuth({
   }
 });
 
-const io = new SocketIOServer(socket_server, {
-  cors: {
-    origin: '*'
-  }
-});
-
-function initAppListeners() {
-  const expressServerPort = serverConfig.serverInfoEndpoint.split(':')[1];
-  const socketServerPort = serverConfig.messageHandlerSocket.split(':')[1];
-  app.listen(expressServerPort, () => {
-    pp(`Express Http Server is running at port ${expressServerPort}`);
+function initAppListeners(PORT) {
+  const httpServer = http.createServer(app).listen(PORT, () => {
+    pp(`Server is running at port ${PORT}`);
   });
-
-  socket_server.listen(socketServerPort, () => {
-    pp(`SocketIO Server is running at port ${socketServerPort}`);
-  });
+  return httpServer;
 }
 
 /**
  * This is the main entry point for the server
  */
+let _app: Server;
+let io: SocketIOServerT;
+
+interface ServerConfigStartupI {
+  id?: string;
+  name?: string;
+  version?: string;
+  port?: number | string;
+  admin_password?: string;
+}
+const serverConfigStartup: ServerConfigStartupI = {
+  ...(serverConfig as unknown as ServerConfigStartupI)
+};
 if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   console.log('~~~~DEVELOPMENT MODE~~~~');
-  initWebsockets(io);
+  const PORT = 3001;
+  serverConfigStartup.port = PORT;
+  serverConfigStartup.admin_password = admin_password;
   initEndpoints(app, adminAuth);
+  _app = initAppListeners(PORT);
   listEndpoints(app);
-  initAppListeners();
-  mock(io);
-  // TODO! This is dangerous and only for development
-  console.log('Admin password: ' + admin_password);
-} else {
+  io = new SocketIOServer(_app, {
+    cors: {
+      origin: '*'
+    }
+  });
   initWebsockets(io);
+  mock(io);
+} else {
+  const PORT = process.env.PORT;
+  serverConfigStartup.port = PORT;
   initEndpoints(app, adminAuth);
-  initAppListeners();
+  _app = initAppListeners(PORT);
+  io = new SocketIOServer(_app, {
+    cors: {
+      origin: '*'
+    }
+  });
+  initWebsockets(io);
 }
+
+pp(serverConfigStartup, 'table');
+
+export default _app;

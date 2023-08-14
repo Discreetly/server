@@ -5,17 +5,15 @@ import { getRoomByID } from '../data/db';
 import { pp } from '../utils';
 import { createMessage } from '../data/messages';
 
-const userCount: {
-  [key: string]: number;
-} = {};
+const userCount: Record<string, number> = {};
 
 export function websocketSetup(io: SocketIOServer) {
   io.on('connection', (socket: Socket) => {
     pp('SocketIO: a user connected', 'debug');
 
     socket.on('validateMessage', (msg: MessageI) => {
-      pp({ 'VALIDATING MESSAGE ID': msg.id.slice(0, 11), 'MSG:': msg.message });
-      let valid: boolean;
+      pp({ 'VALIDATING MESSAGE ID': String(msg.roomId).slice(0, 11), 'MSG:': msg.message });
+      let validProof: boolean;
       getRoomByID(String(msg.roomId))
         .then((room: RoomI) => {
           if (!room) {
@@ -24,17 +22,17 @@ export function websocketSetup(io: SocketIOServer) {
           }
           verifyProof(msg, room)
             .then((v) => {
-              valid = v;
-              createMessage(String(msg.roomId), msg);
+              validProof = v;
+              const validMessage: boolean = createMessage(String(msg.roomId), msg);
+              if (!validProof || !validMessage) {
+                pp('INVALID MESSAGE', 'warn');
+                return;
+              }
               io.emit('messageBroadcast', msg);
             })
             .catch((err) => {
               err;
             });
-          if (!valid) {
-            pp('INVALID MESSAGE', 'warn');
-            return;
-          }
         })
         .catch((err) => pp(err, 'error'));
     });
