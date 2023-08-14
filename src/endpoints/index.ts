@@ -105,6 +105,8 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     rateLimit: number;
     userMessageLimit: number;
     numClaimCodes?: number;
+    approxNumMockUsers?: number;
+    roomType?: string;
   }
 
   /* ~~~~ ADMIN ENDPOINTS ~~~~ */
@@ -115,7 +117,9 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     const rateLimit = roomMetadata.rateLimit;
     const userMessageLimit = roomMetadata.userMessageLimit;
     const numClaimCodes = roomMetadata.numClaimCodes || 0;
-    createRoom(roomName, rateLimit, userMessageLimit, numClaimCodes)
+    const approxNumMockUsers = roomMetadata.approxNumMockUsers;
+    const type = roomMetadata.roomType;
+    createRoom(roomName, rateLimit, userMessageLimit, numClaimCodes, approxNumMockUsers, type)
       .then((result) => {
         if (result) {
           // TODO should return roomID and claim codes if they are generated

@@ -139,7 +139,8 @@ export async function createRoom(
   rateLimit = 1000,
   userMessageLimit = 1,
   numClaimCodes = 0,
-  approxNumMockUsers = 20
+  approxNumMockUsers = 20,
+  type: string = 'PUBLIC'
 ): Promise<boolean> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
   console.log(claimCodes);
@@ -155,11 +156,12 @@ export async function createRoom(
       rateLimit: rateLimit,
       userMessageLimit: userMessageLimit,
       identities: mockUsers,
+      type,
       claimCodes: {
         create: claimCodes
       }
     }
-  };
+  }; 
 
   return await prisma.rooms
     .upsert(roomData)

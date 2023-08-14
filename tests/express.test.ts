@@ -12,6 +12,7 @@ process.env.PORT = "3001";
 
 beforeAll(async () => {
   const prismaTest = new PrismaClient();
+  await prismaTest.messages.deleteMany();
   await prismaTest.rooms.deleteMany();
   await prismaTest.claimCodes.deleteMany();
 });
@@ -22,6 +23,8 @@ const room = {
   rateLimit: 1000,
   userMessageLimit: 1,
   numClaimCodes: 5,
+  approxNumMockUsers: 10,
+  type: "PUBLIC"
 };
 
 const roomByIdTest = genId(serverConfig.id, room.roomName).toString();
