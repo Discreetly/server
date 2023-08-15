@@ -16,13 +16,13 @@ export interface Proof {
   curve: string;
 }
 
-export type RLNPublicSignals = {
+export interface RLNPublicSignals {
   x: StrBigInt;
   externalNullifier: StrBigInt;
   y: StrBigInt;
   root: StrBigInt;
   nullifier: StrBigInt;
-};
+}
 
 export type RLNSNARKProof = {
   proof: Proof;
