@@ -6,39 +6,13 @@ import { RLNFullProof } from 'rlnjs';
 
 const prisma = new PrismaClient();
 
-export type StrBigInt = string | bigint;
-
-export interface Proof {
-  pi_a: StrBigInt[];
-  pi_b: StrBigInt[][];
-  pi_c: StrBigInt[];
-  protocol: string;
-  curve: string;
-}
-
-export interface RLNPublicSignals {
-  x: StrBigInt;
-  externalNullifier: StrBigInt;
-  y: StrBigInt;
-  root: StrBigInt;
-  nullifier: StrBigInt;
-}
-
-export interface RLNSNARKProof {
-  proof: Proof;
-  publicSignals: RLNPublicSignals;
-}
-
 interface CollisionCheckResult {
   collision: boolean;
   secret?: bigint;
   oldMessage?: MessageI;
 }
 
-export async function checkRLNCollision(
-  roomId: string,
-  message: MessageI
-): Promise<CollisionCheckResult> {
+async function checkRLNCollision(roomId: string, message: MessageI): Promise<CollisionCheckResult> {
   return new Promise((res) => {
     prisma.rooms
       .findFirst({
@@ -93,6 +67,12 @@ export async function checkRLNCollision(
   });
 }
 
+interface createMessageResult {
+  success: boolean;
+  message?: MessageI;
+  idc: string | bigint;
+}
+
 function addMessageToRoom(roomId: string, message: MessageI): Promise<unknown> {
   if (!message.epoch) {
     throw new Error('Epoch not provided');
@@ -119,7 +99,7 @@ function addMessageToRoom(roomId: string, message: MessageI): Promise<unknown> {
   });
 }
 
-export function createMessage(roomId: string, message: MessageI): boolean {
+export function createMessage(roomId: string, message: MessageI): createMessageResult {
   getRoomByID(roomId)
     .then((room) => {
       if (room) {
@@ -132,10 +112,10 @@ export function createMessage(roomId: string, message: MessageI): boolean {
               addMessageToRoom(roomId, message)
                 .then((roomToUpdate) => {
                   console.log(roomToUpdate);
-                  return true;
+                  return { success: true };
                 })
                 .catch((error) => {
-                  console.error(`Error updating room: ${error}`);
+                  console.error(`Couldn't add message room ${error}`);
                   return false;
                 });
             } else {
