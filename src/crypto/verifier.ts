@@ -25,9 +25,6 @@ async function verifyProof(msg: MessageI, room: RoomI, epochErrorRange = 5): Pro
     return false;
   }
 
-  // Check that the internal nullifier doesn't have collisions
-  // TODO! INTERNAL NULLIFIER (RLNjs cache)
-
   // Check that the message hash is correct
   if (msgHash !== msg.proof.snarkProof.publicSignals.x) {
     console.warn(
