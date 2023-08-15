@@ -170,11 +170,11 @@ export async function createRoom(
   const mockUsers: string[] = genMockUsers(approxNumMockUsers);
   const roomData = {
     where: {
-      roomId: genId(serverConfig.id, name).toString()
+      roomId: genId(serverConfig.id as bigint, name).toString()
     },
     update: {},
     create: {
-      roomId: genId(serverConfig.id, name).toString(),
+      roomId: genId(serverConfig.id as bigint, name).toString(),
       name: name,
       rateLimit: rateLimit,
       userMessageLimit: userMessageLimit,
