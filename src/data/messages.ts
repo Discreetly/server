@@ -72,7 +72,7 @@ export async function checkRLNCollision(
           );
 
           let proof: RLNFullProof;
-          
+
           if (typeof message.proof === "string") {
             proof = JSON.parse(message.proof) as RLNFullProof;
           } else {
@@ -123,30 +123,33 @@ function addMessageToRoom(roomId: string, message: MessageI): Promise<unknown> {
 }
 
 export function createMessage(roomId: string, message: MessageI): boolean {
-  getRoomByID(roomId)
-    .then((room) => {
-      if (room) {
-        // Todo This should check that there is no duplicate messageId with in this room and epoch,
-        // if there is, we need to return an error and
-        // reconstruct the secret from both messages, and ban the user
-
-        addMessageToRoom(roomId, message)
-          .then((roomToUpdate) => {
-            console.log(roomToUpdate);
-            return true;
-          })
-          .catch((error) => {
-            console.error(`Error updating room: ${error}`);
+  getRoomByID(roomId).then((room) => {
+    if (room) {
+      // Todo This should check that there is no duplicate messageId with in this room and epoch,
+      // if there is, we need to return an error and
+      // reconstruct the secret from both messages, and ban the user
+      checkRLNCollision(roomId, message)
+        .then((collisionResult) => {
+          if (!collisionResult.collision) {
+            addMessageToRoom(roomId, message)
+              .then((roomToUpdate) => {
+                console.log(roomToUpdate);
+                return true;
+              })
+              .catch((error) => {
+                console.error(`Error updating room: ${error}`);
+                return false;
+              });
+          } else {
+            console.log("Collision found");
             return false;
-          });
-      } else {
-        console.log("Room not found");
-        return false;
-      }
-    })
-    .catch((error) => {
-      console.error(`Error getting room: ${error}`);
-      return false;
-    });
+          }
+        })
+        .catch((error) => {
+          console.error(`Error getting room: ${error}`);
+          return false;
+        });
+    }
+  });
   return false;
 }
