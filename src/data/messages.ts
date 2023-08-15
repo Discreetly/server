@@ -102,7 +102,7 @@ function addMessageToRoom(roomId: string, message: MessageI): Promise<unknown> {
     },
   });
 }
-interface createMessageResult {
+export interface createMessageResult {
   success: boolean;
   message?: MessageI;
   idc?: string | bigint;
