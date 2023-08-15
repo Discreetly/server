@@ -3,6 +3,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { ZqField } from 'ffjavascript';
+import { poseidon1 } from 'poseidon-lite';
 
 /*
   This is the "Baby Jubjub" curve described here:
@@ -28,4 +29,8 @@ export function shamirRecovery(x1: bigint, x2: bigint, y1: bigint, y2: bigint): 
   const privateKey = Fq.sub(y1, Fq.mul(slope, x1));
 
   return Fq.normalize(privateKey);
+}
+
+export function getIdentityCommitmentFromSecret(secret: bigint): bigint {
+  return poseidon1([secret]);
 }
