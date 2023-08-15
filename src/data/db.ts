@@ -184,7 +184,7 @@ export async function createRoom(
         create: claimCodes
       }
     }
-  }; 
+  };
 
   return await prisma.rooms
     .upsert(roomData)
