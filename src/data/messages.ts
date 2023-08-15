@@ -24,10 +24,10 @@ export interface RLNPublicSignals {
   nullifier: StrBigInt;
 }
 
-export type RLNSNARKProof = {
+export interface RLNSNARKProof {
   proof: Proof;
   publicSignals: RLNPublicSignals;
-};
+}
 
 interface CollisionCheckResult {
   collision: boolean;
