@@ -8,13 +8,13 @@ const prisma = new PrismaClient();
 
 export type StrBigInt = string | bigint;
 
-export type Proof = {
+export interface Proof {
   pi_a: StrBigInt[];
   pi_b: StrBigInt[][];
   pi_c: StrBigInt[];
   protocol: string;
   curve: string;
-};
+}
 
 export type RLNPublicSignals = {
   x: StrBigInt;
