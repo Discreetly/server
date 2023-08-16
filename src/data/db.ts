@@ -34,6 +34,7 @@ export async function getRoomByID(id: string): Promise<RoomI | null> {
         membershipType: true,
         contractAddress: true,
         bandadaAddress: true,
+        bandadaGroupId: true,
         type: true
       }
     })
@@ -128,26 +129,46 @@ export async function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
 
 export function createSystemMessages(message: string, roomId?: string): Promise<any> {
   const query = roomId ? { where: { roomId } } : undefined;
-  return prisma.rooms.findMany(query)
-    .then(rooms => {
+  return prisma.rooms
+    .findMany(query)
+    .then((rooms) => {
       if (roomId && rooms.length === 0) {
-        Promise.reject('Room not found')
+        return Promise.reject('Room not found');
       }
-      const createMessages = rooms.map(room => {
+      const createMessages = rooms.map((room) => {
         return prisma.messages.create({
           data: {
             message,
             roomId: room.roomId,
-            messageId: "0",
-            proof: JSON.stringify({}),
-          },
+            messageId: '0',
+            proof: JSON.stringify({})
+          }
         });
       });
 
       return Promise.all(createMessages);
+    })
+    .catch((err) => {
+      console.error(err);
     });
 }
 
+export function removeIdentityFromRoom(idc: string, room: RoomI): Promise<void | RoomI> {
+  const updateIdentities = room.identities?.map((identity) =>
+    identity === idc ? '0n' : identity
+  ) as string[];
+  return prisma.rooms
+    .update({
+      where: { id: room.id },
+      data: { identities: updateIdentities }
+    })
+    .then((room) => {
+      return room as RoomI;
+    })
+    .catch((err) => {
+      console.error(err);
+    });
+}
 
 /**
  * Creates a new room with the given name and optional parameters.
@@ -163,18 +184,18 @@ export async function createRoom(
   userMessageLimit = 1,
   numClaimCodes = 0,
   approxNumMockUsers = 20,
-  type: string = 'PUBLIC'
+  type = 'PUBLIC'
 ): Promise<boolean> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
   console.log(claimCodes);
   const mockUsers: string[] = genMockUsers(approxNumMockUsers);
   const roomData = {
     where: {
-      roomId: genId(serverConfig.id, name).toString()
+      roomId: genId(serverConfig.id as string, name).toString()
     },
     update: {},
     create: {
-      roomId: genId(serverConfig.id, name).toString(),
+      roomId: genId(serverConfig.id as string, name).toString(),
       name: name,
       rateLimit: rateLimit,
       userMessageLimit: userMessageLimit,
@@ -184,7 +205,7 @@ export async function createRoom(
         create: claimCodes
       }
     }
-  }; 
+  };
 
   return await prisma.rooms
     .upsert(roomData)
