@@ -1,8 +1,71 @@
-import { getRoomByID } from './db';
+import { getRoomByID, removeIdentityFromRoom } from './db';
 import { PrismaClient } from '@prisma/client';
 import { MessageI } from 'discreetly-interfaces';
+import { shamirRecovery, getIdentityCommitmentFromSecret } from '../crypto/shamirRecovery';
+import { RLNFullProof } from 'rlnjs';
 
 const prisma = new PrismaClient();
+
+interface CollisionCheckResult {
+  collision: boolean;
+  secret?: bigint;
+  oldMessage?: MessageI;
+}
+
+async function checkRLNCollision(roomId: string, message: MessageI): Promise<CollisionCheckResult> {
+  return new Promise((res) => {
+    prisma.rooms
+      .findFirst({
+        where: { roomId },
+        include: {
+          epochs: {
+            where: { epoch: String(message.epoch) },
+            include: {
+              messages: {
+                where: { messageId: message.messageId }
+              }
+            }
+          }
+        }
+      })
+      .then((oldMessage) => {
+        if (!message.proof) {
+          throw new Error('Proof not provided');
+        }
+        if (!oldMessage) {
+          res({ collision: false } as CollisionCheckResult);
+        } else {
+          const oldMessageProof = JSON.parse(
+            oldMessage.epochs[0].messages[0].proof
+          ) as RLNFullProof;
+          const oldMessagex2 = BigInt(oldMessageProof.snarkProof.publicSignals.x);
+          const oldMessagey2 = BigInt(oldMessageProof.snarkProof.publicSignals.y);
+
+          let proof: RLNFullProof;
+
+          if (typeof message.proof === 'string') {
+            proof = JSON.parse(message.proof) as RLNFullProof;
+          } else {
+            proof = message.proof;
+          }
+          const [x1, y1] = [
+            BigInt(proof.snarkProof.publicSignals.x),
+            BigInt(proof.snarkProof.publicSignals.y)
+          ];
+          const [x2, y2] = [oldMessagex2, oldMessagey2];
+
+          const secret = shamirRecovery(x1, x2, y1, y2);
+
+          res({
+            collision: true,
+            secret,
+            oldMessage: oldMessage.epochs[0].messages[0] as unknown as MessageI
+          } as CollisionCheckResult);
+        }
+      })
+      .catch((err) => console.error(err));
+  });
+}
 
 function addMessageToRoom(roomId: string, message: MessageI): Promise<unknown> {
   if (!message.epoch) {
@@ -29,29 +92,52 @@ function addMessageToRoom(roomId: string, message: MessageI): Promise<unknown> {
     }
   });
 }
+export interface createMessageResult {
+  success: boolean;
+  message?: MessageI;
+  idc?: string | bigint;
+}
 
-export function createMessage(roomId: string, message: MessageI): boolean {
+export function createMessage(roomId: string, message: MessageI): createMessageResult {
   getRoomByID(roomId)
     .then((room) => {
       if (room) {
-        // Todo This should check that there is no duplicate messageId with in this room and epoch, if there is, we need to return an error and reconstruct the secret from both messages, and ban the user
-        addMessageToRoom(roomId, message)
-          .then((roomToUpdate) => {
-            console.log(roomToUpdate);
-            return true;
+        // Todo This should check that there is no duplicate messageId with in this room and epoch,
+        // if there is, we need to return an error and
+        // reconstruct the secret from both messages, and ban the user
+        checkRLNCollision(roomId, message)
+          .then((collisionResult) => {
+            if (!collisionResult.collision) {
+              addMessageToRoom(roomId, message)
+                .then((roomToUpdate) => {
+                  console.log(roomToUpdate);
+                  return { success: true };
+                })
+                .catch((error) => {
+                  console.error(`Couldn't add message room ${error}`);
+                  return false;
+                });
+            } else {
+              console.log('Collision found');
+              const identityCommitment = getIdentityCommitmentFromSecret(collisionResult.secret!);
+              removeIdentityFromRoom(identityCommitment.toString(), room)
+                .then(() => {
+                  return { success: false };
+                })
+                .catch((error) => {
+                  console.error(`Couldn't remove identity from room ${error}`);
+                });
+            }
           })
           .catch((error) => {
-            console.error(`Error updating room: ${error}`);
-            return false;
+            console.error(`Error getting room: ${error}`);
+            return { success: false };
           });
-      } else {
-        console.log('Room not found');
-        return false;
       }
     })
     .catch((error) => {
       console.error(`Error getting room: ${error}`);
-      return false;
+      return { success: false };
     });
-  return false;
+  return { success: false };
 }

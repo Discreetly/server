@@ -3,7 +3,7 @@ import { Socket, Server as SocketIOServer } from 'socket.io';
 import verifyProof from '../crypto/verifier';
 import { getRoomByID } from '../data/db';
 import { pp } from '../utils';
-import { createMessage } from '../data/messages';
+import { createMessage, createMessageResult } from '../data/messages';
 
 const userCount: Record<string, number> = {};
 
@@ -23,8 +23,9 @@ export function websocketSetup(io: SocketIOServer) {
           verifyProof(msg, room)
             .then((v) => {
               validProof = v;
-              const validMessage: boolean = createMessage(String(msg.roomId), msg);
-              if (!validProof || !validMessage) {
+              // TODO import createMessageResult, and broadcast the idc and message ID that were removed to those room users
+              const validMessage: createMessageResult = createMessage(String(msg.roomId), msg);
+              if (!validProof || !validMessage.success) {
                 pp('INVALID MESSAGE', 'warn');
                 return;
               }
@@ -44,11 +45,14 @@ export function websocketSetup(io: SocketIOServer) {
     socket.on('joinRoom', (roomID: bigint) => {
       const id = roomID.toString();
       userCount[id] = userCount[id] ? userCount[id] + 1 : 1;
+      void socket.join(id);
+      io.to(id).emit('Members', userCount[id] ? userCount[id] : 0);
     });
 
     socket.on('leaveRoom', (roomID: bigint) => {
       const id = roomID.toString();
       userCount[id] = userCount[id] ? userCount[id] - 1 : 0;
+      io.to(id).emit('Members', userCount[id] ? userCount[id] : 0);
     });
   });
 }
