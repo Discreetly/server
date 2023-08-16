@@ -1,11 +1,8 @@
-import { getRoomByID, removeIdentityFromRoom } from "./db";
-import { PrismaClient } from "@prisma/client";
-import { MessageI } from "discreetly-interfaces";
-import {
-  shamirRecovery,
-  getIdentityCommitmentFromSecret,
-} from "../crypto/shamirRecovery";
-import { RLNFullProof } from "rlnjs";
+import { getRoomByID, removeIdentityFromRoom } from './db';
+import { PrismaClient } from '@prisma/client';
+import { MessageI } from 'discreetly-interfaces';
+import { shamirRecovery, getIdentityCommitmentFromSecret } from '../crypto/shamirRecovery';
+import { RLNFullProof } from 'rlnjs';
 
 const prisma = new PrismaClient();
 
@@ -15,10 +12,7 @@ interface CollisionCheckResult {
   oldMessage?: MessageI;
 }
 
-async function checkRLNCollision(
-  roomId: string,
-  message: MessageI
-): Promise<CollisionCheckResult> {
+async function checkRLNCollision(roomId: string, message: MessageI): Promise<CollisionCheckResult> {
   return new Promise((res) => {
     prisma.rooms
       .findFirst({
@@ -28,15 +22,15 @@ async function checkRLNCollision(
             where: { epoch: String(message.epoch) },
             include: {
               messages: {
-                where: { messageId: message.messageId },
-              },
-            },
-          },
-        },
+                where: { messageId: message.messageId }
+              }
+            }
+          }
+        }
       })
       .then((oldMessage) => {
         if (!message.proof) {
-          throw new Error("Proof not provided");
+          throw new Error('Proof not provided');
         }
         if (!oldMessage) {
           res({ collision: false } as CollisionCheckResult);
@@ -44,23 +38,19 @@ async function checkRLNCollision(
           const oldMessageProof = JSON.parse(
             oldMessage.epochs[0].messages[0].proof
           ) as RLNFullProof;
-          const oldMessagex2 = BigInt(
-            oldMessageProof.snarkProof.publicSignals.x
-          );
-          const oldMessagey2 = BigInt(
-            oldMessageProof.snarkProof.publicSignals.y
-          );
+          const oldMessagex2 = BigInt(oldMessageProof.snarkProof.publicSignals.x);
+          const oldMessagey2 = BigInt(oldMessageProof.snarkProof.publicSignals.y);
 
           let proof: RLNFullProof;
 
-          if (typeof message.proof === "string") {
+          if (typeof message.proof === 'string') {
             proof = JSON.parse(message.proof) as RLNFullProof;
           } else {
             proof = message.proof;
           }
           const [x1, y1] = [
             BigInt(proof.snarkProof.publicSignals.x),
-            BigInt(proof.snarkProof.publicSignals.y),
+            BigInt(proof.snarkProof.publicSignals.y)
           ];
           const [x2, y2] = [oldMessagex2, oldMessagey2];
 
@@ -69,7 +59,7 @@ async function checkRLNCollision(
           res({
             collision: true,
             secret,
-            oldMessage: oldMessage.epochs[0].messages[0] as unknown as MessageI,
+            oldMessage: oldMessage.epochs[0].messages[0] as unknown as MessageI
           } as CollisionCheckResult);
         }
       })
@@ -79,11 +69,11 @@ async function checkRLNCollision(
 
 function addMessageToRoom(roomId: string, message: MessageI): Promise<unknown> {
   if (!message.epoch) {
-    throw new Error("Epoch not provided");
+    throw new Error('Epoch not provided');
   }
   return prisma.rooms.update({
     where: {
-      roomId: roomId,
+      roomId: roomId
     },
     data: {
       epochs: {
@@ -91,15 +81,15 @@ function addMessageToRoom(roomId: string, message: MessageI): Promise<unknown> {
           epoch: String(message.epoch),
           messages: {
             create: {
-              message: message.message ? message.message.toString() : "",
-              messageId: message.messageId ? message.messageId.toString() : "",
+              message: message.message ? message.message.toString() : '',
+              messageId: message.messageId ? message.messageId.toString() : '',
               proof: JSON.stringify(message.proof),
-              roomId: roomId,
-            },
-          },
-        },
-      },
-    },
+              roomId: roomId
+            }
+          }
+        }
+      }
+    }
   });
 }
 export interface createMessageResult {
@@ -108,10 +98,7 @@ export interface createMessageResult {
   idc?: string | bigint;
 }
 
-export function createMessage(
-  roomId: string,
-  message: MessageI
-): createMessageResult {
+export function createMessage(roomId: string, message: MessageI): createMessageResult {
   getRoomByID(roomId)
     .then((room) => {
       if (room) {
@@ -131,10 +118,8 @@ export function createMessage(
                   return false;
                 });
             } else {
-              console.log("Collision found");
-              const identityCommitment = getIdentityCommitmentFromSecret(
-                collisionResult.secret!
-              );
+              console.log('Collision found');
+              const identityCommitment = getIdentityCommitmentFromSecret(collisionResult.secret!);
               removeIdentityFromRoom(identityCommitment.toString(), room)
                 .then(() => {
                   return { success: false };
