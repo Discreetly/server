@@ -1,6 +1,6 @@
 import type { MessageI, RoomI } from 'discreetly-interfaces';
 import { str2BigInt } from 'discreetly-interfaces';
-import { RLNVerifier } from 'rlnjs';
+import { RLNFullProof, RLNVerifier } from 'rlnjs';
 import vkey from './verification_key';
 import { Group } from '@semaphore-protocol/group';
 
@@ -48,7 +48,7 @@ async function verifyProof(msg: MessageI, room: RoomI, epochErrorRange = 5): Pro
   }
 
   // Check that the proof is correct
-  return v.verifyProof(rlnIdentifier, msg.proof);
+  return v.verifyProof(rlnIdentifier, msg.proof as RLNFullProof);
 }
 
 export default verifyProof;

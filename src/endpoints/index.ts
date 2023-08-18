@@ -58,10 +58,22 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     }
   });
 
-  app.get(['/rooms/:idc', '/api/rooms/:idc'], async (req, res) => {
-    pp(String('Express: fetching rooms by identityCommitment ' + req.params.idc));
-    res.status(200).json(await getRoomsByIdentity(req.params.idc));
-  });
+  app.get(
+    ["/rooms/:idc", "/api/rooms/:idc"],
+    asyncHandler(async (req: Request, res: Response) => {
+      try {
+        pp(
+          String(
+            "Express: fetching rooms by identityCommitment " + req.params.idc
+          )
+        );
+        res.status(200).json(await getRoomsByIdentity(req.params.idc));
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Internal Server Error" });
+      }
+    })
+  );
 
   interface JoinData {
     code: string;
@@ -123,10 +135,17 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     const roomName = roomMetadata.roomName;
     const rateLimit = roomMetadata.rateLimit;
     const userMessageLimit = roomMetadata.userMessageLimit;
-    const numClaimCodes = roomMetadata.numClaimCodes || 0;
+    const numClaimCodes = roomMetadata.numClaimCodes ?? 0;
     const approxNumMockUsers = roomMetadata.approxNumMockUsers;
-    const type = roomMetadata.roomType;
-    createRoom(roomName, rateLimit, userMessageLimit, numClaimCodes, approxNumMockUsers, type)
+    const type = roomMetadata.roomType as unknown as string;
+    createRoom(
+      roomName,
+      rateLimit,
+      userMessageLimit,
+      numClaimCodes,
+      approxNumMockUsers,
+      type
+    )
       .then((result) => {
         console.log(result);
         if (result) {
@@ -186,28 +205,39 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
-  app.post("/admin/message", adminAuth, async (req, res) => {
-    const { message } = req.body;
-    pp(String("Express: sending system message: " + message));
-    try {
-      await createSystemMessages(message);
-      res.status(200).json({ message: "Messages sent to all rooms" });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: "Internal Server Error" });
-    }
-  });
+  app.post(
+    "/admin/message",
+    adminAuth,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { message } = req.body as { message: string };
+      pp(String("Express: sending system message: " + message));
+      try {
+        await createSystemMessages(message);
+        res.status(200).json({ message: "Messages sent to all rooms" });
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal Server Error" });
+      }
+    })
+  );
 
-  app.post("/admin/message/:roomId", adminAuth, async (req, res) => {
-    const { roomId } = req.params;
-    const { message } = req.body;
-    pp(String("Express: sending system message: " + message + " to " + roomId));
-    try {
-      await createSystemMessages(message, roomId);
-      res.status(200).json({ message: "Message sent to room " + roomId });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: "Internal Server Error" });
-    }
-  });
+  app.post(
+    "/admin/message/:roomId",
+    adminAuth,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { roomId } = req.params;
+      const { message } = req.body as { message: string };
+      pp(
+        String("Express: sending system message: " + message + " to " + roomId)
+      );
+      try {
+        await createSystemMessages(message, roomId);
+        res.status(200).json({ message: "Message sent to room " + roomId });
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Internal Server Error" });
+      }
+    })
+  );
+
 }

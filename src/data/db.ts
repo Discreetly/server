@@ -131,7 +131,7 @@ export function createSystemMessages(message: string, roomId?: string): Promise<
   return prisma.rooms.findMany(query)
     .then(rooms => {
       if (roomId && rooms.length === 0) {
-        Promise.reject('Room not found')
+        return Promise.reject('Room not found')
       }
       const createMessages = rooms.map(room => {
         return prisma.messages.create({
@@ -145,7 +145,10 @@ export function createSystemMessages(message: string, roomId?: string): Promise<
       });
 
       return Promise.all(createMessages);
-    });
+    }).catch(err => {
+      console.error(err);
+      return Promise.reject(err);
+    })
 }
 
 
@@ -163,18 +166,18 @@ export async function createRoom(
   userMessageLimit = 1,
   numClaimCodes = 0,
   approxNumMockUsers = 20,
-  type: string = 'PUBLIC'
+  type: string
 ): Promise<boolean> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
   console.log(claimCodes);
   const mockUsers: string[] = genMockUsers(approxNumMockUsers);
   const roomData = {
     where: {
-      roomId: genId(serverConfig.id, name).toString()
+      roomId: genId(serverConfig.id as bigint, name).toString()
     },
     update: {},
     create: {
-      roomId: genId(serverConfig.id, name).toString(),
+      roomId: genId(serverConfig.id as bigint, name).toString(),
       name: name,
       rateLimit: rateLimit,
       userMessageLimit: userMessageLimit,
@@ -184,7 +187,7 @@ export async function createRoom(
         create: claimCodes
       }
     }
-  }; 
+  };
 
   return await prisma.rooms
     .upsert(roomData)

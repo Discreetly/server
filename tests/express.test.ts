@@ -33,7 +33,7 @@ const room = {
   type: "PUBLIC"
 };
 
-const roomByIdTest = genId(serverConfig.id, room.roomName).toString();
+const roomByIdTest = genId(serverConfig.id as bigint, room.roomName).toString();
 let testCode = "";
 const testIdentity = randBigint();
 const username = "admin";
