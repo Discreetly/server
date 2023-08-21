@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
-import { PrismaClient } from '@prisma/client';
-import { genId } from 'discreetly-interfaces';
-import type { RoomI } from 'discreetly-interfaces';
-import { serverConfig } from '../config/serverConfig';
-import { genMockUsers, genClaimCodeArray, pp } from '../utils';
+import { PrismaClient } from "@prisma/client";
+import { genId } from "discreetly-interfaces";
+import type { RoomI } from "discreetly-interfaces";
+import { serverConfig } from "../config/serverConfig";
+import { genMockUsers, genClaimCodeArray, pp } from "../utils";
 
 const prisma = new PrismaClient();
 
@@ -22,7 +22,7 @@ export async function getRoomByID(id: string): Promise<RoomI | null> {
   const room = await prisma.rooms
     .findUnique({
       where: {
-        roomId: id
+        roomId: id,
       },
       select: {
         id: true,
@@ -34,8 +34,8 @@ export async function getRoomByID(id: string): Promise<RoomI | null> {
         membershipType: true,
         contractAddress: true,
         bandadaAddress: true,
-        type: true
-      }
+        type: true,
+      },
     })
     .then((room) => {
       return room;
@@ -48,7 +48,7 @@ export async function getRoomByID(id: string): Promise<RoomI | null> {
     if (room) {
       resolve(room as RoomI);
     }
-    reject('Room not found');
+    reject("Room not found");
   });
 }
 
@@ -64,9 +64,9 @@ export async function getRoomsByIdentity(identity: string): Promise<string[]> {
     const rooms = await prisma.rooms.findMany({
       where: {
         identities: {
-          has: identity
-        }
-      }
+          has: identity,
+        },
+      },
     });
     rooms.forEach((room) => {
       r.push(room.roomId);
@@ -81,90 +81,126 @@ export async function getRoomsByIdentity(identity: string): Promise<string[]> {
 
 export function findClaimCode(code: string): Promise<CodeStatus | null> {
   return prisma.claimCodes.findUnique({
-    where: { claimcode: code }
+    where: { claimcode: code },
   });
 }
 
 export function updateClaimCode(code: string): Promise<RoomsFromClaimCode> {
   return prisma.claimCodes.update({
     where: { claimcode: code },
-    data: { claimed: true }
+    data: { claimed: true },
   });
 }
 
-export async function updateRoomIdentities(idc: string, roomIds: string[]): Promise<any> {
+function sanitizeIDC(idc: string): string {
+  try {
+    const tempBigInt = BigInt(idc);
+    const tempString = tempBigInt.toString();
+    if (idc === tempString) {
+      return idc;
+    } else {
+      throw new Error("Invalid IDC provided.");
+    }
+  } catch (error) {
+    throw new Error("Invalid IDC provided.");
+  }
+}
+
+export async function updateRoomIdentities(
+  idc: string,
+  roomIds: string[]
+): Promise<any> {
+  const identityCommitment = sanitizeIDC(idc);
   return prisma.rooms
     .findMany({
-      where: { id: { in: roomIds } }
+      where: { id: { in: roomIds } },
     })
-    .then((rooms) => {
-      const identityListRooms = rooms
-        .filter((room) => room.membershipType === "IDENTITY_LIST" && !room.identities.includes(idc))
-        .map((room) => room.id);
-
-      if (identityListRooms.length > 0) {
-        return prisma.rooms.updateMany({
-          where: { id: { in: identityListRooms } },
-          data: { identities: { push: idc } }
-        });
-      }
-      const bandadaGroupRooms = rooms
-      .filter((room) => room.membershipType === "BANDADA_GROUP" && !room.identities.includes(idc))
-      .map((room) => room);
-
-      if (bandadaGroupRooms.length > 0) {
-          bandadaGroupRooms.forEach((room) => {
-            if (!room.bandadaAPIKey) {
-              console.error("API key is missing for room:", room);
-              return;
-            }
-
-            const requestOptions = {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': room.bandadaAPIKey,
-              },
-            };
-
-            const url = `https://api.bandada.pse.dev/groups/${room.bandadaAddress}/members/${idc}`;
-
-            fetch(url, requestOptions)
-              .then((res) => {
-                if (res.status == 200) {
-                  console.log(`Successfully added user to Bandada group ${room.bandadaAddress}`);
-                }
-              })
-              .catch(console.error);
-          });
-        }
+    .then(async (rooms) => {
+      await handleIdentityListRooms(rooms, identityCommitment);
+      await handleBandadaGroups(rooms, identityCommitment);
     })
     .catch((err) => {
-      pp(err, 'error');
+      pp(err, "error");
     });
 }
 
+function handleIdentityListRooms(rooms, identityCommitment: string): any {
+  const identityListRooms = rooms
+    .filter(
+      (room) =>
+        room.membershipType === "IDENTITY_LIST" &&
+        !room.identities.includes(identityCommitment)
+    )
+    .map((room) => room.id as string);
+
+  if (identityListRooms.length > 0) {
+    return prisma.rooms.updateMany({
+      where: { id: { in: identityListRooms } },
+      data: { identities: { push: identityCommitment } },
+    });
+  }
+}
+
+function handleBandadaGroups(rooms, identityCommitment: string): any {
+  const bandadaGroupRooms = rooms
+    .filter(
+      (room) =>
+        room.membershipType === "BANDADA_GROUP" &&
+        !room.identities.includes(identityCommitment)
+    )
+    .map((room) => room as RoomI);
+
+  if (bandadaGroupRooms.length > 0) {
+    bandadaGroupRooms.forEach((room) => {
+      if (!room.bandadaAPIKey) {
+        console.error("API key is missing for room:", room);
+        return;
+      }
+      const requestOptions = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": room.bandadaAPIKey,
+        },
+      };
+      const url = `https://api.bandada.pse.dev/groups/${room.bandadaAddress}/members/${identityCommitment}`;
+      fetch(url, requestOptions)
+        .then((res) => {
+          if (res.status == 200) {
+            console.log(
+              `Successfully added user to Bandada group ${room.bandadaAddress}`
+            );
+          }
+        })
+        .catch(console.error);
+    });
+  }
+}
 
 export async function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
   const rooms = await prisma.rooms.findMany({
-    where: { id: { in: roomIds } }
+    where: { id: { in: roomIds } },
   });
   return new Promise((resolve, reject) => {
     if (rooms) {
       resolve(rooms as RoomI[]);
     }
-    reject('No rooms found');
+    reject("No rooms found");
   });
 }
 
-export function createSystemMessages(message: string, roomId?: string): Promise<any> {
+export function createSystemMessages(
+  message: string,
+  roomId?: string
+): Promise<any> {
   const query = roomId ? { where: { roomId } } : undefined;
-  return prisma.rooms.findMany(query)
-    .then(rooms => {
+  return prisma.rooms
+    .findMany(query)
+    .then((rooms) => {
       if (roomId && rooms.length === 0) {
-        return Promise.reject('Room not found')
+        return Promise.reject("Room not found");
       }
-      const createMessages = rooms.map(room => {
+      const createMessages = rooms.map((room) => {
         return prisma.messages.create({
           data: {
             message,
@@ -176,12 +212,12 @@ export function createSystemMessages(message: string, roomId?: string): Promise<
       });
 
       return Promise.all(createMessages);
-    }).catch(err => {
+    })
+    .catch((err) => {
       console.error(err);
       return Promise.reject(err);
-    })
+    });
 }
-
 
 /**
  * Creates a new room with the given name and optional parameters.
@@ -207,7 +243,7 @@ export async function createRoom(
   const mockUsers: string[] = genMockUsers(approxNumMockUsers);
   const roomData = {
     where: {
-      roomId: genId(serverConfig.id as bigint, roomName).toString()
+      roomId: genId(serverConfig.id as bigint, roomName).toString(),
     },
     update: {},
     create: {
@@ -221,9 +257,9 @@ export async function createRoom(
       bandadaAPIKey,
       membershipType,
       claimCodes: {
-        create: claimCodes
-      }
-    }
+        create: claimCodes,
+      },
+    },
   };
 
   return await prisma.rooms
