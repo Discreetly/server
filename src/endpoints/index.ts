@@ -125,6 +125,9 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     numClaimCodes?: number;
     approxNumMockUsers?: number;
     roomType?: string;
+    bandadaAddress?: string;
+    bandadaAPIKey?: string;
+    membershipType?: string;
   }
 
   /* ~~~~ ADMIN ENDPOINTS ~~~~ */
@@ -138,13 +141,19 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     const numClaimCodes = roomMetadata.numClaimCodes ?? 0;
     const approxNumMockUsers = roomMetadata.approxNumMockUsers;
     const type = roomMetadata.roomType as unknown as string;
+    const bandadaAddress = roomMetadata.bandadaAddress;
+    const bandadaAPIKey = roomMetadata.bandadaAPIKey;
+    const membershipType = roomMetadata.membershipType;
     createRoom(
       roomName,
       rateLimit,
       userMessageLimit,
       numClaimCodes,
       approxNumMockUsers,
-      type
+      type,
+      bandadaAddress,
+      bandadaAPIKey,
+      membershipType
     )
       .then((result) => {
         console.log(result);

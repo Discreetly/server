@@ -92,27 +92,58 @@ export function updateClaimCode(code: string): Promise<RoomsFromClaimCode> {
   });
 }
 
-export function updateRoomIdentities(idc: string, roomIds: string[]): Promise<any> {
+export async function updateRoomIdentities(idc: string, roomIds: string[]): Promise<any> {
   return prisma.rooms
     .findMany({
       where: { id: { in: roomIds } }
     })
     .then((rooms) => {
-      const roomsToUpdate = rooms
-        .filter((room) => !room.identities.includes(idc))
+      const identityListRooms = rooms
+        .filter((room) => room.membershipType === "IDENTITY_LIST" && !room.identities.includes(idc))
         .map((room) => room.id);
 
-      if (roomsToUpdate) {
+      if (identityListRooms.length > 0) {
         return prisma.rooms.updateMany({
-          where: { id: { in: roomsToUpdate } },
+          where: { id: { in: identityListRooms } },
           data: { identities: { push: idc } }
         });
       }
+      const bandadaGroupRooms = rooms
+      .filter((room) => room.membershipType === "BANDADA_GROUP" && !room.identities.includes(idc))
+      .map((room) => room);
+
+      if (bandadaGroupRooms.length > 0) {
+          bandadaGroupRooms.forEach((room) => {
+            if (!room.bandadaAPIKey) {
+              console.error("API key is missing for room:", room);
+              return;
+            }
+
+            const requestOptions = {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': room.bandadaAPIKey,
+              },
+            };
+
+            const url = `https://api.bandada.pse.dev/groups/${room.bandadaAddress}/members/${idc}`;
+
+            fetch(url, requestOptions)
+              .then((res) => {
+                if (res.status == 200) {
+                  console.log(`Successfully added user to Bandada group ${room.bandadaAddress}`);
+                }
+              })
+              .catch(console.error);
+          });
+        }
     })
     .catch((err) => {
       pp(err, 'error');
     });
 }
+
 
 export async function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
   const rooms = await prisma.rooms.findMany({
@@ -161,28 +192,34 @@ export function createSystemMessages(message: string, roomId?: string): Promise<
  * @param {number} [approxNumMockUsers=20] - The approximate number of mock users to generate for the room.
  */
 export async function createRoom(
-  name: string,
+  roomName: string,
   rateLimit = 1000,
   userMessageLimit = 1,
   numClaimCodes = 0,
   approxNumMockUsers = 20,
-  type: string
+  type: string,
+  bandadaAddress?: string,
+  bandadaAPIKey?: string,
+  membershipType?: string
 ): Promise<boolean> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
   console.log(claimCodes);
   const mockUsers: string[] = genMockUsers(approxNumMockUsers);
   const roomData = {
     where: {
-      roomId: genId(serverConfig.id as bigint, name).toString()
+      roomId: genId(serverConfig.id as bigint, roomName).toString()
     },
     update: {},
     create: {
-      roomId: genId(serverConfig.id as bigint, name).toString(),
-      name: name,
+      roomId: genId(serverConfig.id as bigint, roomName).toString(),
+      name: roomName,
       rateLimit: rateLimit,
       userMessageLimit: userMessageLimit,
       identities: mockUsers,
       type,
+      bandadaAddress,
+      bandadaAPIKey,
+      membershipType,
       claimCodes: {
         create: claimCodes
       }

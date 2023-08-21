@@ -29,12 +29,20 @@ async function verifyProof(msg: MessageI, room: RoomI, epochErrorRange = 5): Pro
   // TODO! INTERNAL NULLIFIER (RLNjs cache)
 
   // Check that the message hash is correct
-  if (msgHash !== msg.proof.snarkProof.publicSignals.x) {
+  let proof: RLNFullProof;
+
+  if (typeof msg.proof === 'string') {
+    proof = JSON.parse(msg.proof) as RLNFullProof;
+  } else {
+    proof = msg.proof;
+  }
+  
+  if (msgHash !== proof.snarkProof.publicSignals.x) {
     console.warn(
       'Message hash incorrect:',
       msgHash,
       'Hash in proof:',
-      msg.proof.snarkProof.publicSignals.x
+      proof.snarkProof.publicSignals.x
     );
     return false;
   }
@@ -42,7 +50,7 @@ async function verifyProof(msg: MessageI, room: RoomI, epochErrorRange = 5): Pro
   // Check that the merkle root is correct
   if (room.identities && Array.isArray(room.identities)) {
     const group = new Group(room.id, 20, room.identities as bigint[] | undefined);
-    if (group.root !== msg.proof.snarkProof.publicSignals.root) {
+    if (group.root !== proof.snarkProof.publicSignals.root) {
       return false;
     }
   }
