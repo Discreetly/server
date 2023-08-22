@@ -22,6 +22,7 @@ model Rooms {
   identities       String[]           @default([])
   contractAddress  String? // RLN_CONTRACT as "chainID:0xADDRESS"
   bandadaAddress   String? // BANDADA as "url:groupID"
+  bandadaGroupId   String? // Bandada Group ID
   bandadaAPIKey    String? // Bandada API Key
   epochs           Epoch[]
   messages         Messages[]

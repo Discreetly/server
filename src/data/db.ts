@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
-import { PrismaClient } from "@prisma/client";
-import { genId } from "discreetly-interfaces";
-import type { RoomI } from "discreetly-interfaces";
-import { serverConfig } from "../config/serverConfig";
-import { genMockUsers, genClaimCodeArray, pp } from "../utils";
+import { PrismaClient } from '@prisma/client';
+import { genId } from 'discreetly-interfaces';
+import type { RoomI } from 'discreetly-interfaces';
+import { serverConfig } from '../config/serverConfig';
+import { genMockUsers, genClaimCodeArray, pp } from '../utils';
 
 const prisma = new PrismaClient();
 
@@ -48,45 +48,48 @@ export async function getRoomByID(id: string): Promise<RoomI | null> {
     if (room) {
       resolve(room as RoomI);
     }
-    reject("Room not found");
+    reject('Room not found');
   });
 }
+/* TODO Need to create a system here where the client needs to provide a
+proof they know the secrets to some Identity Commitment with a unix epoch
+time stamp to prevent replay attacks
 
+https://github.com/Discreetly/IdentityCommitmentNullifierCircuit <- Circuit and JS to do this
+*/
 
 export async function getRoomsByIdentity(identity: string): Promise<string[]> {
-  /* TODO Need to create a system here where the client needs to provide a
-  proof they know the secrets to some Identity Commitment with a unix epoch
-  time stamp to prevent replay attacks
-
-  https://github.com/Discreetly/IdentityCommitmentNullifierCircuit <- Circuit and JS to do this
-  */
-  const r: string[] = [];
   try {
-    const rooms = await prisma.rooms.findMany({
+    const roomsFromDB = await prisma.rooms.findMany({
       where: {
         identities: {
           has: identity,
         },
       },
     });
-    for (const room of rooms) {
-      if (room.membershipType === "IDENTITY_LIST") {
-        r.push(room.roomId);
-      }
-      if (room.membershipType === "BANDADA_GROUP") {
-        const rooms = await fetch(
-          `https://api.bandada.pse.dev/groups/${room.bandadaAddress}`
-        );
-        const roomData = await rooms.json()
-        r.push(roomData.id as string);
-      }
-    }
-    console.log(r);
-    return r;
+
+    // Fetch all room IDs asynchronously
+    const roomIds = await Promise.all(
+      roomsFromDB.map(room => getRoomIdFromRoomData(room))
+    );
+
+    return roomIds;
   } catch (err) {
     console.error(err);
     return [];
   }
+}
+
+// Helper function to get the room ID based on its data
+async function getRoomIdFromRoomData(room: any): Promise<string> {
+  if (room.membershipType === 'IDENTITY_LIST') {
+    return room.roomId as string;
+  } else if (room.membershipType === 'BANDADA_GROUP') {
+    const response = await fetch(`https://${room.bandadaAddress}/groups/${room.bandadaGroupId}`);
+    const roomData = await response.json();
+    return roomData.id as string;
+  }
+  return '';
 }
 
 export function findClaimCode(code: string): Promise<CodeStatus | null> {
@@ -109,10 +112,10 @@ function sanitizeIDC(idc: string): string {
     if (idc === tempString) {
       return idc;
     } else {
-      throw new Error("Invalid IDC provided.");
+      throw new Error('Invalid IDC provided.');
     }
   } catch (error) {
-    throw new Error("Invalid IDC provided.");
+    throw new Error('Invalid IDC provided.');
   }
 }
 
@@ -130,7 +133,7 @@ export async function updateRoomIdentities(
       await handleBandadaGroups(rooms, identityCommitment);
     })
     .catch((err) => {
-      pp(err, "error");
+      pp(err, 'error');
     });
 }
 
@@ -138,7 +141,7 @@ function handleIdentityListRooms(rooms, identityCommitment: string): any {
   const identityListRooms = rooms
     .filter(
       (room) =>
-        room.membershipType === "IDENTITY_LIST" &&
+        room.membershipType === 'IDENTITY_LIST' &&
         !room.identities.includes(identityCommitment)
     )
     .map((room) => room.id as string);
@@ -155,7 +158,7 @@ function handleBandadaGroups(rooms, identityCommitment: string): any {
   const bandadaGroupRooms = rooms
     .filter(
       (room) =>
-        room.membershipType === "BANDADA_GROUP" &&
+        room.membershipType === 'BANDADA_GROUP' &&
         !room.identities.includes(identityCommitment)
     )
     .map((room) => room as RoomI);
@@ -163,21 +166,21 @@ function handleBandadaGroups(rooms, identityCommitment: string): any {
   if (bandadaGroupRooms.length > 0) {
     bandadaGroupRooms.forEach(async (room) => {
       if (!room.bandadaAPIKey) {
-        console.error("API key is missing for room:", room);
+        console.error('API key is missing for room:', room);
         return;
       }
       const requestOptions = {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
-          "x-api-key": room.bandadaAPIKey,
+          'Content-Type': 'application/json',
+          'x-api-key': room.bandadaAPIKey,
         },
       };
       await prisma.rooms.updateMany({
         where: { id: room.id },
         data: { identities: { push: identityCommitment } },
       });
-      const url = `https://api.bandada.pse.dev/groups/${room.bandadaAddress}/members/${identityCommitment}`;
+      const url = `https://${room.bandadaAddress}/groups/${room.bandadaGroupId}/members/${identityCommitment}`;
       fetch(url, requestOptions)
         .then((res) => {
           if (res.status == 200) {
@@ -199,7 +202,7 @@ export async function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
     if (rooms) {
       resolve(rooms as RoomI[]);
     }
-    reject("No rooms found");
+    reject('No rooms found');
   });
 }
 
@@ -212,14 +215,14 @@ export function createSystemMessages(
     .findMany(query)
     .then((rooms) => {
       if (roomId && rooms.length === 0) {
-        return Promise.reject("Room not found");
+        return Promise.reject('Room not found');
       }
       const createMessages = rooms.map((room) => {
         return prisma.messages.create({
           data: {
             message,
             roomId: room.roomId,
-            messageId: "0",
+            messageId: '0',
             proof: JSON.stringify({}),
           },
         });
@@ -249,6 +252,7 @@ export async function createRoom(
   approxNumMockUsers = 20,
   type: string,
   bandadaAddress?: string,
+  bandadaGroupId?: string,
   bandadaAPIKey?: string,
   membershipType?: string
 ): Promise<boolean> {
@@ -268,6 +272,7 @@ export async function createRoom(
       identities: mockUsers,
       type,
       bandadaAddress,
+      bandadaGroupId,
       bandadaAPIKey,
       membershipType,
       claimCodes: {
