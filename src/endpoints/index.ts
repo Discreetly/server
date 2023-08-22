@@ -9,7 +9,8 @@ import {
   updateClaimCode,
   updateRoomIdentities,
   findUpdatedRooms,
-  createRoom
+  createRoom,
+  createSystemMessages
 } from '../data/db';
 import { RoomI } from 'discreetly-interfaces';
 
@@ -45,19 +46,57 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
             // This is set as a timeout to prevent someone from trying to brute force room ids
             setTimeout(() => res.status(500).json({ error: 'Internal Server Error' }), 1000);
           } else {
+            const {
+              roomId,
+              name,
+              rateLimit,
+              userMessageLimit,
+              membershipType,
+              identities,
+              contractAddress,
+              bandadaAddress,
+              bandadaGroupId,
+              type
+            } = room || {};
+            const id = String(roomId);
+            const roomResult: RoomI = {
+              id,
+              roomId,
+              name,
+              rateLimit,
+              userMessageLimit,
+              membershipType
+            };
             // Add null check before accessing properties of room object
-            const { roomId, name, rateLimit, userMessageLimit } = room || {};
-            res.status(200).json({ roomId, name, rateLimit, userMessageLimit });
+            if (membershipType === 'BANDADA_GROUP') {
+              roomResult.bandadaAddress = bandadaAddress;
+              roomResult.bandadaGroupId = bandadaGroupId;
+            }
+            if (membershipType === 'IDENTITY_LIST') {
+              roomResult.identities = identities;
+            }
+            if (type === 'CONTRACT') {
+              roomResult.contractAddress = contractAddress;
+            }
+            res.status(200).json(roomResult);
           }
         })
         .catch((err) => console.error(err));
     }
   });
 
-  app.get(['/rooms/:idc', '/api/rooms/:idc'], async (req, res) => {
-    pp(String('Express: fetching rooms by identityCommitment ' + req.params.idc));
-    res.status(200).json(await getRoomsByIdentity(req.params.idc));
-  });
+  app.get(
+    ['/rooms/:idc', '/api/rooms/:idc'],
+    asyncHandler(async (req: Request, res: Response) => {
+      try {
+        pp(String('Express: fetching rooms by identityCommitment ' + req.params.idc));
+        res.status(200).json(await getRoomsByIdentity(req.params.idc));
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
+    })
+  );
 
   interface JoinData {
     code: string;
@@ -105,18 +144,43 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     rateLimit: number;
     userMessageLimit: number;
     numClaimCodes?: number;
+    approxNumMockUsers?: number;
+    roomType?: string;
+    bandadaAddress?: string;
+    bandadaAPIKey?: string;
+    bandadaGroupId?: string;
+    membershipType?: string;
   }
 
   /* ~~~~ ADMIN ENDPOINTS ~~~~ */
   app.post(['/room/add', '/api/room/add'], adminAuth, (req, res) => {
+    console.log(req.body);
     const roomMetadata = req.body as addRoomData;
     console.log(roomMetadata);
     const roomName = roomMetadata.roomName;
     const rateLimit = roomMetadata.rateLimit;
     const userMessageLimit = roomMetadata.userMessageLimit;
-    const numClaimCodes = roomMetadata.numClaimCodes || 0;
-    createRoom(roomName, rateLimit, userMessageLimit, numClaimCodes)
+    const numClaimCodes = roomMetadata.numClaimCodes ?? 0;
+    const approxNumMockUsers = roomMetadata.approxNumMockUsers;
+    const type = roomMetadata.roomType as unknown as string;
+    const bandadaAddress = roomMetadata.bandadaAddress;
+    const bandadaGroupId = roomMetadata.bandadaGroupId;
+    const bandadaAPIKey = roomMetadata.bandadaAPIKey;
+    const membershipType = roomMetadata.membershipType;
+    createRoom(
+      roomName,
+      rateLimit,
+      userMessageLimit,
+      numClaimCodes,
+      approxNumMockUsers,
+      type,
+      bandadaAddress,
+      bandadaGroupId,
+      bandadaAPIKey,
+      membershipType
+    )
       .then((result) => {
+        console.log(result);
         if (result) {
           // TODO should return roomID and claim codes if they are generated
           res.status(200).json({ message: 'Room created successfully' });
@@ -173,4 +237,37 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         res.status(500).json({ error: 'Internal Server Error' });
       });
   });
+
+  app.post(
+    '/admin/message',
+    adminAuth,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { message } = req.body as { message: string };
+      pp(String('Express: sending system message: ' + message));
+      try {
+        await createSystemMessages(message);
+        res.status(200).json({ message: 'Messages sent to all rooms' });
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
+    })
+  );
+
+  app.post(
+    '/admin/message/:roomId',
+    adminAuth,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { roomId } = req.params;
+      const { message } = req.body as { message: string };
+      pp(String('Express: sending system message: ' + message + ' to ' + roomId));
+      try {
+        await createSystemMessages(message, roomId);
+        res.status(200).json({ message: 'Message sent to room ' + roomId });
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
+    })
+  );
 }
