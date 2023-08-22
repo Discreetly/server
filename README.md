@@ -1,5 +1,5 @@
 <div align='center'>
-<img align='center' src="../frontend/static/logo-text.png" width='200px' />
+<img align='center' src="https://drive.google.com/uc?id=1_IJSt_pmpOFNfRg7zDDzSF-LYLp__pjE" width='200px' />
 </div>
 <br>
 </br>
@@ -69,7 +69,7 @@ npm i
 PASSWORD= //password for admin endpoints
 NODE_ENV= //development
 DATABASE_URL= //MongoDB Atlas URL
-DATABASE_URL_TEST= //MongoDB Atlas URL same or a seperate cluster for testing
+DATABASE_URL_TEST= //MongoDB Atlas URL same as above or a seperate cluster for testing
 ```
 
 ### Initialize Prisma
