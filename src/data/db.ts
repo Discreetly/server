@@ -51,45 +51,32 @@ export async function getRoomByID(id: string): Promise<RoomI | null> {
     reject('Room not found');
   });
 }
-/* TODO Need to create a system here where the client needs to provide a
-proof they know the secrets to some Identity Commitment with a unix epoch
-time stamp to prevent replay attacks
-
-https://github.com/Discreetly/IdentityCommitmentNullifierCircuit <- Circuit and JS to do this
-*/
 
 export async function getRoomsByIdentity(identity: string): Promise<string[]> {
+  /* TODO Need to create a system here where the client needs to provide a
+  proof they know the secrets to some Identity Commitment with a unix epoch
+  time stamp to prevent replay attacks
+
+  https://github.com/Discreetly/IdentityCommitmentNullifierCircuit <- Circuit and JS to do this
+  */
+  const r: string[] = [];
   try {
-    const roomsFromDB = await prisma.rooms.findMany({
+    const rooms = await prisma.rooms.findMany({
       where: {
         identities: {
-          has: identity,
-        },
-      },
+          has: identity
+        }
+      }
     });
-
-    // Fetch all room IDs asynchronously
-    const roomIds = await Promise.all(
-      roomsFromDB.map(room => getRoomIdFromRoomData(room))
-    );
-
-    return roomIds;
+    rooms.forEach((room) => {
+      r.push(room.roomId);
+    });
+    console.log(r);
+    return r;
   } catch (err) {
     console.error(err);
     return [];
   }
-}
-
-// Helper function to get the room ID based on its data
-async function getRoomIdFromRoomData(room: any): Promise<string> {
-  if (room.membershipType === 'IDENTITY_LIST') {
-    return room.roomId as string;
-  } else if (room.membershipType === 'BANDADA_GROUP') {
-    const response = await fetch(`https://${room.bandadaAddress}/groups/${room.bandadaGroupId}`);
-    const roomData = await response.json();
-    return roomData.id as string;
-  }
-  return '';
 }
 
 export function findClaimCode(code: string): Promise<CodeStatus | null> {
