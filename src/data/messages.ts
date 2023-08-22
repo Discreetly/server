@@ -32,7 +32,7 @@ async function checkRLNCollision(roomId: string, message: MessageI): Promise<Col
         if (!message.proof) {
           throw new Error('Proof not provided');
         }
-        if (!oldMessage) {
+        if (!oldMessage || !oldMessage?.epochs[0]?.messages) {
           res({ collision: false } as CollisionCheckResult);
         } else {
           const oldMessageProof = JSON.parse(
