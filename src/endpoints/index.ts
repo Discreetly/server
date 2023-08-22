@@ -112,7 +112,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         res.status(400).json({ message: '{code: string, idc: string} expected' });
       }
       const { code, idc } = parsedBody;
-      console.log('Invite Code:', code);
+      console.debug('Invite Code:', code);
 
       // Check if claim code is valid and not used before
       const codeStatus = await findClaimCode(code);
@@ -154,9 +154,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
 
   /* ~~~~ ADMIN ENDPOINTS ~~~~ */
   app.post(['/room/add', '/api/room/add'], adminAuth, (req, res) => {
-    console.log(req.body);
     const roomMetadata = req.body as addRoomData;
-    console.log(roomMetadata);
     const roomName = roomMetadata.roomName;
     const rateLimit = roomMetadata.rateLimit;
     const userMessageLimit = roomMetadata.userMessageLimit;
@@ -180,7 +178,6 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       membershipType
     )
       .then((result) => {
-        console.log(result);
         if (result) {
           // TODO should return roomID and claim codes if they are generated
           res.status(200).json({ message: 'Room created successfully' });
