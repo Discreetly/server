@@ -31,7 +31,7 @@ const room = {
 };
 
 const roomByIdTest = genId(serverConfig.id as bigint, room.roomName).toString();
-let testCode = "";
+let testCode = '';
 const testIdentity = randBigint();
 const username = 'admin';
 const password = process.env.PASSWORD;
@@ -42,7 +42,9 @@ describe('Endpoints should all work hopefully', () => {
       .get('/')
       .then((res) => {
         expect(res.status).toBe(200);
-        expect(res.header['content-type']).toBe('application/json; charset=utf-8');
+        expect(res.header['content-type']).toBe(
+          'application/json; charset=utf-8'
+        );
         expect(res.body.id).toBe(serverConfig.id);
       })
       .catch((error) => pp("GET '/' - " + error, 'error'));
@@ -51,7 +53,9 @@ describe('Endpoints should all work hopefully', () => {
   test('It should add a new room to the database', async () => {
     const username = 'admin';
     const password = process.env.PASSWORD;
-    const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString(
+      'base64'
+    );
     await request(_app)
       .post('/room/add')
       .set('Authorization', `Basic ${base64Credentials}`)
@@ -84,7 +88,9 @@ describe('Endpoints should all work hopefully', () => {
   test('It should return all rooms', async () => {
     const username = 'admin';
     const password = process.env.PASSWORD;
-    const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString(
+      'base64'
+    );
     await request(_app)
       .get('/api/rooms')
 
@@ -104,7 +110,9 @@ describe('Endpoints should all work hopefully', () => {
   test("It should return all claim codes and add a user's identity to the rooms the claim code is associated with", async () => {
     const username = 'admin';
     const password = process.env.PASSWORD;
-    const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString(
+      'base64'
+    );
     await request(_app)
       .get('/logclaimcodes')
 
@@ -136,14 +144,12 @@ describe('Endpoints should all work hopefully', () => {
         console.error('Error in request: ', error);
       });
   });
-  console.log(testIdentity);
 
   test('It should return all rooms associated with the given identity', async () => {
     await request(_app)
       .get(`/api/rooms/${testIdentity}`)
       .then((res) => {
         try {
-          console.log(res.body);
           expect(res.statusCode).toEqual(200);
         } catch (error) {
           pp('GET /api/rooms/:idc - ' + error, 'error');
@@ -156,7 +162,9 @@ describe('Endpoints should all work hopefully', () => {
     const message = {
       message: 'Test message'
     };
-    const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString(
+      'base64'
+    );
     await request(_app)
       .post('/admin/message')
       .set('Authorization', `Basic ${base64Credentials}`)

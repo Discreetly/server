@@ -72,7 +72,6 @@ export async function getRoomsByIdentity(identity: string): Promise<string[]> {
     rooms.forEach((room) => {
       r.push(room.roomId);
     });
-    console.log(r);
     return r;
   } catch (err) {
     console.error(err);
@@ -109,12 +108,12 @@ function sanitizeIDC(idc: string): string {
 
 export async function updateRoomIdentities(idc: string, roomIds: string[]): Promise<void> {
   const identityCommitment = sanitizeIDC(idc);
-  return prisma.rooms
+  return await prisma.rooms
     .findMany({
       where: { id: { in: roomIds } }
     })
-    .then((rooms) => {
-      addIdentityToIdentityListRooms(rooms, identityCommitment);
+    .then(async (rooms) => {
+      await addIdentityToIdentityListRooms(rooms, identityCommitment);
       addIdentityToBandadaRooms(rooms, identityCommitment);
     })
     .catch((err) => {
@@ -255,7 +254,6 @@ export async function createRoom(
   membershipType?: string
 ): Promise<boolean> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
-  console.log(claimCodes);
   const mockUsers: string[] = genMockUsers(approxNumMockUsers);
   const roomData = {
     where: {
