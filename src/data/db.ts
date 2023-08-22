@@ -52,6 +52,7 @@ export async function getRoomByID(id: string): Promise<RoomI | null> {
   });
 }
 
+
 export async function getRoomsByIdentity(identity: string): Promise<string[]> {
   /* TODO Need to create a system here where the client needs to provide a
   proof they know the secrets to some Identity Commitment with a unix epoch
@@ -68,9 +69,18 @@ export async function getRoomsByIdentity(identity: string): Promise<string[]> {
         },
       },
     });
-    rooms.forEach((room) => {
-      r.push(room.roomId);
-    });
+    for (const room of rooms) {
+      if (room.membershipType === "IDENTITY_LIST") {
+        r.push(room.roomId);
+      }
+      if (room.membershipType === "BANDADA_GROUP") {
+        const rooms = await fetch(
+          `https://api.bandada.pse.dev/groups/${room.bandadaAddress}`
+        );
+        const roomData = await rooms.json()
+        r.push(roomData.id as string);
+      }
+    }
     console.log(r);
     return r;
   } catch (err) {
