@@ -55,7 +55,7 @@ async function verifyProof(msg: MessageI, room: RoomI, epochErrorRange = 5): Pro
   if (room.identities && Array.isArray(room.identities)) {
     const group = new Group(room.id, 20, room.identities as bigint[] | undefined);
     if (group.root !== proof.snarkProof.publicSignals.root) {
-      return false;
+      console.warn("GROUP ROOT DOESN'T MATCH PROOF ROOT; USE BANDADA");
     }
   }
 
