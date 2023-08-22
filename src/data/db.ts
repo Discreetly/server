@@ -22,7 +22,7 @@ export async function getRoomByID(id: string): Promise<RoomI | null> {
   const room = await prisma.rooms
     .findUnique({
       where: {
-        roomId: id,
+        roomId: id
       },
       select: {
         id: true,
@@ -82,14 +82,14 @@ export async function getRoomsByIdentity(identity: string): Promise<string[]> {
 
 export function findClaimCode(code: string): Promise<CodeStatus | null> {
   return prisma.claimCodes.findUnique({
-    where: { claimcode: code },
+    where: { claimcode: code }
   });
 }
 
 export function updateClaimCode(code: string): Promise<RoomsFromClaimCode> {
   return prisma.claimCodes.update({
     where: { claimcode: code },
-    data: { claimed: true },
+    data: { claimed: true }
   });
 }
 
@@ -107,47 +107,42 @@ function sanitizeIDC(idc: string): string {
   }
 }
 
-export async function updateRoomIdentities(
-  idc: string,
-  roomIds: string[]
-): Promise<any> {
+export async function updateRoomIdentities(idc: string, roomIds: string[]): Promise<void> {
   const identityCommitment = sanitizeIDC(idc);
   return prisma.rooms
     .findMany({
-      where: { id: { in: roomIds } },
+      where: { id: { in: roomIds } }
     })
-    .then(async (rooms) => {
-      await handleIdentityListRooms(rooms, identityCommitment);
-      await handleBandadaGroups(rooms, identityCommitment);
+    .then((rooms) => {
+      addIdentityToIdentityListRooms(rooms, identityCommitment);
+      addIdentityToBandadaRooms(rooms, identityCommitment);
     })
     .catch((err) => {
       pp(err, 'error');
     });
 }
 
-function handleIdentityListRooms(rooms, identityCommitment: string): any {
+function addIdentityToIdentityListRooms(rooms, identityCommitment: string): unknown {
   const identityListRooms = rooms
     .filter(
       (room) =>
-        room.membershipType === 'IDENTITY_LIST' &&
-        !room.identities.includes(identityCommitment)
+        room.membershipType === 'IDENTITY_LIST' && !room.identities.includes(identityCommitment)
     )
     .map((room) => room.id as string);
 
   if (identityListRooms.length > 0) {
     return prisma.rooms.updateMany({
       where: { id: { in: identityListRooms } },
-      data: { identities: { push: identityCommitment } },
+      data: { identities: { push: identityCommitment } }
     });
   }
 }
 
-function handleBandadaGroups(rooms, identityCommitment: string): any {
+function addIdentityToBandadaRooms(rooms, identityCommitment: string): void {
   const bandadaGroupRooms = rooms
     .filter(
       (room) =>
-        room.membershipType === 'BANDADA_GROUP' &&
-        !room.identities.includes(identityCommitment)
+        room.membershipType === 'BANDADA_GROUP' && !room.identities.includes(identityCommitment)
     )
     .map((room) => room as RoomI);
 
@@ -161,30 +156,30 @@ function handleBandadaGroups(rooms, identityCommitment: string): any {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': room.bandadaAPIKey,
-        },
+          'x-api-key': room.bandadaAPIKey
+        }
       };
       await prisma.rooms.updateMany({
         where: { id: room.id },
-        data: { identities: { push: identityCommitment } },
+        data: { identities: { push: identityCommitment } }
       });
       const url = `https://${room.bandadaAddress}/groups/${room.bandadaGroupId}/members/${identityCommitment}`;
       fetch(url, requestOptions)
         .then((res) => {
           if (res.status == 200) {
-            console.log(
-              `Successfully added user to Bandada group ${room.bandadaAddress}`
-            );
+            console.debug(`Successfully added user to Bandada group ${room.bandadaAddress}`);
           }
         })
-        .catch(console.error);
+        .catch((err) => {
+          console.error(err);
+        });
     });
   }
 }
 
 export async function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
   const rooms = await prisma.rooms.findMany({
-    where: { id: { in: roomIds } },
+    where: { id: { in: roomIds } }
   });
   return new Promise((resolve, reject) => {
     if (rooms) {
@@ -194,10 +189,8 @@ export async function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
   });
 }
 
-export function createSystemMessages(
-  message: string,
-  roomId?: string
-): Promise<any> {
+// TODO: Make interface for this return type; which is like a MessageI
+export function createSystemMessages(message: string, roomId?: string): Promise<unknown> {
   const query = roomId ? { where: { roomId } } : undefined;
   return prisma.rooms
     .findMany(query)
@@ -266,7 +259,7 @@ export async function createRoom(
   const mockUsers: string[] = genMockUsers(approxNumMockUsers);
   const roomData = {
     where: {
-      roomId: genId(serverConfig.id as bigint, roomName).toString(),
+      roomId: genId(serverConfig.id as bigint, roomName).toString()
     },
     update: {},
     create: {
