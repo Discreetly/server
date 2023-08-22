@@ -41,7 +41,7 @@ async function verifyProof(msg: MessageI, room: RoomI, epochErrorRange = 5): Pro
 
   // Check that the message hash is correct
 
-  if (msgHash !== proof.snarkProof.publicSignals.x) {
+  if (msgHash !== BigInt(proof.snarkProof.publicSignals.x)) {
     console.warn(
       'Message hash incorrect:',
       msgHash,
