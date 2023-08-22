@@ -1,7 +1,10 @@
 import { getRoomByID, removeIdentityFromRoom } from './db';
 import { PrismaClient } from '@prisma/client';
 import { MessageI } from 'discreetly-interfaces';
-import { shamirRecovery, getIdentityCommitmentFromSecret } from '../crypto/shamirRecovery';
+import {
+  shamirRecovery,
+  getIdentityCommitmentFromSecret
+} from '../crypto/shamirRecovery';
 import { RLNFullProof } from 'rlnjs';
 
 const prisma = new PrismaClient();
@@ -12,7 +15,10 @@ interface CollisionCheckResult {
   oldMessage?: MessageI;
 }
 
-async function checkRLNCollision(roomId: string, message: MessageI): Promise<CollisionCheckResult> {
+async function checkRLNCollision(
+  roomId: string,
+  message: MessageI
+): Promise<CollisionCheckResult> {
   return new Promise((res) => {
     prisma.rooms
       .findFirst({
@@ -38,8 +44,12 @@ async function checkRLNCollision(roomId: string, message: MessageI): Promise<Col
           const oldMessageProof = JSON.parse(
             oldMessage.epochs[0].messages[0].proof
           ) as RLNFullProof;
-          const oldMessagex2 = BigInt(oldMessageProof.snarkProof.publicSignals.x);
-          const oldMessagey2 = BigInt(oldMessageProof.snarkProof.publicSignals.y);
+          const oldMessagex2 = BigInt(
+            oldMessageProof.snarkProof.publicSignals.x
+          );
+          const oldMessagey2 = BigInt(
+            oldMessageProof.snarkProof.publicSignals.y
+          );
 
           let proof: RLNFullProof;
 
@@ -98,45 +108,55 @@ export interface createMessageResult {
   idc?: string | bigint;
 }
 
-export function createMessage(roomId: string, message: MessageI): createMessageResult {
-  getRoomByID(roomId)
-    .then((room) => {
-      if (room) {
-        // Todo This should check that there is no duplicate messageId with in this room and epoch,
-        // if there is, we need to return an error and
-        // reconstruct the secret from both messages, and ban the user
-        checkRLNCollision(roomId, message)
-          .then((collisionResult) => {
-            if (!collisionResult.collision) {
-              addMessageToRoom(roomId, message)
-                .then(() => {
-                  return { success: true };
-                })
-                .catch((error) => {
-                  console.error(`Couldn't add message room ${error}`);
-                  return false;
-                });
-            } else {
-              console.debug('Collision found');
-              const identityCommitment = getIdentityCommitmentFromSecret(collisionResult.secret!);
-              removeIdentityFromRoom(identityCommitment.toString(), room)
-                .then(() => {
-                  return { success: false };
-                })
-                .catch((error) => {
-                  console.error(`Couldn't remove identity from room ${error}`);
-                });
-            }
-          })
-          .catch((error) => {
-            console.error(`Error getting room: ${error}`);
-            return { success: false };
-          });
-      }
-    })
-    .catch((error) => {
-      console.error(`Error getting room: ${error}`);
-      return { success: false };
-    });
-  return { success: false };
+export function createMessage(
+  roomId: string,
+  message: MessageI
+): Promise<createMessageResult> {
+  return new Promise((resolve, reject) => {
+    getRoomByID(roomId)
+      .then(async (room) => {
+        if (room) {
+          // Todo This should check that there is no duplicate messageId with in this room and epoch,
+          // if there is, we need to return an error and
+          // reconstruct the secret from both messages, and ban the user
+          await checkRLNCollision(roomId, message)
+            .then((collisionResult) => {
+              console.log('HERE', collisionResult);
+              if (!collisionResult.collision) {
+                addMessageToRoom(roomId, message)
+                  .then(() => {
+                    console.log('Message added to room');
+                    return resolve({ success: true });
+                  })
+                  .catch((error) => {
+                    console.error(`Couldn't add message room ${error}`);
+                    return reject({ success: false });
+                  });
+              } else {
+                console.debug('Collision found');
+                const identityCommitment = getIdentityCommitmentFromSecret(
+                  collisionResult.secret!
+                );
+                removeIdentityFromRoom(identityCommitment.toString(), room)
+                  .then(() => {
+                    return reject({ success: false });
+                  })
+                  .catch((error) => {
+                    console.error(
+                      `Couldn't remove identity from room ${error}`
+                    );
+                  });
+              }
+            })
+            .catch((error) => {
+              console.error(`Error getting room: ${error}`);
+              return reject({ success: false });
+            });
+        }
+      })
+      .catch((error) => {
+        console.error(`Error getting room: ${error}`);
+        return reject({ success: false });
+      });
+  });
 }
