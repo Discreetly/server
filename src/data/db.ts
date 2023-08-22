@@ -34,8 +34,9 @@ export async function getRoomByID(id: string): Promise<RoomI | null> {
         membershipType: true,
         contractAddress: true,
         bandadaAddress: true,
-        type: true,
-      },
+        bandadaGroupId: true,
+        type: true
+      }
     })
     .then((room) => {
       return room;
@@ -223,8 +224,8 @@ export function createSystemMessages(
             message,
             roomId: room.roomId,
             messageId: '0',
-            proof: JSON.stringify({}),
-          },
+            proof: JSON.stringify({})
+          }
         });
       });
 
@@ -233,6 +234,23 @@ export function createSystemMessages(
     .catch((err) => {
       console.error(err);
       return Promise.reject(err);
+    });
+}
+
+export function removeIdentityFromRoom(idc: string, room: RoomI): Promise<void | RoomI> {
+  const updateIdentities = room.identities?.map((identity) =>
+    identity === idc ? '0n' : identity
+  ) as string[];
+  return prisma.rooms
+    .update({
+      where: { id: room.id },
+      data: { identities: updateIdentities }
+    })
+    .then((room) => {
+      return room as RoomI;
+    })
+    .catch((err) => {
+      console.error(err);
     });
 }
 
@@ -276,9 +294,9 @@ export async function createRoom(
       bandadaAPIKey,
       membershipType,
       claimCodes: {
-        create: claimCodes,
-      },
-    },
+        create: claimCodes
+      }
+    }
   };
 
   return await prisma.rooms
