@@ -12,7 +12,7 @@
     "watch": "rollup --config rollup.config.mjs --watch",
     "serve": "nodemon -q dist/server.jcs",
     "dev": "concurrently \"npm run watch\" \"npm run serve\"",
-    "test": "jest --detectOpenHandles",
+    "test": "jest --detectOpenHandles --coverage",
     "lint": "eslint ."
   },
   "engines": {
@@ -32,6 +32,7 @@
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-basic-auth": "^1.2.1",
+    "ffjavascript": "^0.2.60",
     "helmet": "^7.0.0",
     "mongodb": "^5.7.0",
     "poseidon-lite": "^0.2.0",

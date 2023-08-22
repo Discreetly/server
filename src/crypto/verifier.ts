@@ -17,6 +17,7 @@ async function verifyProof(msg: MessageI, room: RoomI, epochErrorRange = 5): Pro
   const currentEpoch = Math.floor(timestamp / rateLimit);
   const rlnIdentifier = BigInt(msg.roomId);
   const msgHash = str2BigInt(msg.message);
+  let proof: RLNFullProof | undefined;
   // Check that the epoch falls within the range for the room
   const epoch = BigInt(msg.epoch);
   if (epoch < currentEpoch - epochErrorRange || epoch > currentEpoch + epochErrorRange) {
@@ -24,11 +25,19 @@ async function verifyProof(msg: MessageI, room: RoomI, epochErrorRange = 5): Pro
     console.warn('Epoch out of range:', epoch, 'currentEpoch:', currentEpoch);
     return false;
   }
-
-  // Check that the internal nullifier doesn't have collisions
-  // TODO! INTERNAL NULLIFIER (RLNjs cache)
+  if (typeof msg.proof === 'string') {
+    proof = JSON.parse(msg.proof) as RLNFullProof;
+  } else {
+    console.warn('Invalid proof format:', msg.proof);
+    return false;
+  }
+  if (!proof) {
+    console.warn('Proof is undefined:', msg.proof);
+    return false;
+  }
 
   // Check that the message hash is correct
+
   let proof: RLNFullProof;
 
   if (typeof msg.proof === 'string') {

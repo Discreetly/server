@@ -25,6 +25,7 @@
     - [Run the server](#run-the-server)
     - [Running tests](#running-tests)
 - [🔩 Usage](#-usage)
+      - [Style Guide](#style-guide)
 
 <br>
 
@@ -133,3 +134,8 @@ npm run test
   </tr>
 
 </table>
+
+
+#### Style Guide
+
+* Single Quotes

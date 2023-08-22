@@ -10,25 +10,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 model Rooms {
-  id               String             @id @default(auto()) @map("_id") @db.ObjectId
-  roomId           String             @unique
+  id               String        @id @default(auto()) @map("_id") @db.ObjectId
+  roomId           String        @unique
   name             String
-  rateLimit        Int                @default(1000) // epoch length in ms
-  banRateLimit     Int                @default(1000000) // starting number of epochs banned for
-  userMessageLimit Int                @default(1) // per epoch
-  membershipType   String             @default("IDENTITY_LIST")
-  identities       String[]           @default([])
+  rateLimit        Int           @default(1000) // epoch length in ms
+  banRateLimit     Int           @default(1000000) // starting number of epochs banned for
+  userMessageLimit Int           @default(1) // per epoch
+  membershipType   String        @default("IDENTITY_LIST")
+  identities       String[]      @default([])
   contractAddress  String? // RLN_CONTRACT as "chainID:0xADDRESS"
   bandadaAddress   String? // BANDADA as "url:groupID"
   bandadaGroupId   String? // Bandada Group ID
   bandadaAPIKey    String? // Bandada API Key
   epochs           Epoch[]
   messages         Messages[]
-  claimCodes       ClaimCodes[]       @relation(fields: [claimCodeIds], references: [id])
-  claimCodeIds     String[]           @default([]) @db.ObjectId
-  type             String
+  claimCodes       ClaimCodes[]  @relation(fields: [claimCodeIds], references: [id])
+  claimCodeIds     String[]      @default([]) @db.ObjectId
+  type             String        @default("PUBLIC")
 }
 
 model ClaimCodes {
