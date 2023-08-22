@@ -109,8 +109,7 @@ export function createMessage(roomId: string, message: MessageI): createMessageR
           .then((collisionResult) => {
             if (!collisionResult.collision) {
               addMessageToRoom(roomId, message)
-                .then((roomToUpdate) => {
-                  console.log(roomToUpdate);
+                .then(() => {
                   return { success: true };
                 })
                 .catch((error) => {
@@ -118,7 +117,7 @@ export function createMessage(roomId: string, message: MessageI): createMessageR
                   return false;
                 });
             } else {
-              console.log('Collision found');
+              console.debug('Collision found');
               const identityCommitment = getIdentityCommitmentFromSecret(collisionResult.secret!);
               removeIdentityFromRoom(identityCommitment.toString(), room)
                 .then(() => {

@@ -72,7 +72,6 @@ export async function getRoomsByIdentity(identity: string): Promise<string[]> {
     rooms.forEach((room) => {
       r.push(room.roomId);
     });
-    console.log(r);
     return r;
   } catch (err) {
     console.error(err);
@@ -255,7 +254,6 @@ export async function createRoom(
   membershipType?: string
 ): Promise<boolean> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
-  console.log(claimCodes);
   const mockUsers: string[] = genMockUsers(approxNumMockUsers);
   const roomData = {
     where: {
