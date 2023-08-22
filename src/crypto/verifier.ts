@@ -25,8 +25,11 @@ async function verifyProof(msg: MessageI, room: RoomI, epochErrorRange = 5): Pro
     console.warn('Epoch out of range:', epoch, 'currentEpoch:', currentEpoch);
     return false;
   }
+
   if (typeof msg.proof === 'string') {
     proof = JSON.parse(msg.proof) as RLNFullProof;
+  } else if (typeof msg.proof === 'object') {
+    proof = msg.proof;
   } else {
     console.warn('Invalid proof format:', msg.proof);
     return false;
