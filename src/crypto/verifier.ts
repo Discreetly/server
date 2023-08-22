@@ -1,8 +1,8 @@
 import type { MessageI, RoomI } from 'discreetly-interfaces';
-import { str2BigInt } from 'discreetly-interfaces';
 import { RLNFullProof, RLNVerifier } from 'rlnjs';
 import vkey from './verification_key';
 import { Group } from '@semaphore-protocol/group';
+import { calculateSignalHash } from './signalHash';
 
 const v = new RLNVerifier(vkey);
 
@@ -16,7 +16,7 @@ async function verifyProof(msg: MessageI, room: RoomI, epochErrorRange = 5): Pro
   const rateLimit = room.rateLimit ? room.rateLimit : 1000;
   const currentEpoch = Math.floor(timestamp / rateLimit);
   const rlnIdentifier = BigInt(msg.roomId);
-  const msgHash = str2BigInt(msg.message);
+  const msgHash = calculateSignalHash(msg.message);
   let proof: RLNFullProof | undefined;
   // Check that the epoch falls within the range for the room
   const epoch = BigInt(msg.epoch);
