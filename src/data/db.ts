@@ -151,7 +151,7 @@ function handleBandadaGroups(rooms, identityCommitment: string): any {
     .map((room) => room as RoomI);
 
   if (bandadaGroupRooms.length > 0) {
-    bandadaGroupRooms.forEach((room) => {
+    bandadaGroupRooms.forEach(async (room) => {
       if (!room.bandadaAPIKey) {
         console.error("API key is missing for room:", room);
         return;
@@ -163,6 +163,10 @@ function handleBandadaGroups(rooms, identityCommitment: string): any {
           "x-api-key": room.bandadaAPIKey,
         },
       };
+      await prisma.rooms.updateMany({
+        where: { id: room.id },
+        data: { identities: { push: identityCommitment } },
+      });
       const url = `https://api.bandada.pse.dev/groups/${room.bandadaAddress}/members/${identityCommitment}`;
       fetch(url, requestOptions)
         .then((res) => {
