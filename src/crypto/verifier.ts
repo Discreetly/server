@@ -38,14 +38,6 @@ async function verifyProof(msg: MessageI, room: RoomI, epochErrorRange = 5): Pro
 
   // Check that the message hash is correct
 
-  let proof: RLNFullProof;
-
-  if (typeof msg.proof === 'string') {
-    proof = JSON.parse(msg.proof) as RLNFullProof;
-  } else {
-    proof = msg.proof;
-  }
-  
   if (msgHash !== proof.snarkProof.publicSignals.x) {
     console.warn(
       'Message hash incorrect:',
@@ -65,7 +57,7 @@ async function verifyProof(msg: MessageI, room: RoomI, epochErrorRange = 5): Pro
   }
 
   // Check that the proof is correct
-  return v.verifyProof(rlnIdentifier, msg.proof as RLNFullProof);
+  return v.verifyProof(rlnIdentifier, proof);
 }
 
 export default verifyProof;
