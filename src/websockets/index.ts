@@ -11,20 +11,21 @@ export function websocketSetup(io: SocketIOServer) {
   io.on('connection', (socket: Socket) => {
     pp('SocketIO: a user connected', 'debug');
 
-    socket.on('validateMessage', (msg: MessageI) => {
+    socket.on('validateMessage', async (msg: MessageI) => {
       pp({ 'VALIDATING MESSAGE ID': String(msg.roomId).slice(0, 11), 'MSG:': msg.message });
       let validProof: boolean;
-      getRoomByID(String(msg.roomId))
+      await getRoomByID(String(msg.roomId))
         .then((room: RoomI) => {
           if (!room) {
             pp('INVALID ROOM', 'warn');
             return;
           }
           verifyProof(msg, room)
-            .then((v) => {
+          .then(async (v) => {
+              console.log('validProof', v)
               validProof = v;
               // TODO import createMessageResult, and broadcast the idc and message ID that were removed to those room users
-              const validMessage: createMessageResult = createMessage(String(msg.roomId), msg);
+              const validMessage: createMessageResult = await createMessage(String(msg.roomId), msg);
               if (!validProof || !validMessage.success) {
                 pp('INVALID MESSAGE', 'warn');
                 return;
