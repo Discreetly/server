@@ -6,6 +6,7 @@ import { genId } from 'discreetly-interfaces';
 import type { RoomI } from 'discreetly-interfaces';
 import { serverConfig } from '../config/serverConfig';
 import { genMockUsers, genClaimCodeArray, pp } from '../utils';
+import getRateCommitmentHash from '../crypto/rateCommitmentHasher';
 
 const prisma = new PrismaClient();
 
@@ -124,8 +125,14 @@ export async function updateRoomIdentities(idc: string, roomIds: string[]): Prom
 function addIdentityToIdentityListRooms(rooms, identityCommitment: string): unknown {
   const identityListRooms = rooms
     .filter(
-      (room) =>
-        room.membershipType === 'IDENTITY_LIST' && !room.identities.includes(identityCommitment)
+      (room: RoomI) =>
+        room.membershipType === 'IDENTITY_LIST' &&
+        !room.identities?.includes(
+          getRateCommitmentHash(
+            BigInt(identityCommitment),
+            BigInt(room.userMessageLimit ? room.userMessageLimit : 1)
+          ).toString()
+        )
     )
     .map((room) => room.id as string);
 
