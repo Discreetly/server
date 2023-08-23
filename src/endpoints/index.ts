@@ -1,7 +1,7 @@
 import type { Express, RequestHandler, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { serverConfig } from '../config/serverConfig';
-import { pp } from '../utils';
+import { genClaimCodeArray, pp } from '../utils';
 import {
   getRoomByID,
   getRoomsByIdentity,
@@ -76,7 +76,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
               roomResult.bandadaGroupId = bandadaGroupId;
             }
             if (membershipType === 'IDENTITY_LIST') {
-              roomResult.identities = identities
+              roomResult.identities = identities;
             }
             if (type === 'CONTRACT') {
               roomResult.contractAddress = contractAddress;
@@ -204,6 +204,10 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     const { id } = req.params;
     prisma.messages
       .findMany({
+        take: 500,
+        orderBy: {
+          timeStamp: 'desc'
+        },
         where: {
           roomId: id
         }
@@ -215,6 +219,47 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       .catch((error: Error) => {
         pp(error, 'error');
         res.status(500).send('Error fetching messages');
+      });
+  });
+
+  app.post(['/room/:roomId/addcode', '/api/room/:roomId/addcode'], adminAuth, (req, res) => {
+    const { roomId } = req.params;
+    const { numCodes } = req.body as { numCodes: number };
+    const codes = genClaimCodeArray(numCodes);
+    console.log(codes);
+    prisma.rooms
+      .findUnique({
+        where: { roomId: roomId },
+        include: { claimCodes: true },
+      })
+      .then((room) => {
+        if (!room) {
+          res.status(404).json({ error: 'Room not found' });
+          return;
+        }
+
+        const createCodes = codes.map((code) => {
+          return prisma.claimCodes.create({
+            data: {
+              claimcode: code.claimcode,
+              claimed: false,
+              rooms: {
+                connect: {
+                  roomId: roomId,
+                },
+              },
+            },
+          });
+        });
+
+        return Promise.all(createCodes);
+      })
+      .then(() => {
+        res.status(200).json({ message: 'Claim codes added successfully' });
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
       });
   });
 
