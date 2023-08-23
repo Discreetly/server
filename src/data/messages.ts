@@ -15,6 +15,7 @@ interface CollisionCheckResult {
   oldMessage?: MessageI;
 }
 
+
 async function checkRLNCollision(
   roomId: string,
   message: MessageI

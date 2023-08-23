@@ -43,7 +43,7 @@ export default function Mock(io: SocketIOServer) {
       id: faker.number.bigInt().toString(),
       roomId: BigInt('20945462742745557191488383979949684808523754877925170533224967224808050898610'),
       message: picker.pick(),
-      timestamp: Date.now().toString(),
+      timeStamp: Date.now().toString(),
       epoch: Math.floor(Date.now() / 10000)
     };
     console.log('SENDING TEST MESSAGE');
