@@ -52,8 +52,8 @@ async function verifyProof(msg: MessageI, room: RoomI, epochErrorRange = 5): Pro
   }
 
   // Check that the merkle root is correct
-  if (room.identities && Array.isArray(room.identities)) {
-    const group = new Group(room.roomId, 20, room.identities as bigint[] | undefined);
+  if (room.semaphoreIdentities && Array.isArray(room.semaphoreIdentities)) {
+    const group = new Group(room.roomId, 20, room.semaphoreIdentities as bigint[] | undefined);
     if (group.root !== proof.snarkProof.publicSignals.root) {
       console.warn("GROUP ROOT DOESN'T MATCH PROOF ROOT; USE BANDADA");
     }

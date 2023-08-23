@@ -29,7 +29,7 @@ export async function getRoomByID(id: string): Promise<RoomI | null> {
         id: true,
         roomId: true,
         name: true,
-        identities: true,
+        semaphoreIdentities: true,
         rateLimit: true,
         userMessageLimit: true,
         membershipType: true,
@@ -65,7 +65,7 @@ export async function getRoomsByIdentity(identity: string): Promise<string[]> {
   try {
     const rooms = await prisma.rooms.findMany({
       where: {
-        identities: {
+        semaphoreIdentities: {
           has: identity
         }
       }
@@ -107,7 +107,10 @@ function sanitizeIDC(idc: string): string {
   }
 }
 
-export async function updateRoomIdentities(idc: string, roomIds: string[]): Promise<void> {
+export async function updateRoomIdentities(
+  idc: string,
+  roomIds: string[]
+): Promise<void> {
   const identityCommitment = sanitizeIDC(idc);
   return await prisma.rooms
     .findMany({
@@ -122,33 +125,50 @@ export async function updateRoomIdentities(idc: string, roomIds: string[]): Prom
     });
 }
 
-function addIdentityToIdentityListRooms(rooms, identityCommitment: string): unknown {
+function addIdentityToIdentityListRooms(
+  rooms,
+  identityCommitment: string
+): unknown {
   const identityListRooms = rooms
     .filter(
       (room: RoomI) =>
         room.membershipType === 'IDENTITY_LIST' &&
-        !room.identities?.includes(
-          getRateCommitmentHash(
-            BigInt(identityCommitment),
-            BigInt(room.userMessageLimit ? room.userMessageLimit : 1)
-          ).toString()
-        )
+        !room.semaphoreIdentities?.includes(identityCommitment)
     )
     .map((room) => room.id as string);
 
   if (identityListRooms.length > 0) {
-    return prisma.rooms.updateMany({
-      where: { id: { in: identityListRooms } },
-      data: { identities: { push: identityCommitment } }
-    });
+    for (const room of rooms) {
+      return prisma.rooms
+        .update({
+          where: { id: room.id },
+          data: {
+            identities: {
+              push: getRateCommitmentHash(
+                BigInt(identityCommitment),
+                BigInt((room.userMessageLimit as number) ?? 1)
+              ).toString()
+            },
+            semaphoreIdentities: { push: identityCommitment }
+          }
+        })
+        .then(() => {
+          console.debug(
+            `Successfully added user to Identity List room ${room.roomId}`
+          );
+        })
+        .catch((err) => {
+          console.error(err);
+        });
+    }
   }
 }
-
 function addIdentityToBandadaRooms(rooms, identityCommitment: string): void {
   const bandadaGroupRooms = rooms
     .filter(
       (room) =>
-        room.membershipType === 'BANDADA_GROUP' && !room.identities.includes(identityCommitment)
+        room.membershipType === 'BANDADA_GROUP' &&
+        !room.semaphoreIdentities.includes(identityCommitment)
     )
     .map((room) => room as RoomI);
 
@@ -165,15 +185,25 @@ function addIdentityToBandadaRooms(rooms, identityCommitment: string): void {
           'x-api-key': room.bandadaAPIKey
         }
       };
-      await prisma.rooms.updateMany({
+      await prisma.rooms.update({
         where: { id: room.id },
-        data: { identities: { push: identityCommitment } }
+        data: {
+          identities: {
+            push: getRateCommitmentHash(
+              BigInt(identityCommitment),
+              BigInt((room.userMessageLimit as number) ?? 1)
+            ).toString()
+          },
+          semaphoreIdentities: { push: identityCommitment }
+        }
       });
       const url = `https://${room.bandadaAddress}/groups/${room.bandadaGroupId}/members/${identityCommitment}`;
       fetch(url, requestOptions)
         .then((res) => {
           if (res.status == 200) {
-            console.debug(`Successfully added user to Bandada group ${room.bandadaAddress}`);
+            console.debug(
+              `Successfully added user to Bandada group ${room.bandadaAddress}`
+            );
           }
         })
         .catch((err) => {
@@ -196,7 +226,10 @@ export async function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
 }
 
 // TODO: Make interface for this return type; which is like a MessageI
-export function createSystemMessages(message: string, roomId?: string): Promise<unknown> {
+export function createSystemMessages(
+  message: string,
+  roomId?: string
+): Promise<unknown> {
   const query = roomId ? { where: { roomId } } : undefined;
   return prisma.rooms
     .findMany(query)
@@ -223,7 +256,10 @@ export function createSystemMessages(message: string, roomId?: string): Promise<
     });
 }
 
-export function removeIdentityFromRoom(idc: string, room: RoomI): Promise<void | RoomI> {
+export function removeIdentityFromRoom(
+  idc: string,
+  room: RoomI
+): Promise<void | RoomI> {
   const updateIdentities = room.identities?.map((identity) =>
     identity === idc ? '0n' : identity
   ) as string[];
@@ -262,6 +298,9 @@ export async function createRoom(
 ): Promise<boolean> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
   const mockUsers: string[] = genMockUsers(approxNumMockUsers);
+  const identityCommitments: string[] = mockUsers.map((user) =>
+    getRateCommitmentHash(BigInt(user), BigInt(userMessageLimit)).toString()
+  );
   const roomData = {
     where: {
       roomId: genId(serverConfig.id as bigint, roomName).toString()
@@ -272,7 +311,8 @@ export async function createRoom(
       name: roomName,
       rateLimit: rateLimit,
       userMessageLimit: userMessageLimit,
-      identities: mockUsers,
+      semaphoreIdentities: mockUsers,
+      identities: identityCommitments,
       type,
       bandadaAddress,
       bandadaGroupId,

@@ -52,7 +52,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
               rateLimit,
               userMessageLimit,
               membershipType,
-              identities,
+              semaphoreIdentities,
               contractAddress,
               bandadaAddress,
               bandadaGroupId,
@@ -73,7 +73,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
               roomResult.bandadaGroupId = bandadaGroupId;
             }
             if (membershipType === 'IDENTITY_LIST') {
-              roomResult.identities = identities;
+              roomResult.semaphoreIdentities = semaphoreIdentities as string[];
             }
             if (type === 'CONTRACT') {
               roomResult.contractAddress = contractAddress;
