@@ -44,7 +44,10 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         .then((room: RoomI) => {
           if (!room) {
             // This is set as a timeout to prevent someone from trying to brute force room ids
-            setTimeout(() => res.status(500).json({ error: 'Internal Server Error' }), 1000);
+            setTimeout(
+              () => res.status(500).json({ error: 'Internal Server Error' }),
+              1000
+            );
           } else {
             const {
               roomId,
@@ -52,7 +55,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
               rateLimit,
               userMessageLimit,
               membershipType,
-              semaphoreIdentities,
+              identities,
               contractAddress,
               bandadaAddress,
               bandadaGroupId,
@@ -73,7 +76,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
               roomResult.bandadaGroupId = bandadaGroupId;
             }
             if (membershipType === 'IDENTITY_LIST') {
-              roomResult.semaphoreIdentities = semaphoreIdentities as string[];
+              roomResult.identities = identities
             }
             if (type === 'CONTRACT') {
               roomResult.contractAddress = contractAddress;
@@ -89,7 +92,11 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     ['/rooms/:idc', '/api/rooms/:idc'],
     asyncHandler(async (req: Request, res: Response) => {
       try {
-        pp(String('Express: fetching rooms by identityCommitment ' + req.params.idc));
+        pp(
+          String(
+            'Express: fetching rooms by identityCommitment ' + req.params.idc
+          )
+        );
         res.status(200).json(await getRoomsByIdentity(req.params.idc));
       } catch (error) {
         console.error(error);
@@ -109,7 +116,9 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       const parsedBody: JoinData = req.body as JoinData;
 
       if (!parsedBody.code || !parsedBody.idc) {
-        res.status(400).json({ message: '{code: string, idc: string} expected' });
+        res
+          .status(400)
+          .json({ message: '{code: string, idc: string} expected' });
       }
       const { code, idc } = parsedBody;
       console.debug('Invite Code:', code);
@@ -257,7 +266,9 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     asyncHandler(async (req: Request, res: Response) => {
       const { roomId } = req.params;
       const { message } = req.body as { message: string };
-      pp(String('Express: sending system message: ' + message + ' to ' + roomId));
+      pp(
+        String('Express: sending system message: ' + message + ' to ' + roomId)
+      );
       try {
         await createSystemMessages(message, roomId);
         res.status(200).json({ message: 'Message sent to room ' + roomId });

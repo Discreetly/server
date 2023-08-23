@@ -174,6 +174,10 @@ function addIdentityToBandadaRooms(rooms, identityCommitment: string): void {
 
   if (bandadaGroupRooms.length > 0) {
     bandadaGroupRooms.forEach(async (room) => {
+      const rateCommitment = getRateCommitmentHash(
+        BigInt(identityCommitment),
+        BigInt((room.userMessageLimit as number) ?? 1)
+      ).toString()
       if (!room.bandadaAPIKey) {
         console.error('API key is missing for room:', room);
         return;
@@ -189,15 +193,12 @@ function addIdentityToBandadaRooms(rooms, identityCommitment: string): void {
         where: { id: room.id },
         data: {
           identities: {
-            push: getRateCommitmentHash(
-              BigInt(identityCommitment),
-              BigInt((room.userMessageLimit as number) ?? 1)
-            ).toString()
+            push: rateCommitment
           },
           semaphoreIdentities: { push: identityCommitment }
         }
       });
-      const url = `https://${room.bandadaAddress}/groups/${room.bandadaGroupId}/members/${identityCommitment}`;
+      const url = `https://${room.bandadaAddress}/groups/${room.bandadaGroupId}/members/${rateCommitment}`;
       fetch(url, requestOptions)
         .then((res) => {
           if (res.status == 200) {
