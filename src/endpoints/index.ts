@@ -225,9 +225,10 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         messages.map((message: MessageI) => {
           message.timeStamp = new Date(message.timeStamp as Date).toString();
           message.proof = JSON.parse(message.proof as string) as RLNFullProof;
+          message.epoch = message.proof.epoch;
         });
         pp('Express: fetching messages for room ' + id);
-        res.status(200).json(messages);
+        res.status(200).json(messages.reverse());
       })
       .catch((error: Error) => {
         pp(error, 'error');
