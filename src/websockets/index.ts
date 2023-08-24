@@ -3,8 +3,8 @@ import { Socket, Server as SocketIOServer } from 'socket.io';
 import verifyProof from '../crypto/verifier';
 import { getRoomByID } from '../data/db';
 import { pp } from '../utils';
-import { createMessage, createMessageResult } from '../data/messages';
-
+import { createMessage } from '../data/messages';
+import type { createMessageResult } from '../data/messages';
 const userCount: Record<string, number> = {};
 
 export function websocketSetup(io: SocketIOServer) {
