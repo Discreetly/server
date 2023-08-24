@@ -120,6 +120,8 @@ export function createMessage(
           // Todo This should check that there is no duplicate messageId with in this room and epoch,
           // if there is, we need to return an error and
           // reconstruct the secret from both messages, and ban the user
+
+          // 
           await checkRLNCollision(roomId, message)
             .then((collisionResult) => {
               console.log('HERE', collisionResult);

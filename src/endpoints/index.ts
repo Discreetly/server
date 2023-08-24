@@ -108,7 +108,12 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   }
 
   /* Endpoint that checks for your claim code, claims it,
-  and updates the rooms identities to join a room */
+  and updates the rooms identities to join a room
+  {
+    "code": "string",
+    "idc": "string"
+  }
+  */
   app.post(
     ['/join', '/api/join'],
     asyncHandler(async (req: Request, res: Response) => {
@@ -159,7 +164,20 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   }
 
   /* ~~~~ ADMIN ENDPOINTS ~~~~ */
-  // Endpoint that creates a room using admin credentials
+
+  /* Endpoint that creates a room using admin credentials
+  {
+    "roomName": "string",
+    "rateLimit": number,
+    "userMessageLimit": number,
+    "numClaimCodes": number,      // optional
+    "approxNumMockUsers": number, // optional
+    "roomType": "string",         // optional
+    "bandadaAddress": "string",   // optional
+    "bandadaGroupId": "string",   // optional
+    membershipType: "string"      // optional if not an IDENTITY_LIST
+  }
+  */
   app.post(['/room/add', '/api/room/add'], adminAuth, (req, res) => {
     const roomMetadata = req.body as addRoomData;
     const roomName = roomMetadata.roomName;
@@ -233,6 +251,14 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         res.status(500).send('Error fetching messages');
       });
   });
+
+  /* Endpoint to add claim codes to all rooms or a subset of rooms
+  {
+    "numCodes": number,
+    "rooms": string[],  // optional
+    "all": boolean
+  }
+  */
   app.post(
     ['/addcode', '/api/addcode'],
     adminAuth,
@@ -244,6 +270,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       };
       const query = all ? undefined : { where: { roomId: { in: rooms } } };
       const codes = genClaimCodeArray(numCodes);
+      // How would copilot do this better?
       return await prisma.rooms.findMany(query).then((rooms) => {
         const roomIds = rooms.map((room) => room.id);
         const createCodes = codes.map(async (code, index) => {
@@ -271,6 +298,14 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
     })
   );
+
+  /* Endpoint to create claim codes for specific room
+  will be used when we implement server owners/admins
+  {
+    "numCodes": number
+  }
+  */
+
   app.post(['/room/:roomId/addcode', '/api/room/:roomId/addcode'], adminAuth, (req, res) => {
     const { roomId } = req.params;
     const { numCodes } = req.body as { numCodes: number };
@@ -341,7 +376,12 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   });
 
   /* Endpoint to send system messages to all rooms
-  or a single room if a roomId is passed */
+  or a single room if a roomId is passed
+  {
+    "message": "string",
+    "roomId": "string"    // optional
+  }
+   */
   app.post('/admin/message', adminAuth, asyncHandler(async (req: Request, res: Response) => {
     const { message, roomId } = req.body as { message: string; roomId?: string };
 
