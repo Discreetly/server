@@ -263,7 +263,7 @@ export function removeIdentityFromRoom(
 ): Promise<void | RoomI> {
   const updateSemaphoreIdentities = room.semaphoreIdentities?.map((identity) =>
     identity === idc ? '0n' : identity as string
-  )as string[];
+  )!;
 
   const rateCommitmentsToUpdate = getRateCommitmentHash(BigInt(idc), BigInt(room.userMessageLimit!)).toString()
 
