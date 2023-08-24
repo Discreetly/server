@@ -15,7 +15,9 @@ interface CollisionCheckResult {
   oldMessage?: MessageI;
 }
 
-
+/* Function to check for potential collisions between
+the new message and existing messages in the given room
+*/
 async function checkRLNCollision(
   roomId: string,
   message: MessageI

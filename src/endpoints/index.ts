@@ -268,11 +268,12 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         rooms: string[];
         all: boolean;
       };
+      // If all is true, query is undefined, otherwise query is the rooms array
       const query = all ? undefined : { where: { roomId: { in: rooms } } };
       const codes = genClaimCodeArray(numCodes);
-      // How would copilot do this better?
       return await prisma.rooms.findMany(query).then((rooms) => {
         const roomIds = rooms.map((room) => room.id);
+        // Map over the codes array and create a claim code for each code
         const createCodes = codes.map(async (code, index) => {
           return await prisma.claimCodes.create({
             data: {
@@ -321,7 +322,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
           res.status(404).json({ error: 'Room not found' });
           return;
         }
-
+         // Map over the codes array and create a claim code for each code
         const createCodes = codes.map((code) => {
           return prisma.claimCodes.create({
             data: {
