@@ -257,6 +257,10 @@ export function createSystemMessages(
     });
 }
 
+export interface BandadaRoom extends RoomI {
+  bandadaAPIKey: string;
+}
+
 export async function removeIdentityFromRoom(
   idc: string,
   room: RoomI
@@ -272,11 +276,12 @@ export async function removeIdentityFromRoom(
   )
   await createSystemMessages(`User ${idc} has ben banned ${rateCommitmentToUpdate} from the room.`, room.roomId.toString())
   if (room.membershipType === 'BANDADA_GROUP') {
+    const bandadaRoom = room as BandadaRoom
     const requestOptions = {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': room.bandadaAPIKey
+        'x-api-key': bandadaRoom.bandadaAPIKey
       }
     };
     const url = `https://${room.bandadaAddress}/groups/${room.bandadaGroupId}/members/${rateCommitmentToUpdate}`;
