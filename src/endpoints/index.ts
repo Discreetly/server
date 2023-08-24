@@ -1,7 +1,7 @@
 import type { Express, RequestHandler, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { serverConfig } from '../config/serverConfig';
-import { pp } from '../utils';
+import { genClaimCodeArray, pp } from '../utils';
 import {
   getRoomByID,
   getRoomsByIdentity,
@@ -12,7 +12,8 @@ import {
   createRoom,
   createSystemMessages
 } from '../data/db';
-import { RoomI } from 'discreetly-interfaces';
+import { MessageI, RoomI } from 'discreetly-interfaces';
+import { RLNFullProof } from 'rlnjs';
 
 const prisma = new PrismaClient();
 
@@ -202,17 +203,112 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     const { id } = req.params;
     prisma.messages
       .findMany({
+        take: 500,
+        orderBy: {
+          timeStamp: 'desc'
+        },
         where: {
           roomId: id
+        },
+        select: {
+          id: false,
+          message: true,
+          messageId: true,
+          proof: true,
+          roomId: true,
+          timeStamp: true
         }
       })
       .then((messages) => {
+        messages.map((message: MessageI) => {
+          message.timeStamp = new Date(message.timeStamp as Date).getTime();
+          message.proof = JSON.parse(message.proof as string) as RLNFullProof;
+          message.epoch = message.proof.epoch;
+        });
         pp('Express: fetching messages for room ' + id);
-        res.status(200).json(messages);
+        res.status(200).json(messages.reverse());
       })
       .catch((error: Error) => {
         pp(error, 'error');
         res.status(500).send('Error fetching messages');
+      });
+  });
+  app.post(
+    ['/addcode', '/api/addcode'],
+    adminAuth,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { numCodes, rooms, all } = req.body as {
+        numCodes: number;
+        rooms: string[];
+        all: boolean;
+      };
+      const query = all ? undefined : { where: { roomId: { in: rooms } } };
+      const codes = genClaimCodeArray(numCodes);
+      return await prisma.rooms.findMany(query).then((rooms) => {
+        const roomIds = rooms.map((room) => room.id);
+        const createCodes = codes.map(async (code, index) => {
+          return await prisma.claimCodes.create({
+            data: {
+              claimcode: code.claimcode,
+              claimed: false,
+              roomIds: roomIds,
+              rooms: {
+                connect: {
+                  roomId: rooms[index].roomId ? rooms[index].roomId : undefined
+                }
+              }
+            }
+          });
+        });
+        return Promise.all(createCodes)
+          .then(() => {
+            res.status(200).json({ message: 'Claim codes added successfully' });
+          })
+          .catch((err) => {
+            console.error(err);
+            res.status(500).json({ error: 'Internal Server Error' });
+          });
+      });
+    })
+  );
+  app.post(['/room/:roomId/addcode', '/api/room/:roomId/addcode'], adminAuth, (req, res) => {
+    const { roomId } = req.params;
+    const { numCodes } = req.body as { numCodes: number };
+    const codes = genClaimCodeArray(numCodes);
+
+    prisma.rooms
+      .findUnique({
+        where: { roomId: roomId },
+        include: { claimCodes: true }
+      })
+      .then((room) => {
+        if (!room) {
+          res.status(404).json({ error: 'Room not found' });
+          return;
+        }
+
+        const createCodes = codes.map((code) => {
+          return prisma.claimCodes.create({
+            data: {
+              claimcode: code.claimcode,
+              claimed: false,
+              rooms: {
+                connect: {
+                  roomId: roomId
+                }
+              }
+            }
+          });
+        });
+
+        return Promise.all(createCodes);
+      })
+      .then(() => {
+        res.status(200).json({ message: 'Claim codes added successfully' });
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
       });
   });
 
