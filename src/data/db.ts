@@ -216,6 +216,8 @@ export function createSystemMessages(message: string, roomId?: string): Promise<
     });
 }
 
+/* When a collision is found, this function will be called to update the rateCommitment
+  */
 export function removeIdentityFromRoom(idc: string, room: RoomI): Promise<void | RoomI> {
   const updateIdentities = room.identities?.map((identity) =>
     identity === idc ? '0n' : identity

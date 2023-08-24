@@ -29,11 +29,13 @@ function asyncHandler(fn: {
 }
 
 export function initEndpoints(app: Express, adminAuth: RequestHandler) {
+  // Endpoint that returns the ServerId, Server Name, and Server Version
   app.get(['/', '/api'], (req, res) => {
     pp('Express: fetching server info');
     res.status(200).json(serverConfig);
   });
 
+  // Endpoint that returns the room info for a given roomId
   app.get(['/room/:id', '/api/room/:id'], (req, res) => {
     if (!req.params.id) {
       res.status(400).json({ error: 'Bad Request' });
@@ -85,6 +87,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     }
   });
 
+  // Endpoint that returns the room info for a given Rate Commitment
   app.get(
     ['/rooms/:idc', '/api/rooms/:idc'],
     asyncHandler(async (req: Request, res: Response) => {
@@ -103,6 +106,8 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     idc: string;
   }
 
+  /* Endpoint that checks for your claim code, claims it,
+  and updates the rooms identities to join a room */
   app.post(
     ['/join', '/api/join'],
     asyncHandler(async (req: Request, res: Response) => {
@@ -153,6 +158,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   }
 
   /* ~~~~ ADMIN ENDPOINTS ~~~~ */
+  // Endpoint that creates a room using admin credentials
   app.post(['/room/add', '/api/room/add'], adminAuth, (req, res) => {
     const roomMetadata = req.body as addRoomData;
     const roomName = roomMetadata.roomName;
@@ -191,6 +197,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
+  // Endpoint to fetch messages for a given room
   app.get('/api/room/:id/messages', (req, res) => {
     const { id } = req.params;
     prisma.messages
@@ -209,6 +216,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
+  // Endpoint to log all claim codes that exist
   app.get(['/logclaimcodes', '/api/logclaimcodes'], adminAuth, (req, res) => {
     pp('Express: fetching claim codes');
     prisma.claimCodes
@@ -222,6 +230,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
+  // Endpoint to fetch all rooms that exist
   app.get(['/rooms', '/api/rooms'], adminAuth, (req, res) => {
     pp(String('Express: fetching all rooms'));
     prisma.rooms
@@ -235,36 +244,25 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
-  app.post(
-    '/admin/message',
-    adminAuth,
-    asyncHandler(async (req: Request, res: Response) => {
-      const { message } = req.body as { message: string };
-      pp(String('Express: sending system message: ' + message));
-      try {
-        await createSystemMessages(message);
-        res.status(200).json({ message: 'Messages sent to all rooms' });
-      } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Internal Server Error' });
-      }
-    })
-  );
+  /* Endpoint to send system messages to all rooms
+  or a single room if a roomId is passed */
+  app.post('/admin/message', adminAuth, asyncHandler(async (req: Request, res: Response) => {
+    const { message, roomId } = req.body as { message: string; roomId?: string };
 
-  app.post(
-    '/admin/message/:roomId',
-    adminAuth,
-    asyncHandler(async (req: Request, res: Response) => {
-      const { roomId } = req.params;
-      const { message } = req.body as { message: string };
-      pp(String('Express: sending system message: ' + message + ' to ' + roomId));
-      try {
-        await createSystemMessages(message, roomId);
-        res.status(200).json({ message: 'Message sent to room ' + roomId });
-      } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Internal Server Error' });
+    try {
+      // Function to send system messages
+      await createSystemMessages(message, roomId);
+
+      if (roomId) {
+        pp(`Express: sending system message: ${message} to ${roomId}`);
+        res.status(200).json({ message: `Message sent to room ${roomId}` });
+      } else {
+        pp(`Express: sending system message: ${message}`);
+        res.status(200).json({ message: 'Messages sent to all rooms' });
       }
-    })
-  );
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  }));
 }
