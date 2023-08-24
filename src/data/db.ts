@@ -29,7 +29,7 @@ export async function getRoomByID(id: string): Promise<RoomI | null> {
         id: true,
         roomId: true,
         name: true,
-        semaphoreIdentities: true,
+        identities: true,
         rateLimit: true,
         userMessageLimit: true,
         membershipType: true,
