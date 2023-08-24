@@ -289,7 +289,7 @@ export async function removeIdentityFromRoom(
       .then((res) => {
         if (res.status == 200) {
           console.debug(
-            `Successfully removed user from Bandada group ${room.bandadaAddress}`
+            `Successfully removed user from Bandada group ${room.bandadaGroupId}`
           );
         }
       })
