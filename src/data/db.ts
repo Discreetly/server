@@ -337,6 +337,11 @@ export function createSystemMessages(
     });
 }
 
+
+export interface BandadaRoom extends RoomI {
+  bandadaAPIKey: string;
+}
+
 /**
 * This function takes in an identity and a room and removes the identity from the room
 * by setting its semaphoreIdentities to 0n and identities to 0n
@@ -344,20 +349,43 @@ export function createSystemMessages(
 * @param {RoomI} room - The room to remove the identity from
 * @returns {Promise<void | RoomI>} - A promise that resolves to the room
 */
-
-export function removeIdentityFromRoom(
+export async function removeIdentityFromRoom(
   idc: string,
   room: RoomI
 ): Promise<void | RoomI> {
   const updateSemaphoreIdentities = room.semaphoreIdentities?.map((identity) =>
-    identity === idc ? '0n' : identity as string
+    identity === idc ? '0' : identity as string
   ) ?? [];
 
-  const rateCommitmentsToUpdate = getRateCommitmentHash(BigInt(idc), BigInt(room.userMessageLimit!)).toString()
+  const rateCommitmentToUpdate = getRateCommitmentHash(BigInt(idc), BigInt(room.userMessageLimit!)).toString()
 
   const updatedRateCommitments = room.identities?.map((limiter) =>
-    limiter == rateCommitmentsToUpdate ? '0n' : limiter as string
-  ) ?? []
+
+    limiter == rateCommitmentToUpdate ? '0' : limiter as string
+  )
+  await createSystemMessages(`User ${idc} has ben banned ${rateCommitmentToUpdate} from the room.`, room.roomId.toString())
+  if (room.membershipType === 'BANDADA_GROUP') {
+    const bandadaRoom = room as BandadaRoom
+    const requestOptions = {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': bandadaRoom.bandadaAPIKey
+      }
+    };
+    const url = `https://${room.bandadaAddress}/groups/${room.bandadaGroupId}/members/${rateCommitmentToUpdate}`;
+    fetch(url, requestOptions)
+      .then((res) => {
+        if (res.status == 200) {
+          console.debug(
+            `Successfully removed user from Bandada group ${room.bandadaGroupId}`
+          );
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+      });
+  }
 
   return prisma.rooms
     .update({
