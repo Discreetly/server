@@ -27,7 +27,7 @@ const room = {
   userMessageLimit: 1,
   numClaimCodes: 5,
   approxNumMockUsers: 10,
-  type: 'PUBLIC'
+  type: 'PUBLIC_CHAT'
 };
 
 const roomByIdTest = genId(serverConfig.id as bigint, room.roomName).toString();
@@ -42,9 +42,7 @@ describe('Endpoints should all work hopefully', () => {
       .get('/')
       .then((res) => {
         expect(res.status).toBe(200);
-        expect(res.header['content-type']).toBe(
-          'application/json; charset=utf-8'
-        );
+        expect(res.header['content-type']).toBe('application/json; charset=utf-8');
         expect(res.body.id).toBe(serverConfig.id);
       })
       .catch((error) => pp("GET '/' - " + error, 'error'));
@@ -53,9 +51,7 @@ describe('Endpoints should all work hopefully', () => {
   test('It should add a new room to the database', async () => {
     const username = 'admin';
     const password = process.env.PASSWORD;
-    const base64Credentials = Buffer.from(`${username}:${password}`).toString(
-      'base64'
-    );
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
     await request(_app)
       .post('/room/add')
       .set('Authorization', `Basic ${base64Credentials}`)
@@ -88,9 +84,7 @@ describe('Endpoints should all work hopefully', () => {
   test('It should return all rooms', async () => {
     const username = 'admin';
     const password = process.env.PASSWORD;
-    const base64Credentials = Buffer.from(`${username}:${password}`).toString(
-      'base64'
-    );
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
     await request(_app)
       .get('/api/rooms')
 
@@ -110,9 +104,7 @@ describe('Endpoints should all work hopefully', () => {
   test("It should return all claim codes and add a user's identity to the rooms the claim code is associated with", async () => {
     const username = 'admin';
     const password = process.env.PASSWORD;
-    const base64Credentials = Buffer.from(`${username}:${password}`).toString(
-      'base64'
-    );
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
     await request(_app)
       .get('/logclaimcodes')
 
@@ -162,9 +154,7 @@ describe('Endpoints should all work hopefully', () => {
     const message = {
       message: 'Test message'
     };
-    const base64Credentials = Buffer.from(`${username}:${password}`).toString(
-      'base64'
-    );
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
     await request(_app)
       .post('/admin/message')
       .set('Authorization', `Basic ${base64Credentials}`)

@@ -32,17 +32,16 @@ function asyncHandler(fn: {
 export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   // This code is used to fetch the server info from the api
   // This is used to display the server info on the client side
-app.get(['/', '/api'], (req, res) => {
+  app.get(['/', '/api'], (req, res) => {
     pp('Express: fetching server info');
     res.status(200).json(serverConfig);
   });
-
 
   // This code gets a room by its ID, and then checks if room is null.
   // If room is null, it returns a 500 error.
   // Otherwise, it returns a 200 status code and the room object.
 
-app.get(['/room/:id', '/api/room/:id'], (req, res) => {
+  app.get(['/room/:id', '/api/room/:id'], (req, res) => {
     if (!req.params.id) {
       res.status(400).json({ error: 'Bad Request' });
     } else {
@@ -92,13 +91,12 @@ app.get(['/room/:id', '/api/room/:id'], (req, res) => {
     }
   });
 
-
   /** This function gets the rooms that a user is a member of.
- * @param {string} idc - The id of the identity to get rooms for.
- * @returns {Array} - An array of room objects.
- */
+   * @param {string} idc - The id of the identity to get rooms for.
+   * @returns {Array} - An array of room objects.
+   */
 
-app.get(
+  app.get(
     ['/rooms/:idc', '/api/rooms/:idc'],
     asyncHandler(async (req: Request, res: Response) => {
       try {
@@ -110,28 +108,25 @@ app.get(
     })
   );
 
-
-
   interface JoinData {
     code: string;
     idc: string;
   }
 
-
- /**
- * This code is used to update the room identities of the rooms that the user is joining.
- * The code updates the claim code and sets it to be claimed.
- * It then updates the room identities of the user joining.
- * Finally, it finds the rooms that have been updated and returns them.
- *  @param {string} code - The claim code to be updated
- *  @param {string} idc - The id of the identity to be added to the room
- *  @returns {Array} - An array of room objects
- *  @example {
- *            "code": "string",
- *            "idc": "string"
- *           }
-*/
-app.post(
+  /**
+   * This code is used to update the room identities of the rooms that the user is joining.
+   * The code updates the claim code and sets it to be claimed.
+   * It then updates the room identities of the user joining.
+   * Finally, it finds the rooms that have been updated and returns them.
+   *  @param {string} code - The claim code to be updated
+   *  @param {string} idc - The id of the identity to be added to the room
+   *  @returns {Array} - An array of room objects
+   *  @example {
+   *            "code": "string",
+   *            "idc": "string"
+   *           }
+   */
+  app.post(
     ['/join', '/api/join'],
     asyncHandler(async (req: Request, res: Response) => {
       const parsedBody: JoinData = req.body as JoinData;
@@ -152,7 +147,6 @@ app.post(
       const roomIds = claimCode.roomIds;
 
       await updateRoomIdentities(idc, roomIds);
-
 
       const updatedRooms: RoomI[] = await findUpdatedRooms(roomIds);
 
@@ -203,9 +197,9 @@ app.post(
    *          "bandadaAPIKey": "string",    // optional
    *          "membershipType": "string"      // optional if not an IDENTITY_LIST
    *          }
-  */
+   */
 
-app.post(['/room/add', '/api/room/add'], adminAuth, (req, res) => {
+  app.post(['/room/add', '/api/room/add'], adminAuth, (req, res) => {
     const roomMetadata = req.body as addRoomData;
     const roomName = roomMetadata.roomName;
     const rateLimit = roomMetadata.rateLimit;
@@ -248,7 +242,7 @@ app.post(['/room/add', '/api/room/add'], adminAuth, (req, res) => {
    It uses the Prisma client to query the database and return the messages for a particular room.
     It also parses the proof from a string to a JSON object.
 */
-app.get('/api/room/:id/messages', (req, res) => {
+  app.get('/api/room/:id/messages', (req, res) => {
     const { id } = req.params;
     prisma.messages
       .findMany({
@@ -283,26 +277,26 @@ app.get('/api/room/:id/messages', (req, res) => {
       });
   });
 
-/**
-* Endpoint to add claim codes to all rooms or a subset of rooms
-* This code adds claim codes to the database.
-* It is used by the admin panel to create claim codes.
-* It takes in the number of codes to create, the rooms to add them to,
-* and whether to add them to all rooms or just the selected ones.
-* It generates the codes, then creates the ClaimCode objects in the database.
-* The codes are added to the specified rooms, and are not claimed.
-* @param {number} numCodes - The number of codes to add to the room
-* @param {string[]} rooms - The ids of the rooms to add codes to
-* @param {boolean} all - Whether to add codes to all rooms or just the selected ones
-* @returns {void}
-* @example {
-*          "numCodes": number,
-*          "rooms": string[],  // optional
-*          "all": boolean
-*          }
-*/
+  /**
+   * Endpoint to add claim codes to all rooms or a subset of rooms
+   * This code adds claim codes to the database.
+   * It is used by the admin panel to create claim codes.
+   * It takes in the number of codes to create, the rooms to add them to,
+   * and whether to add them to all rooms or just the selected ones.
+   * It generates the codes, then creates the ClaimCode objects in the database.
+   * The codes are added to the specified rooms, and are not claimed.
+   * @param {number} numCodes - The number of codes to add to the room
+   * @param {string[]} rooms - The ids of the rooms to add codes to
+   * @param {boolean} all - Whether to add codes to all rooms or just the selected ones
+   * @returns {void}
+   * @example {
+   *          "numCodes": number,
+   *          "rooms": string[],  // optional
+   *          "all": boolean
+   *          }
+   */
 
-app.post(
+  app.post(
     ['/addcode', '/api/addcode'],
     adminAuth,
     asyncHandler(async (req: Request, res: Response) => {
@@ -333,7 +327,7 @@ app.post(
         });
         return Promise.all(createCodes)
           .then(() => {
-            res.status(200).json({ message: 'Claim codes added successfully' });
+            res.status(200).json({ message: 'Claim codes added successfully', codes });
           })
           .catch((err) => {
             console.error(err);
@@ -343,18 +337,18 @@ app.post(
     })
   );
 
-/**
- * Adds claim codes to a room
- *
- * @param {number} numCodes The number of codes to add to the room
- * @param {string} roomId The id of the room to add codes to
- * @returns {void}
- * @example {
- *          "numCodes": number
- *          }
- */
+  /**
+   * Adds claim codes to a room
+   *
+   * @param {number} numCodes The number of codes to add to the room
+   * @param {string} roomId The id of the room to add codes to
+   * @returns {void}
+   * @example {
+   *          "numCodes": number
+   *          }
+   */
 
-app.post(['/room/:roomId/addcode', '/api/room/:roomId/addcode'], adminAuth, (req, res) => {
+  app.post(['/room/:roomId/addcode', '/api/room/:roomId/addcode'], adminAuth, (req, res) => {
     const { roomId } = req.params;
     const { numCodes } = req.body as { numCodes: number };
     const codes = genClaimCodeArray(numCodes);
@@ -369,7 +363,7 @@ app.post(['/room/:roomId/addcode', '/api/room/:roomId/addcode'], adminAuth, (req
           res.status(404).json({ error: 'Room not found' });
           return;
         }
-         // Map over the codes array and create a claim code for each code
+        // Map over the codes array and create a claim code for each code
         const createCodes = codes.map((code) => {
           return prisma.claimCodes.create({
             data: {
@@ -395,10 +389,9 @@ app.post(['/room/:roomId/addcode', '/api/room/:roomId/addcode'], adminAuth, (req
       });
   });
 
-
   // This code fetches the claim codes from the database.
 
-app.get(['/logclaimcodes', '/api/logclaimcodes'], adminAuth, (req, res) => {
+  app.get(['/logclaimcodes', '/api/logclaimcodes'], adminAuth, (req, res) => {
     pp('Express: fetching claim codes');
     prisma.claimCodes
       .findMany()
@@ -411,9 +404,8 @@ app.get(['/logclaimcodes', '/api/logclaimcodes'], adminAuth, (req, res) => {
       });
   });
 
-
   // GET all rooms from the database and return them as JSON
-app.get(['/rooms', '/api/rooms'], adminAuth, (req, res) => {
+  app.get(['/rooms', '/api/rooms'], adminAuth, (req, res) => {
     pp(String('Express: fetching all rooms'));
     prisma.rooms
       .findMany()
@@ -427,33 +419,37 @@ app.get(['/rooms', '/api/rooms'], adminAuth, (req, res) => {
   });
 
   /**
-  * Sends system messages to the specified room, or all rooms if no room is specified
-  * @params {string} message - The message to send
-  * @params {string} roomId - The id of the room to send the message to
-  * @returns {void}
-  * @example {
-  *          "message": "string",
-  *          "roomId": "string"    // optional
-  *          }
-  */
+   * Sends system messages to the specified room, or all rooms if no room is specified
+   * @params {string} message - The message to send
+   * @params {string} roomId - The id of the room to send the message to
+   * @returns {void}
+   * @example {
+   *          "message": "string",
+   *          "roomId": "string"    // optional
+   *          }
+   */
 
-app.post('/admin/message', adminAuth, asyncHandler(async (req: Request, res: Response) => {
-    const { message, roomId } = req.body as { message: string; roomId?: string };
+  app.post(
+    '/admin/message',
+    adminAuth,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { message, roomId } = req.body as { message: string; roomId?: string };
 
-    try {
-      // Function to send system messages
-      await createSystemMessages(message, roomId);
+      try {
+        // Function to send system messages
+        await createSystemMessages(message, roomId);
 
-      if (roomId) {
-        pp(`Express: sending system message: ${message} to ${roomId}`);
-        res.status(200).json({ message: `Message sent to room ${roomId}` });
-      } else {
-        pp(`Express: sending system message: ${message}`);
-        res.status(200).json({ message: 'Messages sent to all rooms' });
+        if (roomId) {
+          pp(`Express: sending system message: ${message} to ${roomId}`);
+          res.status(200).json({ message: `Message sent to room ${roomId}` });
+        } else {
+          pp(`Express: sending system message: ${message}`);
+          res.status(200).json({ message: 'Messages sent to all rooms' });
+        }
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
       }
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: 'Internal Server Error' });
-    }
-  }));
+    })
+  );
 }
