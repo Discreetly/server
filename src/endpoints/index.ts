@@ -63,10 +63,9 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
               userMessageLimit,
               membershipType,
               identities,
-              contractAddress,
+              semaphoreIdentities,
               bandadaAddress,
-              bandadaGroupId,
-              type
+              bandadaGroupId
             } = room || {};
             const id = String(roomId);
             const roomResult: RoomI = {
@@ -81,13 +80,13 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
             if (membershipType === 'BANDADA_GROUP') {
               roomResult.bandadaAddress = bandadaAddress;
               roomResult.bandadaGroupId = bandadaGroupId;
+              roomResult.semaphoreIdentities = semaphoreIdentities;
             }
             if (membershipType === 'IDENTITY_LIST') {
               roomResult.identities = identities;
+              roomResult.semaphoreIdentities = semaphoreIdentities;
             }
-            if (type === 'CONTRACT') {
-              roomResult.contractAddress = contractAddress;
-            }
+
             res.status(200).json(roomResult);
           }
         })

@@ -358,6 +358,11 @@ export function createSystemMessages(
     });
 }
 
+
+export interface BandadaRoom extends RoomI {
+  bandadaAPIKey: string;
+}
+
 /**
  * This function takes in an identity and a room and removes the identity from the room
  * by setting its semaphoreIdentities to 0n and identities to 0n
@@ -384,6 +389,7 @@ export function removeIdentityFromRoom(
     room.identities?.map((limiter) =>
       limiter == rateCommitmentsToUpdate ? '0' : (limiter as string)
     ) ?? [];
+
 
   return prisma.rooms
     .update({
