@@ -347,7 +347,7 @@ export function removeIdentityFromRoom(
 ): Promise<void | RoomI> {
   const updateSemaphoreIdentities =
     room.semaphoreIdentities?.map((identity) =>
-      identity === idc ? '0n' : (identity as string)
+      identity === idc ? '0' : (identity as string)
     ) ?? [];
 
   const rateCommitmentsToUpdate = getRateCommitmentHash(
@@ -357,7 +357,7 @@ export function removeIdentityFromRoom(
 
   const updatedRateCommitments =
     room.identities?.map((limiter) =>
-      limiter == rateCommitmentsToUpdate ? '0n' : (limiter as string)
+      limiter == rateCommitmentsToUpdate ? '0' : (limiter as string)
     ) ?? [];
 
   return prisma.rooms
