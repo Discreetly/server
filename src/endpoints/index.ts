@@ -316,29 +316,36 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       const codes = genClaimCodeArray(numCodes);
       return await prisma.rooms.findMany(query).then((rooms) => {
         const roomIds = rooms.map((room) => room.id);
-        console.log(roomIds);
-        console.log(codes);
-        const createCodes = rooms.flatMap((room) =>
-          codes.map((code) =>
-            prisma.claimCodes.create({
-              data: {
-                claimcode: code.claimcode,
-                claimed: false,
-                roomIds: [room.id],
-                rooms: {
-                  connect: {
-                    roomId: room.roomId
+        const createCodes = codes.map((code) => {
+          return prisma.claimCodes.create({
+            data: {
+              claimcode: code.claimcode,
+              claimed: false,
+              roomIds: roomIds
+            }
+          }).then((newCode) => {
+            const updatePromises = rooms.map((room) => {
+              return prisma.rooms.update({
+                where: {
+                  roomId: room.roomId
+                },
+                data: {
+                  claimCodeIds: {
+                    push: newCode.id
                   }
                 }
-              }
-            })
-          )
-        );
+              });
+            });
+            return Promise.all(updatePromises);
+          }).catch((err) => {
+            console.error(err);
+            res.status(500).json({ error: 'Internal Server Error' });
+          });
+        });
+
         return Promise.all(createCodes)
           .then(() => {
-            res
-              .status(200)
-              .json({ message: 'Claim codes added successfully', codes });
+            res.status(200).json({ message: 'Claim codes added successfully', codes });
           })
           .catch((err) => {
             console.error(err);
@@ -347,7 +354,6 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
     })
   );
-
   /**
    * Adds claim codes to a room
    *
