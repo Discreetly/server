@@ -152,15 +152,19 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       const claimCode = await updateClaimCode(code);
       const roomIds = claimCode.roomIds;
 
-      await updateRoomIdentities(idc, roomIds);
+      const addedRooms = await updateRoomIdentities(idc, roomIds);
 
-      const updatedRooms: RoomI[] = await findUpdatedRooms(roomIds);
+      const updatedRooms = await findUpdatedRooms(addedRooms as string[]);
 
       // Return the room ids of the updated rooms
-      res.status(200).json({
-        status: 'valid',
-        roomIds: updatedRooms.map((room: RoomI) => room.roomId)
-      });
+      if (updatedRooms.length > 0) {
+        res.status(200).json({
+          status: 'valid',
+          roomIds: updatedRooms.map((room: RoomI) => room.roomId)
+        });
+      } else {
+        res.status(400).json({ message: `No rooms found or identity already exists in ${String(roomIds)}` });
+      }
     })
   );
 

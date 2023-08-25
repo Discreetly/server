@@ -154,16 +154,16 @@ function sanitizeIDC(idc: string): string {
 export async function updateRoomIdentities(
   idc: string,
   roomIds: string[]
-): Promise<void> {
+): Promise<string[] | void> {
   const identityCommitment = sanitizeIDC(idc);
   return await prisma.rooms
     .findMany({
       where: { id: { in: roomIds } }
     })
     .then(async (rooms) => {
-      console.log(rooms);
-      await addIdentityToIdentityListRooms(rooms, identityCommitment);
-      addIdentityToBandadaRooms(rooms, identityCommitment);
+      const identityRooms = await addIdentityToIdentityListRooms(rooms, identityCommitment);
+      const bandadaRooms = await addIdentityToBandadaRooms(rooms, identityCommitment);
+      return [...identityRooms, ...bandadaRooms] as string[];
     })
     .catch((err) => {
       pp(err, 'error');
@@ -178,7 +178,7 @@ export async function updateRoomIdentities(
 async function addIdentityToIdentityListRooms(
   rooms,
   identityCommitment: string
-): Promise<unknown> {
+): Promise<string[]> {
   const identityListRooms = rooms
     .filter(
       (room: RoomI) =>
@@ -187,12 +187,14 @@ async function addIdentityToIdentityListRooms(
     )
     .map((room) => room.id as string);
 
-  console.log(identityListRooms.length);
-  if (identityListRooms.length > 0) {
-    for (const room of rooms) {
-      return await prisma.rooms
-        .update({
-          where: { id: room.id },
+  const addedRooms: string[] = [];
+
+  const promises = identityListRooms.map(async (roomId) => {
+    const room = rooms.find(r => r.id === roomId);
+    if (room) {
+      try {
+        await prisma.rooms.update({
+          where: { id: roomId },
           data: {
             identities: {
               push: getRateCommitmentHash(
@@ -202,17 +204,17 @@ async function addIdentityToIdentityListRooms(
             },
             semaphoreIdentities: { push: identityCommitment }
           }
-        })
-        .then(() => {
-          console.debug(
-            `Successfully added user to Identity List room ${room.roomId}`
-          );
-        })
-        .catch((err) => {
-          console.error(err);
         });
+        console.debug(`Successfully added user to Identity List room ${room.roomId}`);
+        addedRooms.push(roomId as string);
+      } catch (err) {
+        console.error(err);
+      }
     }
-  }
+  });
+
+  await Promise.all(promises);
+  return addedRooms
 }
 
 /**
@@ -225,25 +227,34 @@ async function addIdentityToIdentityListRooms(
  * @param {string} identityCommitment - The identity commitment to be added to the bandada room.
  * @return {void} Nothing.
  */
-function addIdentityToBandadaRooms(rooms, identityCommitment: string): void {
+
+
+async function addIdentityToBandadaRooms(
+  rooms,
+  identityCommitment: string
+): Promise<string[]> {
   const bandadaGroupRooms = rooms
     .filter(
-      (room) =>
+      (room: RoomI) =>
         room.membershipType === 'BANDADA_GROUP' &&
-        !room.semaphoreIdentities.includes(identityCommitment)
+        !room.semaphoreIdentities?.includes(identityCommitment)
     )
     .map((room) => room as RoomI);
 
+  const addedRooms: string[] = [];
+
   if (bandadaGroupRooms.length > 0) {
-    bandadaGroupRooms.forEach(async (room) => {
+    const promises = bandadaGroupRooms.map(async (room) => {
       const rateCommitment = getRateCommitmentHash(
         BigInt(identityCommitment),
         BigInt((room.userMessageLimit as number) ?? 1)
       ).toString();
+
       if (!room.bandadaAPIKey) {
         console.error('API key is missing for room:', room);
         return;
       }
+
       const requestOptions = {
         method: 'POST',
         headers: {
@@ -251,31 +262,35 @@ function addIdentityToBandadaRooms(rooms, identityCommitment: string): void {
           'x-api-key': room.bandadaAPIKey
         }
       };
-      await prisma.rooms.update({
-        where: { id: room.id },
-        data: {
-          identities: {
-            push: rateCommitment
-          },
-          semaphoreIdentities: { push: identityCommitment }
-        }
-      });
-      const url = `https://${room.bandadaAddress}/groups/${room.bandadaGroupId}/members/${rateCommitment}`;
-      fetch(url, requestOptions)
-        .then((res) => {
-          if (res.status == 200) {
-            console.debug(
-              `Successfully added user to Bandada group ${room.bandadaAddress}`
-            );
-          }
-        })
-        .catch((err) => {
-          console.error(err);
-        });
-    });
-  }
-}
 
+      try {
+        await prisma.rooms.update({
+          where: { id: room.id },
+          data: {
+            identities: {
+              push: rateCommitment
+            },
+            semaphoreIdentities: { push: identityCommitment }
+          }
+        });
+
+        const url = `https://${room.bandadaAddress}/groups/${room.bandadaGroupId}/members/${rateCommitment}`;
+        const response = await fetch(url, requestOptions);
+        console.log(response);
+        if (response.status == 201) {
+          console.debug(`Successfully added user to Bandada group ${room.bandadaAddress}`);
+          addedRooms.push(room.id as string);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    });
+
+    await Promise.all(promises);
+  }
+
+  return addedRooms;
+}
 /**
  * This function is used to find rooms that have been updated
  * It is used in the findUpdatedRooms function
