@@ -16,7 +16,7 @@ async function verifyProof(msg: MessageI, room: RoomI, epochErrorRange = 5): Pro
   const rateLimit = room.rateLimit ? room.rateLimit : 1000;
   const currentEpoch = Math.floor(timestamp / rateLimit);
   const rlnIdentifier = BigInt(msg.roomId);
-  const msgHash = calculateSignalHash(msg.message);
+  const msgHash = calculateSignalHash(JSON.stringify(msg.message));
   let proof: RLNFullProof | undefined;
   // Check that the epoch falls within the range for the room
   const epoch = BigInt(msg.epoch);
