@@ -94,7 +94,6 @@ export async function getRoomsByIdentity(identity: string): Promise<string[]> {
   }
 }
 
-
 /**
  * Finds a claim code in the database.
  *
@@ -109,10 +108,10 @@ export function findClaimCode(code: string): Promise<CodeStatus | null> {
 }
 
 /**
-* Update the claim_code table to mark the given code as claimed.
-* @param {string} code - The code to update
-* @returns {Promise<RoomsFromClaimCode>} - The rooms associated with the claim code
-*/
+ * Update the claim_code table to mark the given code as claimed.
+ * @param {string} code - The code to update
+ * @returns {Promise<RoomsFromClaimCode>} - The rooms associated with the claim code
+ */
 
 export function updateClaimCode(code: string): Promise<RoomsFromClaimCode> {
   return prisma.claimCodes.update({
@@ -120,7 +119,6 @@ export function updateClaimCode(code: string): Promise<RoomsFromClaimCode> {
     data: { claimed: true }
   });
 }
-
 
 /*
 The sanitizeIDC function takes a string and returns a string.
@@ -144,27 +142,34 @@ function sanitizeIDC(idc: string): string {
 }
 
 /**
-* This code updates the identity commitments of a list of rooms.
-* It adds the identity commitment to the identity list of each room,
-* and also adds it to the bandada of each room. The identity commitment is
-* sanitized before being added to the database.
-* @param idc - The identity commitment of the user
-* @param roomIds - The list of roomIds that the user is in
-* @returns {Promise<void>} - A promise that resolves when the update is complete
-*/
+ * This code updates the identity commitments of a list of rooms.
+ * It adds the identity commitment to the identity list of each room,
+ * and also adds it to the bandada of each room. The identity commitment is
+ * sanitized before being added to the database.
+ * @param idc - The identity commitment of the user
+ * @param roomIds - The list of roomIds that the user is in
+ * @returns {Promise<void>} - A promise that resolves when the update is complete
+ */
 
 export async function updateRoomIdentities(
   idc: string,
   roomIds: string[]
-): Promise<void> {
+): Promise<string[] | void> {
   const identityCommitment = sanitizeIDC(idc);
   return await prisma.rooms
     .findMany({
       where: { id: { in: roomIds } }
     })
     .then(async (rooms) => {
-      await addIdentityToIdentityListRooms(rooms, identityCommitment);
-      addIdentityToBandadaRooms(rooms, identityCommitment);
+      const identityRooms = await addIdentityToIdentityListRooms(
+        rooms,
+        identityCommitment
+      );
+      const bandadaRooms = await addIdentityToBandadaRooms(
+        rooms,
+        identityCommitment
+      );
+      return [...identityRooms, ...bandadaRooms] as string[];
     })
     .catch((err) => {
       pp(err, 'error');
@@ -175,11 +180,12 @@ export async function updateRoomIdentities(
  * Adds a user's identity commitment to the semaphoreIdentities list and adds their rate commitment to the identities list for each of the identity list rooms that they are in.
  * @param {rooms} - The list of rooms that the user is in
  * @param {string} identityCommitment - The user's identity commitment
+ * @return {string[]} addedRooms - The list of rooms that the user was added to
  */
-function addIdentityToIdentityListRooms(
+async function addIdentityToIdentityListRooms(
   rooms,
   identityCommitment: string
-): unknown {
+): Promise<string[]> {
   const identityListRooms = rooms
     .filter(
       (room: RoomI) =>
@@ -188,11 +194,14 @@ function addIdentityToIdentityListRooms(
     )
     .map((room) => room.id as string);
 
-  if (identityListRooms.length > 0) {
-    for (const room of rooms) {
-      return prisma.rooms
-        .update({
-          where: { id: room.id },
+  const addedRooms: string[] = [];
+
+  const promises = identityListRooms.map(async (roomId) => {
+    const room = rooms.find((r) => r.id === roomId);
+    if (room) {
+      try {
+        await prisma.rooms.update({
+          where: { id: roomId },
           data: {
             identities: {
               push: getRateCommitmentHash(
@@ -202,20 +211,20 @@ function addIdentityToIdentityListRooms(
             },
             semaphoreIdentities: { push: identityCommitment }
           }
-        })
-        .then(() => {
-          console.debug(
-            `Successfully added user to Identity List room ${room.roomId}`
-          );
-        })
-        .catch((err) => {
-          console.error(err);
         });
+        console.debug(
+          `Successfully added user to Identity List room ${room.roomId}`
+        );
+        addedRooms.push(roomId as string);
+      } catch (err) {
+        console.error(err);
+      }
     }
-  }
+  });
+
+  await Promise.all(promises);
+  return addedRooms;
 }
-
-
 
 /**
  * This code adds a new identity commitment to the list of identities in a bandada room.
@@ -225,27 +234,35 @@ function addIdentityToIdentityListRooms(
  * Finally, we send a POST request to the bandada server to add the identity to the group.
  * @param {RoomI[]} rooms - The list of rooms that contain the identity commitment.
  * @param {string} identityCommitment - The identity commitment to be added to the bandada room.
- * @return {void} Nothing.
+ * @return {string[]} addedRooms - The list of rooms that the user was added to
  */
-function addIdentityToBandadaRooms(rooms, identityCommitment: string): void {
+
+async function addIdentityToBandadaRooms(
+  rooms,
+  identityCommitment: string
+): Promise<string[]> {
   const bandadaGroupRooms = rooms
     .filter(
-      (room) =>
+      (room: RoomI) =>
         room.membershipType === 'BANDADA_GROUP' &&
-        !room.semaphoreIdentities.includes(identityCommitment)
+        !room.semaphoreIdentities?.includes(identityCommitment)
     )
     .map((room) => room as RoomI);
 
+  const addedRooms: string[] = [];
+
   if (bandadaGroupRooms.length > 0) {
-    bandadaGroupRooms.forEach(async (room) => {
+    const promises = bandadaGroupRooms.map(async (room) => {
       const rateCommitment = getRateCommitmentHash(
         BigInt(identityCommitment),
         BigInt((room.userMessageLimit as number) ?? 1)
-      ).toString()
+      ).toString();
+
       if (!room.bandadaAPIKey) {
         console.error('API key is missing for room:', room);
         return;
       }
+
       const requestOptions = {
         method: 'POST',
         headers: {
@@ -253,38 +270,44 @@ function addIdentityToBandadaRooms(rooms, identityCommitment: string): void {
           'x-api-key': room.bandadaAPIKey
         }
       };
-      await prisma.rooms.update({
-        where: { id: room.id },
-        data: {
-          identities: {
-            push: rateCommitment
-          },
-          semaphoreIdentities: { push: identityCommitment }
-        }
-      });
-      const url = `https://${room.bandadaAddress}/groups/${room.bandadaGroupId}/members/${rateCommitment}`;
-      fetch(url, requestOptions)
-        .then((res) => {
-          if (res.status == 200) {
-            console.debug(
-              `Successfully added user to Bandada group ${room.bandadaAddress}`
-            );
-          }
-        })
-        .catch((err) => {
-          console.error(err);
-        });
-    });
-  }
-}
 
+      try {
+        await prisma.rooms.update({
+          where: { id: room.id },
+          data: {
+            identities: {
+              push: rateCommitment
+            },
+            semaphoreIdentities: { push: identityCommitment }
+          }
+        });
+
+        const url = `https://${room.bandadaAddress}/groups/${room.bandadaGroupId}/members/${rateCommitment}`;
+        const response = await fetch(url, requestOptions);
+        console.log(response);
+        if (response.status == 201) {
+          console.debug(
+            `Successfully added user to Bandada group ${room.bandadaAddress}`
+          );
+          addedRooms.push(room.id as string);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    });
+
+    await Promise.all(promises);
+  }
+
+  return addedRooms;
+}
 /**
-* This function is used to find rooms that have been updated
-* It is used in the findUpdatedRooms function
-* It is important because it allows the user to see which rooms have been updated
-* @param {string[]} roomIds - The list of roomIds that the user is in
-* @returns {Promise<RoomI[]>} - A promise that resolves to a list of rooms
-*/
+ * This function is used to find rooms that have been updated
+ * It is used in the findUpdatedRooms function
+ * It is important because it allows the user to see which rooms have been updated
+ * @param {string[]} roomIds - The list of roomIds that the user is in
+ * @returns {Promise<RoomI[]>} - A promise that resolves to a list of rooms
+ */
 
 export async function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
   const rooms = await prisma.rooms.findMany({
@@ -298,19 +321,17 @@ export async function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
   });
 }
 
-
 /**
-* This function creates a system message in a room.
-* The message will be the same in all rooms if no roomId is passed.
-* If a roomId is passed, the message will be created in that room.
-* @param {string} message - The message to be created
-* @param {string} roomId - The roomId to create the message in
-*/
+ * This function creates a system message in a room.
+ * The message will be the same in all rooms if no roomId is passed.
+ * If a roomId is passed, the message will be created in that room.
+ * @param {string} message - The message to be created
+ * @param {string} roomId - The roomId to create the message in
+ */
 export function createSystemMessages(
   message: string,
   roomId?: string
-  ): Promise<unknown> {
-
+): Promise<unknown> {
   const query = roomId ? { where: { roomId } } : undefined;
   return prisma.rooms
     .findMany(query)
@@ -343,49 +364,32 @@ export interface BandadaRoom extends RoomI {
 }
 
 /**
-* This function takes in an identity and a room and removes the identity from the room
-* by setting its semaphoreIdentities to 0n and identities to 0n
-* @param {string} idc - The identity of the user
-* @param {RoomI} room - The room to remove the identity from
-* @returns {Promise<void | RoomI>} - A promise that resolves to the room
-*/
-export async function removeIdentityFromRoom(
+ * This function takes in an identity and a room and removes the identity from the room
+ * by setting its semaphoreIdentities to 0n and identities to 0n
+ * @param {string} idc - The identity of the user
+ * @param {RoomI} room - The room to remove the identity from
+ * @returns {Promise<void | RoomI>} - A promise that resolves to the room
+ */
+
+export function removeIdentityFromRoom(
   idc: string,
   room: RoomI
 ): Promise<void | RoomI> {
-  const updateSemaphoreIdentities = room.semaphoreIdentities?.map((identity) =>
-    identity === idc ? '0' : identity as string
-  ) ?? [];
+  const updateSemaphoreIdentities =
+    room.semaphoreIdentities?.map((identity) =>
+      identity === idc ? '0' : (identity as string)
+    ) ?? [];
 
-  const rateCommitmentToUpdate = getRateCommitmentHash(BigInt(idc), BigInt(room.userMessageLimit!)).toString()
+  const rateCommitmentsToUpdate = getRateCommitmentHash(
+    BigInt(idc),
+    BigInt(room.userMessageLimit!)
+  ).toString();
 
-  const updatedRateCommitments = room.identities?.map((limiter) =>
+  const updatedRateCommitments =
+    room.identities?.map((limiter) =>
+      limiter == rateCommitmentsToUpdate ? '0' : (limiter as string)
+    ) ?? [];
 
-    limiter == rateCommitmentToUpdate ? '0' : limiter as string
-  )
-  await createSystemMessages(`User ${idc} has ben banned ${rateCommitmentToUpdate} from the room.`, room.roomId.toString())
-  if (room.membershipType === 'BANDADA_GROUP') {
-    const bandadaRoom = room as BandadaRoom
-    const requestOptions = {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': bandadaRoom.bandadaAPIKey
-      }
-    };
-    const url = `https://${room.bandadaAddress}/groups/${room.bandadaGroupId}/members/${rateCommitmentToUpdate}`;
-    fetch(url, requestOptions)
-      .then((res) => {
-        if (res.status == 200) {
-          console.debug(
-            `Successfully removed user from Bandada group ${room.bandadaGroupId}`
-          );
-        }
-      })
-      .catch((err) => {
-        console.error(err);
-      });
-  }
 
   return prisma.rooms
     .update({

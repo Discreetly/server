@@ -151,15 +151,19 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       const claimCode = await updateClaimCode(code);
       const roomIds = claimCode.roomIds;
 
-      await updateRoomIdentities(idc, roomIds);
+      const addedRooms = await updateRoomIdentities(idc, roomIds);
 
-      const updatedRooms: RoomI[] = await findUpdatedRooms(roomIds);
+      const updatedRooms = await findUpdatedRooms(addedRooms as string[]);
 
       // Return the room ids of the updated rooms
-      res.status(200).json({
-        status: 'valid',
-        roomIds: updatedRooms.map((room: RoomI) => room.roomId)
-      });
+      if (updatedRooms.length > 0) {
+        res.status(200).json({
+          status: 'valid',
+          roomIds: updatedRooms.map((room: RoomI) => room.roomId)
+        });
+      } else {
+        res.status(400).json({ message: `No rooms found or identity already exists in ${String(roomIds)}` });
+      }
     })
   );
 
@@ -315,29 +319,36 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       const codes = genClaimCodeArray(numCodes);
       return await prisma.rooms.findMany(query).then((rooms) => {
         const roomIds = rooms.map((room) => room.id);
-        console.log(roomIds);
-        console.log(codes);
-        const createCodes = rooms.flatMap((room) =>
-          codes.map((code) =>
-            prisma.claimCodes.create({
-              data: {
-                claimcode: code.claimcode,
-                claimed: false,
-                roomIds: [room.id],
-                rooms: {
-                  connect: {
-                    roomId: room.roomId
+        const createCodes = codes.map((code) => {
+          return prisma.claimCodes.create({
+            data: {
+              claimcode: code.claimcode,
+              claimed: false,
+              roomIds: roomIds
+            }
+          }).then((newCode) => {
+            const updatePromises = rooms.map((room) => {
+              return prisma.rooms.update({
+                where: {
+                  roomId: room.roomId
+                },
+                data: {
+                  claimCodeIds: {
+                    push: newCode.id
                   }
                 }
-              }
-            })
-          )
-        );
+              });
+            });
+            return Promise.all(updatePromises);
+          }).catch((err) => {
+            console.error(err);
+            res.status(500).json({ error: 'Internal Server Error' });
+          });
+        });
+
         return Promise.all(createCodes)
           .then(() => {
-            res
-              .status(200)
-              .json({ message: 'Claim codes added successfully', codes });
+            res.status(200).json({ message: 'Claim codes added successfully', codes });
           })
           .catch((err) => {
             console.error(err);
@@ -346,7 +357,6 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
     })
   );
-
   /**
    * Adds claim codes to a room
    *
