@@ -3,8 +3,8 @@ import { Socket, Server as SocketIOServer } from 'socket.io';
 import verifyProof from '../crypto/verifier';
 import { getRoomByID } from '../data/db';
 import { pp } from '../utils';
-import { createMessage, createMessageResult } from '../data/messages';
-
+import { createMessage } from '../data/messages';
+import type { createMessageResult } from '../data/messages';
 const userCount: Record<string, number> = {};
 
 export function websocketSetup(io: SocketIOServer) {
@@ -12,7 +12,10 @@ export function websocketSetup(io: SocketIOServer) {
     pp('SocketIO: a user connected', 'debug');
 
     socket.on('validateMessage', async (msg: MessageI) => {
-      pp({ 'VALIDATING MESSAGE ID': String(msg.roomId).slice(0, 11), 'MSG:': msg.message });
+      pp({
+        'VALIDATING MESSAGE ID': String(msg.roomId).slice(0, 11),
+        'MSG:': msg.message
+      });
       let validProof: boolean;
       await getRoomByID(String(msg.roomId))
         .then((room: RoomI) => {
@@ -21,11 +24,14 @@ export function websocketSetup(io: SocketIOServer) {
             return;
           }
           verifyProof(msg, room)
-          .then(async (v) => {
-              console.log('validProof', v)
+            .then(async (v) => {
+              console.log('validProof', v);
               validProof = v;
               // TODO import createMessageResult, and broadcast the idc and message ID that were removed to those room users
-              const validMessage: createMessageResult = await createMessage(String(msg.roomId), msg);
+              const validMessage: createMessageResult = await createMessage(
+                String(msg.roomId),
+                msg
+              );
               if (!validProof || !validMessage.success) {
                 pp('INVALID MESSAGE', 'warn');
                 return;
