@@ -161,8 +161,14 @@ export async function updateRoomIdentities(
       where: { id: { in: roomIds } }
     })
     .then(async (rooms) => {
-      const identityRooms = await addIdentityToIdentityListRooms(rooms, identityCommitment);
-      const bandadaRooms = await addIdentityToBandadaRooms(rooms, identityCommitment);
+      const identityRooms = await addIdentityToIdentityListRooms(
+        rooms,
+        identityCommitment
+      );
+      const bandadaRooms = await addIdentityToBandadaRooms(
+        rooms,
+        identityCommitment
+      );
       return [...identityRooms, ...bandadaRooms] as string[];
     })
     .catch((err) => {
@@ -174,6 +180,7 @@ export async function updateRoomIdentities(
  * Adds a user's identity commitment to the semaphoreIdentities list and adds their rate commitment to the identities list for each of the identity list rooms that they are in.
  * @param {rooms} - The list of rooms that the user is in
  * @param {string} identityCommitment - The user's identity commitment
+ * @return {string[]} addedRooms - The list of rooms that the user was added to
  */
 async function addIdentityToIdentityListRooms(
   rooms,
@@ -190,7 +197,7 @@ async function addIdentityToIdentityListRooms(
   const addedRooms: string[] = [];
 
   const promises = identityListRooms.map(async (roomId) => {
-    const room = rooms.find(r => r.id === roomId);
+    const room = rooms.find((r) => r.id === roomId);
     if (room) {
       try {
         await prisma.rooms.update({
@@ -205,7 +212,9 @@ async function addIdentityToIdentityListRooms(
             semaphoreIdentities: { push: identityCommitment }
           }
         });
-        console.debug(`Successfully added user to Identity List room ${room.roomId}`);
+        console.debug(
+          `Successfully added user to Identity List room ${room.roomId}`
+        );
         addedRooms.push(roomId as string);
       } catch (err) {
         console.error(err);
@@ -214,7 +223,7 @@ async function addIdentityToIdentityListRooms(
   });
 
   await Promise.all(promises);
-  return addedRooms
+  return addedRooms;
 }
 
 /**
@@ -225,9 +234,8 @@ async function addIdentityToIdentityListRooms(
  * Finally, we send a POST request to the bandada server to add the identity to the group.
  * @param {RoomI[]} rooms - The list of rooms that contain the identity commitment.
  * @param {string} identityCommitment - The identity commitment to be added to the bandada room.
- * @return {void} Nothing.
+ * @return {string[]} addedRooms - The list of rooms that the user was added to
  */
-
 
 async function addIdentityToBandadaRooms(
   rooms,
@@ -278,7 +286,9 @@ async function addIdentityToBandadaRooms(
         const response = await fetch(url, requestOptions);
         console.log(response);
         if (response.status == 201) {
-          console.debug(`Successfully added user to Bandada group ${room.bandadaAddress}`);
+          console.debug(
+            `Successfully added user to Bandada group ${room.bandadaAddress}`
+          );
           addedRooms.push(room.id as string);
         }
       } catch (err) {
