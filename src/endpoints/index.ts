@@ -51,7 +51,10 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         .then((room: RoomI) => {
           if (!room) {
             // This is set as a timeout to prevent someone from trying to brute force room ids
-            setTimeout(() => res.status(500).json({ error: 'Internal Server Error' }), 1000);
+            setTimeout(
+              () => res.status(500).json({ error: 'Internal Server Error' }),
+              1000
+            );
           } else {
             const {
               roomId,
@@ -133,7 +136,9 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       const parsedBody: JoinData = req.body as JoinData;
 
       if (!parsedBody.code || !parsedBody.idc) {
-        res.status(400).json({ message: '{code: string, idc: string} expected' });
+        res
+          .status(400)
+          .json({ message: '{code: string, idc: string} expected' });
       }
       const { code, idc } = parsedBody;
       console.debug('Invite Code:', code);
@@ -311,24 +316,29 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       const codes = genClaimCodeArray(numCodes);
       return await prisma.rooms.findMany(query).then((rooms) => {
         const roomIds = rooms.map((room) => room.id);
-
-        const createCodes = codes.map(async (code, index) => {
-          return await prisma.claimCodes.create({
-            data: {
-              claimcode: code.claimcode,
-              claimed: false,
-              roomIds: roomIds,
-              rooms: {
-                connect: {
-                  roomId: rooms[index].roomId ? rooms[index].roomId : undefined
+        console.log(roomIds);
+        console.log(codes);
+        const createCodes = rooms.flatMap((room) =>
+          codes.map((code) =>
+            prisma.claimCodes.create({
+              data: {
+                claimcode: code.claimcode,
+                claimed: false,
+                roomIds: [room.id],
+                rooms: {
+                  connect: {
+                    roomId: room.roomId
+                  }
                 }
               }
-            }
-          });
-        });
+            })
+          )
+        );
         return Promise.all(createCodes)
           .then(() => {
-            res.status(200).json({ message: 'Claim codes added successfully', codes });
+            res
+              .status(200)
+              .json({ message: 'Claim codes added successfully', codes });
           })
           .catch((err) => {
             console.error(err);
@@ -349,46 +359,50 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    *          }
    */
 
-  app.post(['/room/:roomId/addcode', '/api/room/:roomId/addcode'], adminAuth, (req, res) => {
-    const { roomId } = req.params;
-    const { numCodes } = req.body as { numCodes: number };
-    const codes = genClaimCodeArray(numCodes);
+  app.post(
+    ['/room/:roomId/addcode', '/api/room/:roomId/addcode'],
+    adminAuth,
+    (req, res) => {
+      const { roomId } = req.params;
+      const { numCodes } = req.body as { numCodes: number };
+      const codes = genClaimCodeArray(numCodes);
 
-    prisma.rooms
-      .findUnique({
-        where: { roomId: roomId },
-        include: { claimCodes: true }
-      })
-      .then((room) => {
-        if (!room) {
-          res.status(404).json({ error: 'Room not found' });
-          return;
-        }
-        // Map over the codes array and create a claim code for each code
-        const createCodes = codes.map((code) => {
-          return prisma.claimCodes.create({
-            data: {
-              claimcode: code.claimcode,
-              claimed: false,
-              rooms: {
-                connect: {
-                  roomId: roomId
+      prisma.rooms
+        .findUnique({
+          where: { roomId: roomId },
+          include: { claimCodes: true }
+        })
+        .then((room) => {
+          if (!room) {
+            res.status(404).json({ error: 'Room not found' });
+            return;
+          }
+          // Map over the codes array and create a claim code for each code
+          const createCodes = codes.map((code) => {
+            return prisma.claimCodes.create({
+              data: {
+                claimcode: code.claimcode,
+                claimed: false,
+                rooms: {
+                  connect: {
+                    roomId: roomId
+                  }
                 }
               }
-            }
+            });
           });
-        });
 
-        return Promise.all(createCodes);
-      })
-      .then(() => {
-        res.status(200).json({ message: 'Claim codes added successfully' });
-      })
-      .catch((err) => {
-        console.error(err);
-        res.status(500).json({ error: 'Internal Server Error' });
-      });
-  });
+          return Promise.all(createCodes);
+        })
+        .then(() => {
+          res.status(200).json({ message: 'Claim codes added successfully' });
+        })
+        .catch((err) => {
+          console.error(err);
+          res.status(500).json({ error: 'Internal Server Error' });
+        });
+    }
+  );
 
   // This code fetches the claim codes from the database.
 
@@ -434,7 +448,10 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     '/admin/message',
     adminAuth,
     asyncHandler(async (req: Request, res: Response) => {
-      const { message, roomId } = req.body as { message: string; roomId?: string };
+      const { message, roomId } = req.body as {
+        message: string;
+        roomId?: string;
+      };
 
       try {
         // Function to send system messages
