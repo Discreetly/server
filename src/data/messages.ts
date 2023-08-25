@@ -15,6 +15,13 @@ interface CollisionCheckResult {
   oldMessage?: MessageI;
 }
 
+/**
+* This code is used to check if there is a collision in the room, and if there is, to recover the secret.
+* It does this by checking if the message already exists in the DB, and if it does, it uses the secret recovery algorithm to recover the secret.
+* @param {string} roomId - The ID of the room to check for collisions in
+* @param {MessageI} message - The message to check for collisions with
+* @returns {Promise<CollisionCheckResult>} - Returns a promise that resolves to a CollisionCheckResult
+*/
 
 async function checkRLNCollision(
   roomId: string,
@@ -36,12 +43,15 @@ async function checkRLNCollision(
         }
       })
       .then((oldMessage) => {
+
         if (!message.proof) {
           throw new Error('Proof not provided');
         }
+
         if (!oldMessage || !oldMessage?.epochs[0]?.messages) {
           res({ collision: false } as CollisionCheckResult);
         } else {
+
           const oldMessageProof = JSON.parse(
             oldMessage.epochs[0].messages[0].proof
           ) as RLNFullProof;
@@ -78,6 +88,14 @@ async function checkRLNCollision(
   });
 }
 
+
+/**
+ * Adds a message to a room.
+ * @param {string} roomId - The ID of the room to add the message to.
+ * @param {MessageI} message - The message to add to the room.
+ * @returns {Promise<unknown>} - A promise that resolves when the message has been added to the room.
+ */
+
 function addMessageToRoom(roomId: string, message: MessageI): Promise<unknown> {
   if (!message.epoch) {
     throw new Error('Epoch not provided');
@@ -103,12 +121,19 @@ function addMessageToRoom(roomId: string, message: MessageI): Promise<unknown> {
     }
   });
 }
+
 export interface createMessageResult {
   success: boolean;
   message?: MessageI;
   idc?: string | bigint;
 }
 
+/**
+ * Creates a message in a room
+ * @param {string} roomId - The ID of the room in which the message will be added
+ * @param {MessageI} message - The message to be created
+ * @returns {Promise<createMessageResult>} - A result object which contains a boolean indicating whether the operation was successful
+ */
 export function createMessage(
   roomId: string,
   message: MessageI
@@ -117,12 +142,10 @@ export function createMessage(
     getRoomByID(roomId)
       .then(async (room) => {
         if (room) {
-          // Todo This should check that there is no duplicate messageId with in this room and epoch,
-          // if there is, we need to return an error and
-          // reconstruct the secret from both messages, and ban the user
           await checkRLNCollision(roomId, message)
             .then((collisionResult) => {
               console.log('HERE', collisionResult);
+
               if (!collisionResult.collision) {
                 addMessageToRoom(roomId, message)
                   .then(() => {
@@ -134,6 +157,7 @@ export function createMessage(
                     return reject({ success: false });
                   });
               } else {
+
                 console.debug('Collision found');
                 const identityCommitment = getIdentityCommitmentFromSecret(
                   collisionResult.secret!
