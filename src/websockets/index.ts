@@ -1,7 +1,7 @@
 import { MessageI, RoomI } from 'discreetly-interfaces';
 import { Socket, Server as SocketIOServer } from 'socket.io';
 import verifyProof from '../crypto/verifier';
-import { getRoomByID } from '../data/db';
+import { getRoomByID, createSystemMessages } from '../data/db';
 import { pp } from '../utils';
 import { createMessage } from '../data/messages';
 import type { createMessageResult } from '../data/messages';
@@ -60,6 +60,21 @@ export function websocketSetup(io: SocketIOServer) {
       const id = roomID.toString();
       userCount[id] = userCount[id] ? userCount[id] - 1 : 0;
       io.to(id).emit('Members', userCount[id] ? userCount[id] : 0);
+    });
+
+    socket.on('systemMessage', (msg: string, roomID: bigint) => {
+      const id = roomID.toString();
+      createSystemMessages(msg, id)
+        .then(() => {
+          if (roomID) {
+            io.to(id).emit('systemMessage', msg);
+          } else {
+            io.emit('systemMessage', msg);
+          }
+        })
+        .catch((err) => {
+          pp(err, 'error');
+        });
     });
   });
 }
