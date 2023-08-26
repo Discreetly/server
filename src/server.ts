@@ -13,6 +13,7 @@ import { websocketSetup as initWebsockets } from './websockets/index';
 import { initEndpoints } from './endpoints/index';
 import { generateRandomClaimCode } from 'discreetly-claimcodes';
 import { listEndpoints } from './endpoints/utils';
+import { createSystemMessages } from './data/db';
 
 // TODO https://www.npmjs.com/package/winston
 
@@ -88,6 +89,11 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
     }
   });
   initWebsockets(io);
+  io.emit('systemBroadcast', 'Server Up');
+  process.on('beforeExit', () => {
+    io.emit('systemBroadcast', 'System Going Down For Maintenance');
+    process.exit(); // Manually exit the process after the async operation
+  });
 }
 
 pp(serverConfigStartup, 'table');
