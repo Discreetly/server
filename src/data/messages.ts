@@ -1,10 +1,7 @@
 import { getRoomByID, removeIdentityFromRoom } from './db';
 import { PrismaClient } from '@prisma/client';
 import { MessageI } from 'discreetly-interfaces';
-import {
-  shamirRecovery,
-  getIdentityCommitmentFromSecret
-} from '../crypto/shamirRecovery';
+import { shamirRecovery, getIdentityCommitmentFromSecret } from '../crypto/shamirRecovery';
 import { RLNFullProof } from 'rlnjs';
 
 const prisma = new PrismaClient();
@@ -16,17 +13,14 @@ interface CollisionCheckResult {
 }
 
 /**
-* This code is used to check if there is a collision in the room, and if there is, to recover the secret.
-* It does this by checking if the message already exists in the DB, and if it does, it uses the secret recovery algorithm to recover the secret.
-* @param {string} roomId - The ID of the room to check for collisions in
-* @param {MessageI} message - The message to check for collisions with
-* @returns {Promise<CollisionCheckResult>} - Returns a promise that resolves to a CollisionCheckResult
-*/
+ * This code is used to check if there is a collision in the room, and if there is, to recover the secret.
+ * It does this by checking if the message already exists in the DB, and if it does, it uses the secret recovery algorithm to recover the secret.
+ * @param {string} roomId - The ID of the room to check for collisions in
+ * @param {MessageI} message - The message to check for collisions with
+ * @returns {Promise<CollisionCheckResult>} - Returns a promise that resolves to a CollisionCheckResult
+ */
 
-async function checkRLNCollision(
-  roomId: string,
-  message: MessageI
-): Promise<CollisionCheckResult> {
+async function checkRLNCollision(roomId: string, message: MessageI): Promise<CollisionCheckResult> {
   return new Promise((res) => {
     prisma.rooms
       .findFirst({
@@ -43,24 +37,24 @@ async function checkRLNCollision(
         }
       })
       .then((oldMessage) => {
-
         if (!message.proof) {
           throw new Error('Proof not provided');
         }
 
-        if (!oldMessage || !oldMessage?.epochs[0]?.messages) {
+        if (
+          !oldMessage ||
+          !oldMessage?.epochs[0]?.messages ||
+          !oldMessage?.epochs[0]?.messages[0] ||
+          !oldMessage?.epochs[0]?.messages[0]?.proof
+        ) {
+          console.debug('No collision', oldMessage);
           res({ collision: false } as CollisionCheckResult);
         } else {
-
           const oldMessageProof = JSON.parse(
             oldMessage.epochs[0].messages[0].proof
           ) as RLNFullProof;
-          const oldMessagex2 = BigInt(
-            oldMessageProof.snarkProof.publicSignals.x
-          );
-          const oldMessagey2 = BigInt(
-            oldMessageProof.snarkProof.publicSignals.y
-          );
+          const oldMessagex2 = BigInt(oldMessageProof.snarkProof.publicSignals.x);
+          const oldMessagey2 = BigInt(oldMessageProof.snarkProof.publicSignals.y);
 
           let proof: RLNFullProof;
 
@@ -87,7 +81,6 @@ async function checkRLNCollision(
       .catch((err) => console.error(err));
   });
 }
-
 
 /**
  * Adds a message to a room.
@@ -134,10 +127,7 @@ export interface createMessageResult {
  * @param {MessageI} message - The message to be created
  * @returns {Promise<createMessageResult>} - A result object which contains a boolean indicating whether the operation was successful
  */
-export function createMessage(
-  roomId: string,
-  message: MessageI
-): Promise<createMessageResult> {
+export function createMessage(roomId: string, message: MessageI): Promise<createMessageResult> {
   return new Promise((resolve, reject) => {
     getRoomByID(roomId)
       .then(async (room) => {
@@ -157,19 +147,14 @@ export function createMessage(
                     return reject({ success: false });
                   });
               } else {
-
                 console.debug('Collision found');
-                const identityCommitment = getIdentityCommitmentFromSecret(
-                  collisionResult.secret!
-                );
+                const identityCommitment = getIdentityCommitmentFromSecret(collisionResult.secret!);
                 removeIdentityFromRoom(identityCommitment.toString(), room)
                   .then(() => {
                     return reject({ success: false });
                   })
                   .catch((error) => {
-                    console.error(
-                      `Couldn't remove identity from room ${error}`
-                    );
+                    console.error(`Couldn't remove identity from room ${error}`);
                   });
               }
             })
