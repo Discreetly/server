@@ -13,7 +13,6 @@ import { websocketSetup as initWebsockets } from './websockets/index';
 import { initEndpoints } from './endpoints/index';
 import { generateRandomClaimCode } from 'discreetly-claimcodes';
 import { listEndpoints } from './endpoints/utils';
-import { createSystemMessages } from './data/db';
 
 // TODO https://www.npmjs.com/package/winston
 
