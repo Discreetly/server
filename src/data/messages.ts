@@ -103,7 +103,7 @@ function addMessageToRoom(roomId: string, message: MessageI): Promise<unknown> {
           epoch: String(message.epoch),
           messages: {
             create: {
-              message: message.message ? JSON.stringify(message.message) : '',
+              message: message.message ? String(message.message) : '',
               messageId: message.messageId ? message.messageId.toString() : '',
               proof: JSON.stringify(message.proof),
               roomId: roomId
