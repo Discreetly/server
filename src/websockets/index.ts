@@ -17,6 +17,12 @@ export function websocketSetup(io: SocketIOServer) {
         'MSG:': msg.message
       });
       let validProof: boolean;
+      if (typeof msg.message == 'string') {
+        if (msg.message.replaceAll(' ', '') == '') {
+          pp('INVALID MESSAGE, EMPTY', 'warn');
+          return;
+        }
+      }
       await getRoomByID(String(msg.roomId))
         .then((room: RoomI) => {
           if (!room) {
