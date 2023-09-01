@@ -1,8 +1,9 @@
-import { getRoomByID, removeIdentityFromRoom } from './db';
+import { removeIdentityFromRoom } from './db';
 import { PrismaClient } from '@prisma/client';
-import { MessageI } from 'discreetly-interfaces';
+import { MessageI, RoomI } from 'discreetly-interfaces';
 import { shamirRecovery, getIdentityCommitmentFromSecret } from '../crypto/shamirRecovery';
 import { RLNFullProof } from 'rlnjs';
+import verifyProof from '../crypto/verifier';
 
 const prisma = new PrismaClient();
 
@@ -115,58 +116,62 @@ function addMessageToRoom(roomId: string, message: MessageI): Promise<unknown> {
   });
 }
 
-export interface createMessageResult {
+export interface validateMessageResult {
   success: boolean;
   message?: MessageI;
   idc?: string | bigint;
 }
 
-/**
- * Creates a message in a room
- * @param {string} roomId - The ID of the room in which the message will be added
- * @param {MessageI} message - The message to be created
- * @returns {Promise<createMessageResult>} - A result object which contains a boolean indicating whether the operation was successful
- */
-export function createMessage(roomId: string, message: MessageI): Promise<createMessageResult> {
-  return new Promise((resolve, reject) => {
-    getRoomByID(roomId)
-      .then(async (room) => {
-        if (room) {
-          await checkRLNCollision(roomId, message)
-            .then((collisionResult) => {
-              console.log('HERE', collisionResult);
+async function handleCollision(
+  room: RoomI,
+  message: MessageI,
+  collisionResult: CollisionCheckResult
+): Promise<validateMessageResult> {
+  const roomId = room.roomId.toString();
+  if (!collisionResult.collision) {
+    try {
+      await addMessageToRoom(roomId, message);
+      console.debug(
+        `Message added to room: ${
+          typeof message.message === 'string'
+            ? message.message.slice(0, 10)
+            : JSON.stringify(message.message).slice(0, 10)
+        }...`
+      );
+      return { success: true };
+    } catch (error) {
+      console.error(`Couldn't add message room ${error}`);
+      return { success: false };
+    }
+  } else {
+    console.warn('Collision found');
+    const identityCommitment = getIdentityCommitmentFromSecret(collisionResult.secret!);
+    try {
+      await removeIdentityFromRoom(identityCommitment.toString(), room);
+      return { success: false, idc: identityCommitment.toString() };
+    } catch (error) {
+      console.error(`Couldn't remove identity from room ${error}`);
+    }
+  }
+  return { success: false };
+}
 
-              if (!collisionResult.collision) {
-                addMessageToRoom(roomId, message)
-                  .then(() => {
-                    console.log('Message added to room');
-                    return resolve({ success: true });
-                  })
-                  .catch((error) => {
-                    console.error(`Couldn't add message room ${error}`);
-                    return reject({ success: false });
-                  });
-              } else {
-                console.debug('Collision found');
-                const identityCommitment = getIdentityCommitmentFromSecret(collisionResult.secret!);
-                removeIdentityFromRoom(identityCommitment.toString(), room)
-                  .then(() => {
-                    return reject({ success: false });
-                  })
-                  .catch((error) => {
-                    console.error(`Couldn't remove identity from room ${error}`);
-                  });
-              }
-            })
-            .catch((error) => {
-              console.error(`Error getting room: ${error}`);
-              return reject({ success: false });
-            });
-        }
-      })
-      .catch((error) => {
-        console.error(`Error getting room: ${error}`);
-        return reject({ success: false });
-      });
-  });
+/**
+ * Validates a message and adds it to the room if it is valid.
+ * @param {RoomI} room - The room which the message will be added
+ * @param {MessageI} message - The message to be created
+ * @returns {Promise<validateMessageResult>} - A result object which contains a boolean indicating whether the operation was successful
+ */
+export async function validateMessage(
+  room: RoomI,
+  message: MessageI
+): Promise<validateMessageResult> {
+  const roomId = room.roomId.toString();
+  const validProof = await verifyProof(message, room);
+  if (validProof) {
+    const collisionResult = await checkRLNCollision(roomId, message);
+    const result = await handleCollision(room, message, collisionResult);
+    return result;
+  }
+  return { success: false };
 }

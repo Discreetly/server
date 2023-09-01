@@ -161,14 +161,8 @@ export async function updateRoomIdentities(
       where: { id: { in: roomIds } }
     })
     .then(async (rooms) => {
-      const identityRooms = await addIdentityToIdentityListRooms(
-        rooms,
-        identityCommitment
-      );
-      const bandadaRooms = await addIdentityToBandadaRooms(
-        rooms,
-        identityCommitment
-      );
+      const identityRooms = await addIdentityToIdentityListRooms(rooms, identityCommitment);
+      const bandadaRooms = await addIdentityToBandadaRooms(rooms, identityCommitment);
       return [...identityRooms, ...bandadaRooms] as string[];
     })
     .catch((err) => {
@@ -212,9 +206,7 @@ async function addIdentityToIdentityListRooms(
             semaphoreIdentities: { push: identityCommitment }
           }
         });
-        console.debug(
-          `Successfully added user to Identity List room ${room.roomId}`
-        );
+        console.debug(`Successfully added user to Identity List room ${room.roomId}`);
         addedRooms.push(roomId as string);
       } catch (err) {
         console.error(err);
@@ -237,10 +229,7 @@ async function addIdentityToIdentityListRooms(
  * @return {string[]} addedRooms - The list of rooms that the user was added to
  */
 
-async function addIdentityToBandadaRooms(
-  rooms,
-  identityCommitment: string
-): Promise<string[]> {
+async function addIdentityToBandadaRooms(rooms, identityCommitment: string): Promise<string[]> {
   const bandadaGroupRooms = rooms
     .filter(
       (room: RoomI) =>
@@ -286,9 +275,7 @@ async function addIdentityToBandadaRooms(
         const response = await fetch(url, requestOptions);
         console.log(response);
         if (response.status == 201) {
-          console.debug(
-            `Successfully added user to Bandada group ${room.bandadaAddress}`
-          );
+          console.debug(`Successfully added user to Bandada group ${room.bandadaAddress}`);
           addedRooms.push(room.id as string);
         }
       } catch (err) {
@@ -328,10 +315,7 @@ export async function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
  * @param {string} message - The message to be created
  * @param {string} roomId - The roomId to create the message in
  */
-export function createSystemMessages(
-  message: string,
-  roomId?: string
-): Promise<unknown> {
+export function createSystemMessages(message: string, roomId?: string): Promise<unknown> {
   const query = roomId ? { where: { roomId } } : undefined;
   return prisma.rooms
     .findMany(query)
@@ -358,7 +342,6 @@ export function createSystemMessages(
     });
 }
 
-
 export interface BandadaRoom extends RoomI {
   bandadaAPIKey: string;
 }
@@ -371,14 +354,10 @@ export interface BandadaRoom extends RoomI {
  * @returns {Promise<void | RoomI>} - A promise that resolves to the room
  */
 
-export function removeIdentityFromRoom(
-  idc: string,
-  room: RoomI
-): Promise<void | RoomI> {
+export function removeIdentityFromRoom(idc: string, room: RoomI): Promise<void | RoomI> {
   const updateSemaphoreIdentities =
-    room.semaphoreIdentities?.map((identity) =>
-      identity === idc ? '0' : (identity as string)
-    ) ?? [];
+    room.semaphoreIdentities?.map((identity) => (identity === idc ? '0' : (identity as string))) ??
+    [];
 
   const rateCommitmentsToUpdate = getRateCommitmentHash(
     BigInt(idc),
@@ -389,7 +368,6 @@ export function removeIdentityFromRoom(
     room.identities?.map((limiter) =>
       limiter == rateCommitmentsToUpdate ? '0' : (limiter as string)
     ) ?? [];
-
 
   return prisma.rooms
     .update({

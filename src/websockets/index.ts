@@ -1,10 +1,9 @@
 import { MessageI, RoomI } from 'discreetly-interfaces';
 import { Socket, Server as SocketIOServer } from 'socket.io';
-import verifyProof from '../crypto/verifier';
 import { getRoomByID, createSystemMessages } from '../data/db';
 import { pp } from '../utils';
-import { createMessage } from '../data/messages';
-import type { createMessageResult } from '../data/messages';
+import { validateMessage } from '../data/messages';
+import type { validateMessageResult } from '../data/messages';
 const userCount: Record<string, number> = {};
 
 export function websocketSetup(io: SocketIOServer) {
@@ -12,37 +11,22 @@ export function websocketSetup(io: SocketIOServer) {
     pp('SocketIO: a user connected', 'debug');
 
     socket.on('validateMessage', async (msg: MessageI) => {
-      pp({
-        'VALIDATING MESSAGE ID': String(msg.roomId).slice(0, 11),
-        'MSG:': msg.message
-      });
-      let validProof: boolean;
-      await getRoomByID(String(msg.roomId))
-        .then((room: RoomI) => {
-          if (!room) {
-            pp('INVALID ROOM', 'warn');
-            return;
-          }
-          verifyProof(msg, room)
-            .then(async (v) => {
-              console.log('validProof', v);
-              validProof = v;
-              // TODO import createMessageResult, and broadcast the idc and message ID that were removed to those room users
-              const validMessage: createMessageResult = await createMessage(
-                String(msg.roomId),
-                msg
-              );
-              if (!validProof || !validMessage.success) {
-                pp('INVALID MESSAGE', 'warn');
-                return;
-              }
-              io.emit('messageBroadcast', msg);
-            })
-            .catch((err) => {
-              err;
-            });
-        })
-        .catch((err) => pp(err, 'error'));
+      try {
+        const room: RoomI | null = await getRoomByID(String(msg.roomId));
+        if (!room) {
+          pp('INVALID ROOM', 'warn');
+          return;
+        }
+        const validMessage: validateMessageResult = await validateMessage(room, msg);
+        if (validMessage.success) {
+          io.emit('messageBroadcast', msg);
+        } else {
+          pp('INVALID MESSAGE', 'warn');
+          return;
+        }
+      } catch (err) {
+        pp(err, 'error');
+      }
     });
 
     socket.on('disconnect', () => {
