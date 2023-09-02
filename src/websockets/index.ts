@@ -46,19 +46,20 @@ export function websocketSetup(io: SocketIOServer) {
       io.to(roomID).emit('Members', userCount[roomID] ? userCount[roomID] : 0);
     });
 
-    socket.on('systemMessage', (msg: string, roomID: bigint) => {
-      const id = roomID.toString();
-      createSystemMessages(msg, id)
-        .then(() => {
-          if (roomID) {
-            io.to(id).emit('systemMessage', msg);
-          } else {
-            io.emit('systemMessage', msg);
-          }
-        })
-        .catch((err) => {
-          pp(err, 'error');
-        });
-    });
+    // TODO We need to rewrite this so it doesn't use `socket.on`, because this allows anyone to be able to broadcast a system message to any room.
+    // socket.on('systemMessage', (msg: string, roomID: bigint) => {
+    //   const id = roomID.toString();
+    //   createSystemMessages(msg, id)
+    //     .then(() => {
+    //       if (roomID) {
+    //         io.to(id).emit('systemMessage', msg);
+    //       } else {
+    //         io.emit('systemMessage', msg);
+    //       }
+    //     })
+    //     .catch((err) => {
+    //       pp(err, 'error');
+    //     });
+    // });
   });
 }
