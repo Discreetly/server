@@ -1,6 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { getRateCommitmentHash, genId, MessageI } from 'discreetly-interfaces';
-import { serverConfig } from '../../config/serverConfig';
+import { getRateCommitmentHash, MessageI, randomBigInt } from 'discreetly-interfaces';
 import { genClaimCodeArray, genMockUsers } from '../../utils';
 
 const prisma = new PrismaClient();
@@ -36,13 +35,14 @@ export async function createRoom(
   const identityCommitments: string[] = mockUsers.map((user) =>
     getRateCommitmentHash(BigInt(user), BigInt(userMessageLimit)).toString()
   );
+  const roomIdFromRandom = randomBigInt().toString();
   const roomData = {
     where: {
-      roomId: genId(serverConfig.id as bigint, roomName).toString()
+      roomId: roomIdFromRandom
     },
     update: {},
     create: {
-      roomId: genId(serverConfig.id as bigint, roomName).toString(),
+      roomId: roomIdFromRandom,
       name: roomName,
       rateLimit: rateLimit,
       userMessageLimit: userMessageLimit,

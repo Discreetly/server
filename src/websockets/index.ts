@@ -19,7 +19,8 @@ export function websocketSetup(io: SocketIOServer) {
         }
         const validMessage: validateMessageResult = await validateMessage(room, msg);
         if (validMessage.success) {
-          io.emit('messageBroadcast', msg);
+          // Send messages to only users who are listening to that room
+          io.to(room.roomId.toString()).emit('messageBroadcast', msg);
         } else {
           pp('INVALID MESSAGE', 'warn');
           return;
@@ -33,17 +34,16 @@ export function websocketSetup(io: SocketIOServer) {
       pp('SocketIO: user disconnected');
     });
 
-    socket.on('joinRoom', (roomID: bigint) => {
-      const id = roomID.toString();
-      userCount[id] = userCount[id] ? userCount[id] + 1 : 1;
-      void socket.join(id);
-      io.to(id).emit('Members', userCount[id] ? userCount[id] : 0);
+    socket.on('joiningRoom', (roomID: string) => {
+      userCount[roomID] = userCount[roomID] ? userCount[roomID] + 1 : 1;
+      void socket.join(roomID);
+      io.to(roomID).emit('Members', userCount[roomID] ? userCount[roomID] : 0);
     });
 
-    socket.on('leaveRoom', (roomID: bigint) => {
-      const id = roomID.toString();
-      userCount[id] = userCount[id] ? userCount[id] - 1 : 0;
-      io.to(id).emit('Members', userCount[id] ? userCount[id] : 0);
+    socket.on('leavingRoom', (roomID: string) => {
+      void socket.leave(roomID);
+      userCount[roomID] = userCount[roomID] ? userCount[roomID] - 1 : 0;
+      io.to(roomID).emit('Members', userCount[roomID] ? userCount[roomID] : 0);
     });
 
     socket.on('systemMessage', (msg: string, roomID: bigint) => {
