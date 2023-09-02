@@ -6,7 +6,11 @@ import { calculateSignalHash } from './signalHash';
 
 const v = new RLNVerifier(vkey);
 
-async function verifyProof(msg: MessageI, room: RoomI, epochErrorRange = 5): Promise<boolean> {
+export async function verifyProof(
+  room: RoomI,
+  msg: MessageI,
+  epochErrorRange = 5
+): Promise<boolean> {
   if (!msg.roomId || !msg.message || !msg.proof || !msg.epoch) {
     console.warn('Missing required fields:', msg);
     return false;
@@ -62,5 +66,3 @@ async function verifyProof(msg: MessageI, room: RoomI, epochErrorRange = 5): Pro
   // Check that the proof is correct
   return v.verifyProof(rlnIdentifier, proof);
 }
-
-export default verifyProof;

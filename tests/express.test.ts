@@ -36,7 +36,7 @@ const testIdentity = randBigint();
 const username = 'admin';
 const password = process.env.PASSWORD;
 
-describe('Endpoints should all work hopefully', () => {
+describe('Endpoints should all work', () => {
   test('It should respond with server info', async () => {
     await request(_app)
       .get('/')

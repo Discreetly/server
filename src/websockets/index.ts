@@ -1,6 +1,6 @@
 import { MessageI, RoomI } from 'discreetly-interfaces';
 import { Socket, Server as SocketIOServer } from 'socket.io';
-import { getRoomByID, createSystemMessages } from '../data/db';
+import { findRoomById, createSystemMessages } from '../data/db/';
 import { pp } from '../utils';
 import { validateMessage } from '../data/messages';
 import type { validateMessageResult } from '../data/messages';
@@ -12,7 +12,7 @@ export function websocketSetup(io: SocketIOServer) {
 
     socket.on('validateMessage', async (msg: MessageI) => {
       try {
-        const room: RoomI | null = await getRoomByID(String(msg.roomId));
+        const room: RoomI | null = await findRoomById(String(msg.roomId));
         if (!room) {
           pp('INVALID ROOM', 'warn');
           return;
