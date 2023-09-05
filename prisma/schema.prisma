@@ -36,6 +36,8 @@ model ClaimCodes {
   claimcode String   @unique
   claimed   Boolean  @default(false)
   roomIds   String[] @default([]) @db.ObjectId
+  expiresAt Int
+  usesLeft  Int      @default(-1)
   rooms     Rooms[]  @relation(fields: [roomIds], references: [id])
 }
 

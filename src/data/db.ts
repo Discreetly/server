@@ -13,6 +13,7 @@ const prisma = new PrismaClient();
 interface CodeStatus {
   claimed: boolean;
   roomIds: string[];
+  expiresAt: number;
 }
 
 interface RoomsFromClaimCode {
@@ -358,7 +359,6 @@ export function createSystemMessages(
     });
 }
 
-
 export interface BandadaRoom extends RoomI {
   bandadaAPIKey: string;
 }
@@ -389,7 +389,6 @@ export function removeIdentityFromRoom(
     room.identities?.map((limiter) =>
       limiter == rateCommitmentsToUpdate ? '0' : (limiter as string)
     ) ?? [];
-
 
   return prisma.rooms
     .update({
