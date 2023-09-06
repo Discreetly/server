@@ -114,17 +114,20 @@ export function findClaimCode(code: string): Promise<CodeStatus | null> {
  * @returns {Promise<RoomsFromClaimCode>} - The rooms associated with the claim code
  */
 
-export async function updateClaimCode(code: string): Promise<CodeStatus | void> {
+export async function updateClaimCode(
+  code: string
+): Promise<CodeStatus | void> {
   const claimCode = await findClaimCode(code);
   if (!claimCode) {
     return;
   } else {
+    const newUsesLeft = claimCode.usesLeft === -1 ? claimCode.usesLeft: claimCode.usesLeft - 1;
     return await prisma.claimCodes.update({
       where: { claimcode: code },
       data: {
-        usesLeft: claimCode.usesLeft - 1
+        usesLeft: newUsesLeft
       }
-    })
+    });
   }
 }
 

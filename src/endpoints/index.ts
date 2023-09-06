@@ -142,17 +142,17 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       const { code, idc } = parsedBody;
       console.debug('Invite Code:', code);
 
-      const codeStatus = await findClaimCode(code);
-      if (!codeStatus || codeStatus.expiresAt < Date.now()) {
+      const foundCode = await findClaimCode(code);
+      if (foundCode && foundCode.expiresAt < Date.now()) {
         await prisma.claimCodes.delete({
           where: {
             claimcode: code
           }
         });
-        res.status(400).json({ message: 'Claim code already used' });
+        res.status(400).json({ message: 'Claim Code Expired' });
         return;
       }
-      if (codeStatus.usesLeft !== -1 && codeStatus.usesLeft >= 0) {
+      if (foundCode && (foundCode.usesLeft >= 0 || foundCode.usesLeft === -1)) {
         const updatedCode = await updateClaimCode(code);
         if (updatedCode && updatedCode.usesLeft === 0) {
           await prisma.claimCodes.delete({
@@ -162,10 +162,10 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
           });
         }
       } else {
-        res.status(400).json({ message: 'Claim code already used' });
+        res.status(400).json({ message: 'Claim Code already used123' });
         return;
       }
-      const roomIds = codeStatus.roomIds;
+      const roomIds = foundCode.roomIds;
 
       const addedRooms = await updateRoomIdentities(idc, roomIds);
 
@@ -178,7 +178,13 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
           roomIds: updatedRooms.map((room: RoomI) => room.roomId)
         });
       } else {
-        res.status(400).json({ message: `No rooms found or identity already exists in ${String(roomIds)}` });
+        res
+          .status(400)
+          .json({
+            message: `No rooms found or identity already exists in ${String(
+              roomIds
+            )}`
+          });
       }
     })
   );
@@ -334,45 +340,52 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       };
 
       const currentDate = new Date();
-      const threeMonthsLater = new Date(currentDate).setMonth(currentDate.getMonth() + 3);
+      const threeMonthsLater = new Date(currentDate).setMonth(
+        currentDate.getMonth() + 3
+      );
 
-      const codeExpires = expiresAt ? expiresAt : threeMonthsLater
+      const codeExpires = expiresAt ? expiresAt : threeMonthsLater;
       const query = all ? undefined : { where: { roomId: { in: rooms } } };
 
       const codes = genClaimCodeArray(numCodes);
       return await prisma.rooms.findMany(query).then((rooms) => {
         const roomIds = rooms.map((room) => room.id);
         const createCodes = codes.map((code) => {
-          return prisma.claimCodes.create({
-            data: {
-              claimcode: code.claimcode,
-              roomIds: roomIds,
-              expiresAt: codeExpires,
-              usesLeft: usesLeft
-            }
-          }).then((newCode) => {
-            const updatePromises = rooms.map((room) => {
-              return prisma.rooms.update({
-                where: {
-                  roomId: room.roomId
-                },
-                data: {
-                  claimCodeIds: {
-                    push: newCode.id
+          return prisma.claimCodes
+            .create({
+              data: {
+                claimcode: code.claimcode,
+                roomIds: roomIds,
+                expiresAt: codeExpires,
+                usesLeft: usesLeft
+              }
+            })
+            .then((newCode) => {
+              const updatePromises = rooms.map((room) => {
+                return prisma.rooms.update({
+                  where: {
+                    roomId: room.roomId
+                  },
+                  data: {
+                    claimCodeIds: {
+                      push: newCode.id
+                    }
                   }
-                }
+                });
               });
+              return Promise.all(updatePromises);
+            })
+            .catch((err) => {
+              console.error(err);
+              res.status(500).json({ error: 'Internal Server Error' });
             });
-            return Promise.all(updatePromises);
-          }).catch((err) => {
-            console.error(err);
-            res.status(500).json({ error: 'Internal Server Error' });
-          });
         });
 
         return Promise.all(createCodes)
           .then(() => {
-            res.status(200).json({ message: 'Claim codes added successfully', codes });
+            res
+              .status(200)
+              .json({ message: 'Claim codes added successfully', codes });
           })
           .catch((err) => {
             console.error(err);
@@ -397,13 +410,19 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     adminAuth,
     (req, res) => {
       const { roomId } = req.params;
-      const { numCodes, expires } = req.body as { numCodes: number, expires: number };
+      const { numCodes, expires, usesLeft } = req.body as {
+        numCodes: number;
+        expires: number;
+        usesLeft: number;
+      };
       const codes = genClaimCodeArray(numCodes);
 
       const currentDate = new Date();
-      const threeMonthsLater = new Date(currentDate).setMonth(currentDate.getMonth() + 3);
+      const threeMonthsLater = new Date(currentDate).setMonth(
+        currentDate.getMonth() + 3
+      );
 
-      const codeExpires = expires ? expires : threeMonthsLater
+      const codeExpires = expires ? expires : threeMonthsLater;
 
       prisma.rooms
         .findUnique({
@@ -421,6 +440,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
               data: {
                 claimcode: code.claimcode,
                 expiresAt: codeExpires,
+                usesLeft: usesLeft,
                 rooms: {
                   connect: {
                     roomId: roomId
