@@ -220,7 +220,6 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    *          "membershipType": "string"      // optional if not an IDENTITY_LIST
    *          }
    */
-
   app.post(['/room/add', '/api/room/add'], adminAuth, (req, res) => {
     const roomMetadata = req.body as addRoomData;
     const roomName = roomMetadata.roomName;
@@ -317,7 +316,6 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    *          "all": boolean
    *          }
    */
-
   app.post(
     ['/addcode', '/api/addcode'],
     adminAuth,
@@ -381,6 +379,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
     })
   );
+
   /**
    * Adds claim codes to a room
    *
@@ -391,7 +390,6 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    *          "numCodes": number
    *          }
    */
-
   app.post(['/room/:roomId/addcode', '/api/room/:roomId/addcode'], adminAuth, (req, res) => {
     const { roomId } = req.params;
     const { numCodes, expires, usesLeft } = req.body as {
@@ -482,7 +480,6 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    *          "roomId": "string"    // optional
    *          }
    */
-
   app.post(
     '/admin/message',
     adminAuth,
