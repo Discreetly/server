@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { MessageI, RoomI } from 'discreetly-interfaces';
-import { CodeStatus } from '../../types/';
+import { ClaimCodeI } from '../../types/';
 const prisma = new PrismaClient();
 
 /**
@@ -79,9 +79,10 @@ export async function findRoomsByIdentity(identity: string): Promise<string[]> {
  * Finds a claim code in the database.
  *
  * @param {string} code - The code to find.
- * @returns {Promise<CodeStatus | null>} - The claim code, if found.
+ * @returns {Promise<ClaimCodeI | null>} - The claim code, if found.
  */
-export function findClaimCode(code: string): Promise<CodeStatus | null> {
+
+export function findClaimCode(code: string): Promise<ClaimCodeI | null> {
   return prisma.claimCodes.findUnique({
     where: { claimcode: code }
   });

@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { getRateCommitmentHash, MessageI, randomBigInt } from 'discreetly-interfaces';
 import { genClaimCodeArray, genMockUsers } from '../../utils';
+import type { Server as SocketIOServer } from 'socket.io';
 
 const prisma = new PrismaClient();
 
@@ -77,7 +78,11 @@ export async function createRoom(
  * @param {string} message - The message to be created
  * @param {string} roomId - The roomId to create the message in
  */
-export function createSystemMessages(message: string, roomId?: string): Promise<unknown> {
+export function createSystemMessages(
+  message: string,
+  roomId?: string,
+  io?: SocketIOServer
+): Promise<unknown> {
   const query = roomId ? { where: { roomId } } : undefined;
   return prisma.rooms
     .findMany(query)
@@ -85,8 +90,8 @@ export function createSystemMessages(message: string, roomId?: string): Promise<
       if (roomId && rooms.length === 0) {
         return Promise.reject('Room not found');
       }
-      const createMessages = rooms.map((room) => {
-        return prisma.messages.create({
+      const createMessagePromises = rooms.map((room) => {
+        const createMessage = prisma.messages.create({
           data: {
             message,
             roomId: room.roomId,
@@ -94,9 +99,13 @@ export function createSystemMessages(message: string, roomId?: string): Promise<
             proof: JSON.stringify({})
           }
         });
+        if (io) {
+          io.to(room.roomId).emit('systemMessage', createMessage);
+        }
+        return createMessage;
       });
 
-      return Promise.all(createMessages);
+      return Promise.all(createMessagePromises);
     })
     .catch((err) => {
       console.error(err);

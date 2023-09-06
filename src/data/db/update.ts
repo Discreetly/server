@@ -1,9 +1,10 @@
 import { PrismaClient } from '@prisma/client';
 import { sanitizeIDC } from '../utils';
+import { findClaimCode } from './find';
 import { RoomI } from 'discreetly-interfaces';
 import { getRateCommitmentHash } from '../../crypto';
 import { pp } from '../../utils';
-import { RoomWithSecretsI, RoomsFromClaimCode } from '../../types/';
+import { RoomWithSecretsI, ClaimCodeI } from '../../types/';
 
 const prisma = new PrismaClient();
 
@@ -41,15 +42,25 @@ export async function updateRoomIdentities(
 }
 
 /**
- * Update the claim_code table to mark the given code as claimed.
- * @param {string} code - The code to update
- * @returns {Promise<RoomsFromClaimCode>} - The rooms associated with the claim code
+ * This function looks up a claim code and updates its usesLeft field.
+ * If the claim code is not found, then it returns undefined.
+ * Otherwise it returns a ClaimCodeI object.
+ * @param {string} code - The claim code to update
+ * @returns {Promise<ClaimCodeI | void>} - A promise that resolves to a ClaimCodeI object
  */
-export function updateClaimCode(code: string): Promise<RoomsFromClaimCode> {
-  return prisma.claimCodes.update({
-    where: { claimcode: code },
-    data: { claimed: true }
-  });
+export async function updateClaimCode(code: string): Promise<ClaimCodeI | void> {
+  const claimCode = await findClaimCode(code);
+  if (!claimCode) {
+    return;
+  } else {
+    const newUsesLeft = claimCode.usesLeft === -1 ? claimCode.usesLeft : claimCode.usesLeft - 1;
+    return await prisma.claimCodes.update({
+      where: { claimcode: code },
+      data: {
+        usesLeft: newUsesLeft
+      }
+    });
+  }
 }
 
 /**

@@ -3,7 +3,7 @@ import _app from '../src/server';
 import { genId } from 'discreetly-interfaces';
 import { serverConfig } from '../src/config/serverConfig';
 import { PrismaClient } from '@prisma/client';
-import { beforeAll, beforeEach, describe, expect, test } from '@jest/globals';
+import { beforeAll, beforeEach, afterAll, describe, expect, test } from '@jest/globals';
 import { pp } from '../src/utils';
 import { randBigint, randomRoomName } from './utils';
 

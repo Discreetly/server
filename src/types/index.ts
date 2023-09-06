@@ -13,4 +13,10 @@ export interface RoomWithSecretsI extends RoomI {
   bandadaAPIKey: string;
 }
 
+export interface ClaimCodeI {
+  roomIds: string[];
+  expiresAt: number;
+  usesLeft: number;
+}
+
 export type userCountI = Record<string, number>;
