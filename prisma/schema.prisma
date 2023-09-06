@@ -18,6 +18,7 @@ model Rooms {
   banRateLimit        Int          @default(1000000) // starting number of epochs banned for
   userMessageLimit    Int          @default(1) // per epoch
   membershipType      String       @default("IDENTITY_LIST")
+  admins              String[]     @default([])
   identities          String[]     @default([])
   semaphoreIdentities String[]     @default([])
   contractAddress     String? // RLN_CONTRACT as "chainID:0xADDRESS"

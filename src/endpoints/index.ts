@@ -162,7 +162,13 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
           roomIds: updatedRooms.map((room: RoomI) => room.roomId)
         });
       } else {
-        res.status(400).json({ message: `No rooms found or identity already exists in ${String(roomIds)}` });
+        res
+          .status(400)
+          .json({
+            message: `No rooms found or identity already exists in ${String(
+              roomIds
+            )}`
+          });
       }
     })
   );
@@ -320,35 +326,40 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       return await prisma.rooms.findMany(query).then((rooms) => {
         const roomIds = rooms.map((room) => room.id);
         const createCodes = codes.map((code) => {
-          return prisma.claimCodes.create({
-            data: {
-              claimcode: code.claimcode,
-              claimed: false,
-              roomIds: roomIds
-            }
-          }).then((newCode) => {
-            const updatePromises = rooms.map((room) => {
-              return prisma.rooms.update({
-                where: {
-                  roomId: room.roomId
-                },
-                data: {
-                  claimCodeIds: {
-                    push: newCode.id
+          return prisma.claimCodes
+            .create({
+              data: {
+                claimcode: code.claimcode,
+                claimed: false,
+                roomIds: roomIds
+              }
+            })
+            .then((newCode) => {
+              const updatePromises = rooms.map((room) => {
+                return prisma.rooms.update({
+                  where: {
+                    roomId: room.roomId
+                  },
+                  data: {
+                    claimCodeIds: {
+                      push: newCode.id
+                    }
                   }
-                }
+                });
               });
+              return Promise.all(updatePromises);
+            })
+            .catch((err) => {
+              console.error(err);
+              res.status(500).json({ error: 'Internal Server Error' });
             });
-            return Promise.all(updatePromises);
-          }).catch((err) => {
-            console.error(err);
-            res.status(500).json({ error: 'Internal Server Error' });
-          });
         });
 
         return Promise.all(createCodes)
           .then(() => {
-            res.status(200).json({ message: 'Claim codes added successfully', codes });
+            res
+              .status(200)
+              .json({ message: 'Claim codes added successfully', codes });
           })
           .catch((err) => {
             console.error(err);
@@ -479,4 +490,24 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       }
     })
   );
+
+  app.post('/room/:roomId/addAdmin', adminAuth, asyncHandler(async (req: Request, res: Response) => {
+    const { roomId } = req.params;
+    const { idc } = req.body as { idc: string };
+    try {
+      await prisma.rooms.update({
+        where: {
+          roomId: roomId
+        },
+        data: {
+          admins: {
+            push: idc
+          }
+        }
+      })
+      res.status(200).json({ message: `Admin added successfully in room ${roomId}` });
+    } catch (err) {
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  }));
 }
