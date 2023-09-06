@@ -1,6 +1,6 @@
 import { MessageI, RoomI } from 'discreetly-interfaces';
 import { Socket, Server as SocketIOServer } from 'socket.io';
-import { findRoomById, createSystemMessages } from '../data/db/';
+import { findRoomById } from '../data/db/';
 import { pp } from '../utils';
 import { validateMessage } from '../data/messages';
 import type { validateMessageResult } from '../data/messages';
@@ -46,20 +46,8 @@ export function websocketSetup(io: SocketIOServer) {
       io.to(roomID).emit('Members', userCount[roomID] ? userCount[roomID] : 0);
     });
 
-    // TODO We need to rewrite this so it doesn't use `socket.on`, because this allows anyone to be able to broadcast a system message to any room.
-    // socket.on('systemMessage', (msg: string, roomID: bigint) => {
-    //   const id = roomID.toString();
-    //   createSystemMessages(msg, id)
-    //     .then(() => {
-    //       if (roomID) {
-    //         io.to(id).emit('systemMessage', msg);
-    //       } else {
-    //         io.emit('systemMessage', msg);
-    //       }
-    //     })
-    //     .catch((err) => {
-    //       pp(err, 'error');
-    //     });
-    // });
+    setInterval(() => {
+      io.emit('TotalMembers', io.engine.clientsCount);
+    }, 10000);
   });
 }
