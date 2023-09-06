@@ -3,15 +3,15 @@ import { PrismaClient } from '@prisma/client';
 import { serverConfig } from '../config/serverConfig';
 import { genClaimCodeArray, pp } from '../utils';
 import {
-  getRoomByID,
-  getRoomsByIdentity,
+  findRoomById,
+  findRoomsByIdentity,
   findClaimCode,
   updateClaimCode,
   updateRoomIdentities,
   findUpdatedRooms,
   createRoom,
   createSystemMessages
-} from '../data/db';
+} from '../data/db/';
 import { MessageI, RoomI } from 'discreetly-interfaces';
 import { RLNFullProof } from 'rlnjs';
 
@@ -47,14 +47,11 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     } else {
       const requestRoomId = req.params.id ?? '0';
       pp(String('Express: fetching room info for ' + req.params.id));
-      getRoomByID(requestRoomId)
+      findRoomById(requestRoomId)
         .then((room: RoomI) => {
           if (!room) {
             // This is set as a timeout to prevent someone from trying to brute force room ids
-            setTimeout(
-              () => res.status(500).json({ error: 'Internal Server Error' }),
-              1000
-            );
+            setTimeout(() => res.status(500).json({ error: 'Internal Server Error' }), 1000);
           } else {
             const {
               roomId,
@@ -103,7 +100,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     ['/rooms/:idc', '/api/rooms/:idc'],
     asyncHandler(async (req: Request, res: Response) => {
       try {
-        res.status(200).json(await getRoomsByIdentity(req.params.idc));
+        res.status(200).json(await findRoomsByIdentity(req.params.idc));
       } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Internal Server Error' });
@@ -135,9 +132,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       const parsedBody: JoinData = req.body as JoinData;
 
       if (!parsedBody.code || !parsedBody.idc) {
-        res
-          .status(400)
-          .json({ message: '{code: string, idc: string} expected' });
+        res.status(400).json({ message: '{code: string, idc: string} expected' });
       }
       const { code, idc } = parsedBody;
       console.debug('Invite Code:', code);
@@ -162,7 +157,9 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
           roomIds: updatedRooms.map((room: RoomI) => room.roomId)
         });
       } else {
-        res.status(400).json({ message: `No rooms found or identity already exists in ${String(roomIds)}` });
+        res
+          .status(400)
+          .json({ message: `No rooms found or identity already exists in ${String(roomIds)}` });
       }
     })
   );
@@ -235,7 +232,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       .then((result) => {
         if (result) {
           // TODO should return roomID and claim codes if they are generated
-          res.status(200).json({ message: 'Room created successfully' });
+          res.status(200).json({ message: 'Room created successfully', roomId: result });
         } else {
           res.status(500).json({ error: 'Internal Server Error' });
         }
@@ -320,30 +317,33 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       return await prisma.rooms.findMany(query).then((rooms) => {
         const roomIds = rooms.map((room) => room.id);
         const createCodes = codes.map((code) => {
-          return prisma.claimCodes.create({
-            data: {
-              claimcode: code.claimcode,
-              claimed: false,
-              roomIds: roomIds
-            }
-          }).then((newCode) => {
-            const updatePromises = rooms.map((room) => {
-              return prisma.rooms.update({
-                where: {
-                  roomId: room.roomId
-                },
-                data: {
-                  claimCodeIds: {
-                    push: newCode.id
+          return prisma.claimCodes
+            .create({
+              data: {
+                claimcode: code.claimcode,
+                claimed: false,
+                roomIds: roomIds
+              }
+            })
+            .then((newCode) => {
+              const updatePromises = rooms.map((room) => {
+                return prisma.rooms.update({
+                  where: {
+                    roomId: room.roomId
+                  },
+                  data: {
+                    claimCodeIds: {
+                      push: newCode.id
+                    }
                   }
-                }
+                });
               });
+              return Promise.all(updatePromises);
+            })
+            .catch((err) => {
+              console.error(err);
+              res.status(500).json({ error: 'Internal Server Error' });
             });
-            return Promise.all(updatePromises);
-          }).catch((err) => {
-            console.error(err);
-            res.status(500).json({ error: 'Internal Server Error' });
-          });
         });
 
         return Promise.all(createCodes)
@@ -368,50 +368,46 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    *          }
    */
 
-  app.post(
-    ['/room/:roomId/addcode', '/api/room/:roomId/addcode'],
-    adminAuth,
-    (req, res) => {
-      const { roomId } = req.params;
-      const { numCodes } = req.body as { numCodes: number };
-      const codes = genClaimCodeArray(numCodes);
+  app.post(['/room/:roomId/addcode', '/api/room/:roomId/addcode'], adminAuth, (req, res) => {
+    const { roomId } = req.params;
+    const { numCodes } = req.body as { numCodes: number };
+    const codes = genClaimCodeArray(numCodes);
 
-      prisma.rooms
-        .findUnique({
-          where: { roomId: roomId },
-          include: { claimCodes: true }
-        })
-        .then((room) => {
-          if (!room) {
-            res.status(404).json({ error: 'Room not found' });
-            return;
-          }
-          // Map over the codes array and create a claim code for each code
-          const createCodes = codes.map((code) => {
-            return prisma.claimCodes.create({
-              data: {
-                claimcode: code.claimcode,
-                claimed: false,
-                rooms: {
-                  connect: {
-                    roomId: roomId
-                  }
+    prisma.rooms
+      .findUnique({
+        where: { roomId: roomId },
+        include: { claimCodes: true }
+      })
+      .then((room) => {
+        if (!room) {
+          res.status(404).json({ error: 'Room not found' });
+          return;
+        }
+        // Map over the codes array and create a claim code for each code
+        const createCodes = codes.map((code) => {
+          return prisma.claimCodes.create({
+            data: {
+              claimcode: code.claimcode,
+              claimed: false,
+              rooms: {
+                connect: {
+                  roomId: roomId
                 }
               }
-            });
+            }
           });
-
-          return Promise.all(createCodes);
-        })
-        .then(() => {
-          res.status(200).json({ message: 'Claim codes added successfully' });
-        })
-        .catch((err) => {
-          console.error(err);
-          res.status(500).json({ error: 'Internal Server Error' });
         });
-    }
-  );
+
+        return Promise.all(createCodes);
+      })
+      .then(() => {
+        res.status(200).json({ message: 'Claim codes added successfully' });
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      });
+  });
 
   // This code fetches the claim codes from the database.
 
