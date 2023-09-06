@@ -88,7 +88,7 @@ export async function addIdentityToIdentityListRooms(
     if (room) {
       try {
         await prisma.rooms.update({
-          where: { id: roomId },
+          where: { roomId: roomId },
           data: {
             identities: {
               push: getRateCommitmentHash(
@@ -168,7 +168,6 @@ export async function addIdentityToBandadaRooms(
 
         const url = `https://${room.bandadaAddress}/groups/${room.bandadaGroupId}/members/${rateCommitment}`;
         const response = await fetch(url, requestOptions);
-        console.log(response);
         if (response.status == 201) {
           console.debug(`Successfully added user to Bandada group ${room.bandadaAddress}`);
           addedRooms.push(room.id);
