@@ -521,12 +521,12 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
           roomId: roomId
         },
         data: {
-          admins: {
+          adminIdentities: {
             push: idc
           }
         }
       })
-      res.status(200).json({ message: `Admin added successfully in room ${roomId}` });
+      res.status(200).json({ message: `Admin added to room ${roomId}` });
     } catch (err) {
       res.status(500).json({ error: 'Internal Server Error' });
     }
