@@ -30,13 +30,13 @@ const room = {
   type: 'PUBLIC_CHAT'
 };
 
-const roomByIdTest = genId(serverConfig.id as bigint, room.roomName).toString();
+let roomByIdTest: string;
 let testCode = '';
 const testIdentity = randBigint();
 const username = 'admin';
 const password = process.env.PASSWORD;
 
-describe('Endpoints should all work hopefully', () => {
+describe('Endpoints should all work', () => {
   test('It should respond with server info', async () => {
     await request(_app)
       .get('/')
@@ -59,7 +59,12 @@ describe('Endpoints should all work hopefully', () => {
 
       .then((res) => {
         try {
-          expect(res.body).toEqual({ message: 'Room created successfully' });
+          console.log(res);
+          expect(res.status).toEqual(200);
+          const result = res.body;
+          expect(res.body.message).toEqual('Room created successfully');
+          expect(result.roomId).toBeDefined();
+          roomByIdTest = result.roomId;
         } catch (error) {
           console.warn('POST /room/add - ' + error);
         }

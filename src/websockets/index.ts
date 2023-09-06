@@ -1,10 +1,9 @@
 import { MessageI, RoomI } from 'discreetly-interfaces';
 import { Socket, Server as SocketIOServer } from 'socket.io';
-import verifyProof from '../crypto/verifier';
-import { getRoomByID } from '../data/db';
+import { findRoomById } from '../data/db/';
 import { pp } from '../utils';
-import { createMessage } from '../data/messages';
-import type { createMessageResult } from '../data/messages';
+import { validateMessage } from '../data/messages';
+import type { validateMessageResult } from '../data/messages';
 const userCount: Record<string, number> = {};
 
 export function websocketSetup(io: SocketIOServer) {
@@ -12,75 +11,43 @@ export function websocketSetup(io: SocketIOServer) {
     pp('SocketIO: a user connected', 'debug');
 
     socket.on('validateMessage', async (msg: MessageI) => {
-      pp({
-        'VALIDATING MESSAGE ID': String(msg.roomId).slice(0, 11),
-        'MSG:': msg.message
-      });
-      let validProof: boolean;
-      if (typeof msg.message == 'string') {
-        if (msg.message.replaceAll(' ', '') == '') {
-          pp('INVALID MESSAGE, EMPTY', 'warn');
+      try {
+        const room: RoomI | null = await findRoomById(String(msg.roomId));
+        if (!room) {
+          pp('INVALID ROOM', 'warn');
           return;
         }
+        const validMessage: validateMessageResult = await validateMessage(room, msg);
+        if (validMessage.success) {
+          // Send messages to only users who are listening to that room
+          io.to(room.roomId.toString()).emit('messageBroadcast', msg);
+        } else {
+          pp('INVALID MESSAGE', 'warn');
+          return;
+        }
+      } catch (err) {
+        pp(err, 'error');
       }
-      await getRoomByID(String(msg.roomId))
-        .then((room: RoomI) => {
-          if (!room) {
-            pp('INVALID ROOM', 'warn');
-            return;
-          }
-          verifyProof(msg, room)
-            .then(async (v) => {
-              console.log('validProof', v);
-              validProof = v;
-              // TODO import createMessageResult, and broadcast the idc and message ID that were removed to those room users
-              const validMessage: createMessageResult = await createMessage(
-                String(msg.roomId),
-                msg
-              );
-              if (!validProof || !validMessage.success) {
-                pp('INVALID MESSAGE', 'warn');
-                return;
-              }
-              io.emit('messageBroadcast', msg);
-            })
-            .catch((err) => {
-              err;
-            });
-        })
-        .catch((err) => pp(err, 'error'));
     });
 
     socket.on('disconnect', () => {
       pp('SocketIO: user disconnected');
     });
 
-    socket.on('joinRoom', (roomID: bigint) => {
-      const id = roomID.toString();
-      userCount[id] = userCount[id] ? userCount[id] + 1 : 1;
-      void socket.join(id);
-      io.to(id).emit('Members', userCount[id] ? userCount[id] : 0);
+    socket.on('joiningRoom', (roomID: string) => {
+      userCount[roomID] = userCount[roomID] ? userCount[roomID] + 1 : 1;
+      void socket.join(roomID);
+      io.to(roomID).emit('Members', userCount[roomID] ? userCount[roomID] : 0);
     });
 
-    socket.on('leaveRoom', (roomID: bigint) => {
-      const id = roomID.toString();
-      userCount[id] = userCount[id] ? userCount[id] - 1 : 0;
-      io.to(id).emit('Members', userCount[id] ? userCount[id] : 0);
+    socket.on('leavingRoom', (roomID: string) => {
+      void socket.leave(roomID);
+      userCount[roomID] = userCount[roomID] ? userCount[roomID] - 1 : 0;
+      io.to(roomID).emit('Members', userCount[roomID] ? userCount[roomID] : 0);
     });
 
-    // socket.on('systemMessage', (msg: string, roomID: bigint) => {
-    //   const id = roomID.toString();
-    //   createSystemMessages(msg, id)
-    //     .then(() => {
-    //       if (roomID) {
-    //         io.to(id).emit('systemMessage', msg);
-    //       } else {
-    //         io.emit('systemMessage', msg);
-    //       }
-    //     })
-    //     .catch((err) => {
-    //       pp(err, 'error');
-    //     });
-    // });
+    setInterval(() => {
+      io.emit('TotalMembers', io.engine.clientsCount);
+    }, 10000);
   });
 }

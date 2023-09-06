@@ -5,3 +5,4 @@ dist/
 .env
 thunder-tests/
 coverage/
+.vscode/settings.json
