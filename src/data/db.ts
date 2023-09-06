@@ -7,10 +7,10 @@ import type { RoomI } from 'discreetly-interfaces';
 import { serverConfig } from '../config/serverConfig';
 import { genMockUsers, genClaimCodeArray, pp } from '../utils';
 import getRateCommitmentHash from '../crypto/rateCommitmentHasher';
-
+import { Server as SocketIOServer } from 'socket.io';
 const prisma = new PrismaClient();
 
-interface CodeStatus {
+interface ClaimCodeI {
   roomIds: string[];
   expiresAt: number;
   usesLeft: number;
@@ -99,24 +99,26 @@ export async function getRoomsByIdentity(identity: string): Promise<string[]> {
  * Finds a claim code in the database.
  *
  * @param {string} code - The code to find.
- * @returns {Promise<CodeStatus | null>} - The claim code, if found.
+ * @returns {Promise<ClaimCodeI | null>} - The claim code, if found.
  */
 
-export function findClaimCode(code: string): Promise<CodeStatus | null> {
+export function findClaimCode(code: string): Promise<ClaimCodeI | null> {
   return prisma.claimCodes.findUnique({
     where: { claimcode: code }
   });
 }
 
-/**
- * Update the claim_code table to mark the given code as claimed.
- * @param {string} code - The code to update
- * @returns {Promise<RoomsFromClaimCode>} - The rooms associated with the claim code
- */
 
+/**
+* This function looks up a claim code and updates its usesLeft field.
+* If the claim code is not found, then it returns undefined.
+* Otherwise it returns a ClaimCodeI object.
+* @param {string} code - The claim code to update
+* @returns {Promise<ClaimCodeI | void>} - A promise that resolves to a ClaimCodeI object
+ */
 export async function updateClaimCode(
   code: string
-): Promise<CodeStatus | void> {
+): Promise<ClaimCodeI | void> {
   const claimCode = await findClaimCode(code);
   if (!claimCode) {
     return;
@@ -341,7 +343,8 @@ export async function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
  */
 export function createSystemMessages(
   message: string,
-  roomId?: string
+  roomId?: string,
+  io?: SocketIOServer
 ): Promise<unknown> {
   const query = roomId ? { where: { roomId } } : undefined;
   return prisma.rooms
@@ -350,8 +353,8 @@ export function createSystemMessages(
       if (roomId && rooms.length === 0) {
         return Promise.reject('Room not found');
       }
-      const createMessages = rooms.map((room) => {
-        return prisma.messages.create({
+      const createMessagePromises = rooms.map((room) => {
+        const createMessage = prisma.messages.create({
           data: {
             message,
             roomId: room.roomId,
@@ -359,9 +362,13 @@ export function createSystemMessages(
             proof: JSON.stringify({})
           }
         });
+        if (io) {
+          io.to(room.roomId).emit('systemMessage', createMessage);
+        }
+        return createMessage;
       });
 
-      return Promise.all(createMessages);
+      return Promise.all(createMessagePromises);
     })
     .catch((err) => {
       console.error(err);

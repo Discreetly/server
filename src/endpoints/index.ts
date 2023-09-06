@@ -15,6 +15,7 @@ import {
 import { MessageI, RoomI } from 'discreetly-interfaces';
 import { RLNFullProof } from 'rlnjs';
 
+
 const prisma = new PrismaClient();
 
 function asyncHandler(fn: {
