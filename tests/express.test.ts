@@ -59,7 +59,6 @@ describe('Endpoints should all work', () => {
 
       .then((res) => {
         try {
-          console.log(res);
           expect(res.status).toEqual(200);
           const result = res.body;
           expect(res.body.message).toEqual('Room created successfully');

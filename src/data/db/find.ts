@@ -97,7 +97,7 @@ export function findClaimCode(code: string): Promise<ClaimCodeI | null> {
  */
 export async function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
   const rooms = await prisma.rooms.findMany({
-    where: { id: { in: roomIds } }
+    where: { roomId: { in: roomIds } }
   });
   return new Promise((resolve, reject) => {
     if (rooms) {

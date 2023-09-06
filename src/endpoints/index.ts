@@ -372,7 +372,9 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
 
         return Promise.all(createCodes)
           .then(() => {
-            res.status(200).json({ message: 'Claim codes added successfully', codes });
+            res
+              .status(200)
+              .json({ message: 'Claim codes added successfully', codes });
           })
           .catch((err) => {
             console.error(err);
@@ -509,4 +511,24 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       }
     })
   );
+
+  app.post('/room/:roomId/addAdmin', adminAuth, asyncHandler(async (req: Request, res: Response) => {
+    const { roomId } = req.params;
+    const { idc } = req.body as { idc: string };
+    try {
+      await prisma.rooms.update({
+        where: {
+          roomId: roomId
+        },
+        data: {
+          adminIdentities: {
+            push: idc
+          }
+        }
+      })
+      res.status(200).json({ message: `Admin added to room ${roomId}` });
+    } catch (err) {
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  }));
 }
