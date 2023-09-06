@@ -232,7 +232,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       .then((result) => {
         if (result) {
           // TODO should return roomID and claim codes if they are generated
-          res.status(200).json({ message: 'Room created successfully' });
+          res.status(200).json({ message: 'Room created successfully', roomId: result });
         } else {
           res.status(500).json({ error: 'Internal Server Error' });
         }
