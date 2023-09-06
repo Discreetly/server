@@ -11,14 +11,14 @@ import getRateCommitmentHash from '../crypto/rateCommitmentHasher';
 const prisma = new PrismaClient();
 
 interface CodeStatus {
-  claimed: boolean;
   roomIds: string[];
   expiresAt: number;
+  usesLeft: number;
 }
 
-interface RoomsFromClaimCode {
-  roomIds: string[];
-}
+// interface RoomsFromClaimCode {
+//   roomIds: string[];
+// }
 
 /**
  * Gets a room by id
@@ -114,11 +114,18 @@ export function findClaimCode(code: string): Promise<CodeStatus | null> {
  * @returns {Promise<RoomsFromClaimCode>} - The rooms associated with the claim code
  */
 
-export function updateClaimCode(code: string): Promise<RoomsFromClaimCode> {
-  return prisma.claimCodes.update({
-    where: { claimcode: code },
-    data: { claimed: true }
-  });
+export async function updateClaimCode(code: string): Promise<CodeStatus | void> {
+  const claimCode = await findClaimCode(code);
+  if (!claimCode) {
+    return;
+  } else {
+    return await prisma.claimCodes.update({
+      where: { claimcode: code },
+      data: {
+        usesLeft: claimCode.usesLeft - 1
+      }
+    })
+  }
 }
 
 /*

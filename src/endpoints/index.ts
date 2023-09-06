@@ -144,12 +144,28 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
 
       const codeStatus = await findClaimCode(code);
       if (!codeStatus || codeStatus.expiresAt < Date.now()) {
+        await prisma.claimCodes.delete({
+          where: {
+            claimcode: code
+          }
+        });
         res.status(400).json({ message: 'Claim code already used' });
         return;
       }
-
-      const claimCode = await updateClaimCode(code);
-      const roomIds = claimCode.roomIds;
+      if (codeStatus.usesLeft !== -1 && codeStatus.usesLeft >= 0) {
+        const updatedCode = await updateClaimCode(code);
+        if (updatedCode && updatedCode.usesLeft === 0) {
+          await prisma.claimCodes.delete({
+            where: {
+              claimcode: code
+            }
+          });
+        }
+      } else {
+        res.status(400).json({ message: 'Claim code already used' });
+        return;
+      }
+      const roomIds = codeStatus.roomIds;
 
       const addedRooms = await updateRoomIdentities(idc, roomIds);
 
@@ -309,17 +325,18 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     ['/addcode', '/api/addcode'],
     adminAuth,
     asyncHandler(async (req: Request, res: Response) => {
-      const { numCodes, rooms, all, expires } = req.body as {
+      const { numCodes, rooms, all, expiresAt, usesLeft } = req.body as {
         numCodes: number;
         rooms: string[];
         all: boolean;
-        expires: number;
+        expiresAt: number;
+        usesLeft: number;
       };
 
       const currentDate = new Date();
       const threeMonthsLater = new Date(currentDate).setMonth(currentDate.getMonth() + 3);
 
-      const codeExpires = expires ? expires : threeMonthsLater
+      const codeExpires = expiresAt ? expiresAt : threeMonthsLater
       const query = all ? undefined : { where: { roomId: { in: rooms } } };
 
       const codes = genClaimCodeArray(numCodes);
@@ -329,9 +346,9 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
           return prisma.claimCodes.create({
             data: {
               claimcode: code.claimcode,
-              claimed: false,
               roomIds: roomIds,
-              expiresAt: codeExpires
+              expiresAt: codeExpires,
+              usesLeft: usesLeft
             }
           }).then((newCode) => {
             const updatePromises = rooms.map((room) => {
@@ -403,7 +420,6 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
             return prisma.claimCodes.create({
               data: {
                 claimcode: code.claimcode,
-                claimed: false,
                 expiresAt: codeExpires,
                 rooms: {
                   connect: {
