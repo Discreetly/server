@@ -4,9 +4,12 @@ import { findRoomById } from '../data/db/';
 import { pp } from '../utils';
 import { validateMessage } from '../data/messages';
 import type { validateMessageResult } from '../data/messages';
+
 const userCount: Record<string, number> = {};
 
+
 export function websocketSetup(io: SocketIOServer) {
+
   io.on('connection', (socket: Socket) => {
     pp('SocketIO: a user connected', 'debug');
 
@@ -17,7 +20,10 @@ export function websocketSetup(io: SocketIOServer) {
           pp('INVALID ROOM', 'warn');
           return;
         }
-        const validMessage: validateMessageResult = await validateMessage(room, msg);
+        const validMessage: validateMessageResult = await validateMessage(
+          room,
+          msg
+        );
         if (validMessage.success) {
           // Send messages to only users who are listening to that room
           io.to(room.roomId.toString()).emit('messageBroadcast', msg);
