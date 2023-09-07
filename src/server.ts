@@ -91,7 +91,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   _app = initAppListeners(PORT);
   io = new SocketIOServer(_app, {
     cors: {
-      origin: ['*', 'https://admin.socket.io'],
+      origin: ['https://app.discreetly.chat', 'https://admin.socket.io'],
       credentials: true
     }
   });
@@ -102,7 +102,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
       username: 'admin',
       password: bcrypt.hashSync(process.env.PASSWORD ? process.env.PASSWORD : 'PASSWORD', 10)
     },
-    mode: 'production'
+    mode: 'development'
   });
   io.emit('systemBroadcast', 'Server Up');
   process.on('beforeExit', () => {
