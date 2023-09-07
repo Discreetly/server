@@ -97,7 +97,6 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   });
   initWebsockets(io);
   instrument(io, {
-    readonly: true,
     auth: {
       type: 'basic',
       username: 'admin',
