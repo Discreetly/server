@@ -126,9 +126,15 @@ export async function findRoomWithMessageId(
       }
     });
     if (!room) {
+      console.debug('Room not found');
       return null;
     }
-    return room.epochs[0].messages[0];
+    if (room.epochs[0]) {
+      return room.epochs[0].messages[0];
+    } else {
+      console.debug('Epoch not found');
+      return null;
+    }
   } catch (err) {
     console.error(err);
     throw err;

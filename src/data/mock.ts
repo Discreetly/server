@@ -41,12 +41,17 @@ export default function Mock(io: SocketIOServer) {
   setInterval(() => {
     const message: MessageI = {
       id: faker.number.bigInt().toString(),
-      roomId: BigInt('20945462742745557191488383979949684808523754877925170533224967224808050898610'),
+      roomId: BigInt(
+        '15365950124115259122299397335353503712492707509718474633204755132763780105662'
+      ),
       message: picker.pick(),
       timeStamp: Date.now().toString(),
       epoch: Math.floor(Date.now() / 10000)
     };
     console.log('SENDING TEST MESSAGE');
-    io.emit('messageBroadcast', message);
+    io.to('15365950124115259122299397335353503712492707509718474633204755132763780105662').emit(
+      'messageBroadcast',
+      message
+    );
   }, 10000);
 }
