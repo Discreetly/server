@@ -102,7 +102,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
       username: 'admin',
       password: bcrypt.hashSync(process.env.PASSWORD ? process.env.PASSWORD : 'PASSWORD', 10)
     },
-    mode: 'production'
+    mode: 'development'
   });
   io.emit('systemBroadcast', 'Server Up');
   process.on('beforeExit', () => {
