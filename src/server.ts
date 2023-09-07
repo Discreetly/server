@@ -13,6 +13,8 @@ import { websocketSetup as initWebsockets } from './websockets/index';
 import { initEndpoints } from './endpoints/index';
 import { generateRandomClaimCode } from 'discreetly-claimcodes';
 import { listEndpoints } from './endpoints/utils';
+import { instrument } from '@socket.io/admin-ui'
+import bcrypt from 'bcryptjs'
 
 // TODO https://www.npmjs.com/package/winston
 
@@ -72,10 +74,15 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   listEndpoints(app);
   io = new SocketIOServer(_app, {
     cors: {
-      origin: '*'
+      origin: ['*', 'https://admin.socket.io'],
+      credentials: true
     }
   });
   initWebsockets(io);
+  instrument(io, {
+    auth: false,
+    mode: 'development'
+  });
   mock(io);
 } else {
   const PORT = process.env.PORT;
@@ -84,10 +91,20 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   _app = initAppListeners(PORT);
   io = new SocketIOServer(_app, {
     cors: {
-      origin: '*'
+      origin: ['*', 'https://admin.socket.io'],
+      credentials: true
     }
   });
   initWebsockets(io);
+  instrument(io, {
+    readonly: true,
+    auth: {
+      type: 'basic',
+      username: 'admin',
+      password: bcrypt.hashSync(process.env.PASSWORD ? process.env.PASSWORD : 'PASSWORD', 10)
+    },
+    mode: 'production'
+  });
   io.emit('systemBroadcast', 'Server Up');
   process.on('beforeExit', () => {
     io.emit('systemBroadcast', 'System Going Down For Maintenance');
