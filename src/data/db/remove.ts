@@ -9,10 +9,14 @@ const prisma = new PrismaClient();
  * @param {RoomI} room - The room to remove the identity from
  * @returns {Promise<void | RoomI>} - A promise that resolves to the room
  */
-export function removeIdentityFromRoom(idc: string, room: RoomI): Promise<void | RoomI> {
+export function removeIdentityFromRoom(
+  idc: string,
+  room: RoomI
+): Promise<void | RoomI> {
   const updateSemaphoreIdentities =
-    room.semaphoreIdentities?.map((identity) => (identity === idc ? '0' : (identity as string))) ??
-    [];
+    room.semaphoreIdentities?.map((identity) =>
+      identity === idc ? '0' : (identity as string)
+    ) ?? [];
 
   const rateCommitmentsToUpdate = getRateCommitmentHash(
     BigInt(idc),
@@ -40,9 +44,30 @@ export function removeIdentityFromRoom(idc: string, room: RoomI): Promise<void |
     });
 }
 
-export function removeRoom(roomId: string) {
-  console.warn('removeRoom not implemented', roomId);
-  //TODO removeRoom function
+export function removeRoom(roomId: string): Promise<boolean> {
+  return prisma.messages
+    .deleteMany({
+      where: {
+        roomId: roomId
+      }
+    })
+    .then(() => {
+      return prisma.rooms
+        .delete({
+          where: {
+            roomId: roomId
+          }
+        })
+        .then(() => true)
+        .catch((err) => {
+          console.error(err);
+          return false;
+        });
+    })
+    .catch((err) => {
+      console.error(err);
+      return false;
+    });
 }
 
 export function removeMessage(roomId: string, messageId: string) {

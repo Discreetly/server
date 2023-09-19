@@ -10,7 +10,8 @@ import {
   updateRoomIdentities,
   findUpdatedRooms,
   createRoom,
-  createSystemMessages
+  createSystemMessages,
+  removeRoom
 } from '../data/db/';
 import { MessageI, RoomI } from 'discreetly-interfaces';
 import { RLNFullProof } from 'rlnjs';
@@ -258,6 +259,20 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
+  app.post(['/room/:roomId/delete', '/api/room/:roomId/delete'], adminAuth, (req, res) => {
+    const { roomId } = req.params;
+    removeRoom(roomId).then((result) => {
+      if (result) {
+        res.status(200).json({ message: 'Room deleted successfully' });
+      } else {
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
+    }
+    ).catch((err) => {
+      console.error(err);
+      res.status(500).json({ error: String(err) });
+    });
+});
   /*
   This code handles the get request to get a list of messages for a particular room.
    It uses the Prisma client to query the database and return the messages for a particular room.
