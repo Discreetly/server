@@ -36,7 +36,7 @@ export async function createRoom(
   const identityCommitments: string[] = mockUsers.map((user) =>
     getRateCommitmentHash(BigInt(user), BigInt(userMessageLimit)).toString()
   );
-  const roomIdFromRandom = randomBigInt().toString();
+  const roomIdFromRandom = roomName === 'Ban Appeals' ? '666' : randomBigInt().toString();
   const roomData = {
     where: {
       roomId: roomIdFromRandom

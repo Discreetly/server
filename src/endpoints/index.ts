@@ -433,7 +433,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         return Promise.all(createCodes);
       })
       .then(() => {
-        res.status(200).json({ message: 'Claim codes added successfully' });
+        res.status(200).json({ message: 'Claim codes added successfully', codes });
       })
       .catch((err) => {
         console.error(err);
