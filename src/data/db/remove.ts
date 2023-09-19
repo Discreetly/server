@@ -71,6 +71,18 @@ export function removeRoom(roomId: string): Promise<boolean> {
 }
 
 export function removeMessage(roomId: string, messageId: string) {
-  console.warn('removeMessage not implemented', roomId, messageId);
-  //TODO removeMessage function
+  return prisma.messages
+    .deleteMany({
+      where: {
+        roomId: roomId,
+        messageId: messageId
+      }
+    })
+    .then(() => {
+      return true;
+    })
+    .catch((err) => {
+      console.error(err);
+      return false;
+    });
 }
