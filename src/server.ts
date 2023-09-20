@@ -13,8 +13,8 @@ import { websocketSetup as initWebsockets } from './websockets/index';
 import { initEndpoints } from './endpoints/index';
 import { generateRandomClaimCode } from 'discreetly-claimcodes';
 import { listEndpoints } from './endpoints/utils';
-import { instrument } from '@socket.io/admin-ui'
-import bcrypt from 'bcryptjs'
+import { instrument } from '@socket.io/admin-ui';
+import bcrypt from 'bcryptjs';
 
 // TODO https://www.npmjs.com/package/winston
 
@@ -40,6 +40,8 @@ const adminAuth = basicAuth({
     admin: admin_password
   }
 });
+
+const intervalIds: NodeJS.Timer[] = [];
 
 function initAppListeners(PORT) {
   const httpServer = http.createServer(app).listen(PORT, () => {
@@ -78,12 +80,12 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
       credentials: true
     }
   });
-  initWebsockets(io);
+  intervalIds.push(initWebsockets(io));
   instrument(io, {
     auth: false,
     mode: 'development'
   });
-  mock(io);
+  intervalIds.push(mock(io));
 } else {
   const PORT = process.env.PORT;
   serverConfigStartup.port = PORT;
@@ -95,7 +97,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
       credentials: true
     }
   });
-  initWebsockets(io);
+  intervalIds.push(initWebsockets(io));
   instrument(io, {
     auth: {
       type: 'basic',
@@ -114,3 +116,4 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
 pp(serverConfigStartup, 'table');
 
 export default _app;
+export { io, intervalIds };
