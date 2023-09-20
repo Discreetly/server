@@ -12,7 +12,7 @@ async function main() {
   await createRoom('Alpha Testers', 100000, 12, 30, 20, 'PUBLIC_CHAT');
   await createRoom('PSE', 100000, 12, 80, 20, 'PUBLIC_CHAT');
   await createRoom('SBC Experiments', 100000, 12, 20, 20, 'PUBLIC_CHAT');
-  await createRoom('Ban Appeals', 10000, 1, 0, 5, 'PUBLIC_CHAT');
+  await createRoom('Ban Appeals', 10000, 1, 0, 5, 'PUBLIC_CHAT', '666');
 }
 
 await main();
