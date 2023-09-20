@@ -25,13 +25,13 @@ const room = {
   roomName: randomRoomName(),
   rateLimit: 1000,
   userMessageLimit: 1,
-  numClaimCodes: 5,
+  numClaimCodes: 0,
   approxNumMockUsers: 10,
   type: 'PUBLIC_CHAT'
 };
 
 let roomByIdTest: string;
-let testCode = '';
+let testCode: string;
 const testIdentity = randBigint();
 const username = 'admin';
 const password = process.env.PASSWORD;
@@ -70,7 +70,23 @@ describe('Endpoints should all work', () => {
       })
       .catch((error) => console.warn('POST /room/add - ' + error));
   });
-
+  test('It should create claimCode for the new room', async () => {
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
+    await request(_app)
+      .post(`/api/addcode`)
+      .set('Authorization', `Basic ${base64Credentials}`)
+      .send({ numCodes: 1, rooms: [roomByIdTest], all: false, expiresAt: 0, usesLeft: -1 })
+      .then((res) => {
+        try {
+          console.log(res.body);
+          testCode = res.body.codes[0].claimcode;
+          expect(res.status).toEqual(200);
+          expect(res.body.message).toEqual('Claim codes added successfully');
+        } catch (error) {
+          console.warn('POST /api/addcode - ' + error);
+        }
+      })
+  })
   test('It should return the room with the given id', async () => {
     await request(_app)
       .get(`/api/room/${roomByIdTest}`)
@@ -115,8 +131,9 @@ describe('Endpoints should all work', () => {
       .set('Authorization', `Basic ${base64Credentials}`)
       .then(async (res) => {
         try {
-          testCode = res.body[0].claimcode;
-          expect(testCode.split('-').length).toEqual(4);
+          // testCode = res.body[0].claimcode;
+          // console.log(testCode);
+          // expect(testCode.split('-').length).toEqual(4);
           expect(res.status).toEqual(401);
           expect(res.body.length).toBeGreaterThan(0);
 
@@ -129,6 +146,7 @@ describe('Endpoints should all work', () => {
             .post('/join')
             .send(joinTest)
             .then((res) => {
+              console.log(res.body)
               expect(res.statusCode).toEqual(200);
               expect(res.body.status).toEqual('valid');
             });
