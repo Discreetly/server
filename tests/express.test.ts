@@ -49,8 +49,6 @@ describe('Endpoints should all work', () => {
   });
 
   test('It should add a new room to the database', async () => {
-    const username = 'admin';
-    const password = process.env.PASSWORD;
     const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
     await request(_app)
       .post('/room/add')
@@ -102,8 +100,6 @@ describe('Endpoints should all work', () => {
   });
 
   test('It should return all rooms', async () => {
-    const username = 'admin';
-    const password = process.env.PASSWORD;
     const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
     await request(_app)
       .get('/api/rooms')
@@ -122,8 +118,6 @@ describe('Endpoints should all work', () => {
   });
 
   test("It should return all claim codes and add a user's identity to the rooms the claim code is associated with", async () => {
-    const username = 'admin';
-    const password = process.env.PASSWORD;
     const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
     await request(_app)
       .get('/logclaimcodes')
