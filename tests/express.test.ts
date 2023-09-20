@@ -125,9 +125,6 @@ describe('Endpoints should all work', () => {
       .set('Authorization', `Basic ${base64Credentials}`)
       .then(async (res) => {
         try {
-          // testCode = res.body[0].claimcode;
-          // console.log(testCode);
-          // expect(testCode.split('-').length).toEqual(4);
           expect(res.status).toEqual(401);
           expect(res.body.length).toBeGreaterThan(0);
 
