@@ -44,6 +44,12 @@ export function removeIdentityFromRoom(
     });
 }
 
+/**
+ * This code removes a room from the database. It also removes any messages associated with that room.
+ * @param {string} roomId - The id of the room to remove
+ * @returns {Promise<boolean>} - A promise that resolves to true if the room was removed and false otherwise
+ * */
+
 export function removeRoom(roomId: string): Promise<boolean> {
   return prisma.messages
     .deleteMany({
@@ -69,6 +75,13 @@ export function removeRoom(roomId: string): Promise<boolean> {
       return false;
     });
 }
+
+/**
+ * This function removes a message from the database. It takes in a roomId and a messageId, and uses them to find the message in the database. It then deletes the message from the database and returns true if the message was successfully deleted. If there is an error, it will return false.
+ * @param {string} roomId - The id of the room the message is in
+ * @param {string} messageId - The id of the message to remove
+ * @returns {Promise<boolean>} - A promise that resolves to true if the message was removed and false otherwise
+*/
 
 export function removeMessage(roomId: string, messageId: string) {
   return prisma.messages
