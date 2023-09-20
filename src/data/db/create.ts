@@ -30,21 +30,21 @@ export async function createRoom(
   bandadaGroupId?: string,
   bandadaAPIKey?: string,
   membershipType?: string,
-  id?: string
+  roomId?: string
 ): Promise<string | undefined> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
   const mockUsers: string[] = genMockUsers(approxNumMockUsers);
   const identityCommitments: string[] = mockUsers.map((user) =>
     getRateCommitmentHash(BigInt(user), BigInt(userMessageLimit)).toString()
   );
-  const roomId = id ? id : randomBigInt().toString();
+  const _roomId = roomId ? roomId : randomBigInt().toString();
   const roomData = {
     where: {
-      roomId: roomId
+      roomId: _roomId
     },
     update: {},
     create: {
-      roomId: roomId,
+      roomId: _roomId,
       name: roomName,
       rateLimit: rateLimit,
       userMessageLimit: userMessageLimit,

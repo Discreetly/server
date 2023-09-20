@@ -1,14 +1,15 @@
 const request = require('supertest');
 import _app, { intervalIds } from '../src/server';
-import { genId } from 'discreetly-interfaces';
+import { RoomI, genId } from 'discreetly-interfaces';
 import { serverConfig } from '../src/config/serverConfig';
 import { PrismaClient } from '@prisma/client';
 import { beforeAll, beforeEach, afterAll, describe, expect, test } from '@jest/globals';
-import { pp } from '../src/utils';
 import { randBigint, randomRoomName } from './utils';
 
 process.env.DATABASE_URL = process.env.DATABASE_URL_TEST;
 process.env.PORT = '3001';
+
+const CUSTOM_ID = '444';
 
 const room = {
   roomName: randomRoomName(),
@@ -26,27 +27,29 @@ const messageTestRoom = {
   numClaimCodes: 1,
   approxNumMockUsers: 10,
   type: 'PUBLIC_CHAT',
-  id: '444'
+  roomId: CUSTOM_ID
 };
 
 let roomByIdTest: string;
 let testCode = '';
+
 const testIdentity = randBigint();
 const username = 'admin';
 const password = process.env.PASSWORD;
 
-describe('Endpoints', () => {
-  beforeAll(async () => {
-    const prismaTest = new PrismaClient();
-    await prismaTest.messages.deleteMany();
-    await prismaTest.rooms.deleteMany();
-    await prismaTest.claimCodes.deleteMany();
-  });
+beforeAll(async () => {
+  const prismaTest = new PrismaClient();
+  await prismaTest.messages.deleteMany();
+  await prismaTest.rooms.deleteMany();
+  await prismaTest.claimCodes.deleteMany();
+});
 
-  afterAll(async () => {
-    intervalIds.forEach((id) => clearInterval(id));
-    _app.close();
-  });
+afterAll(async () => {
+  intervalIds.forEach((id) => clearInterval(id));
+  _app.close();
+});
+
+describe('Endpoints', () => {
   test('It should respond with server info', async () => {
     await request(_app)
       .get('/')
@@ -55,7 +58,7 @@ describe('Endpoints', () => {
         expect(res.header['content-type']).toBe('application/json; charset=utf-8');
         expect(res.body.id).toBe(serverConfig.id);
       })
-      .catch((error) => pp("GET '/' - " + error, 'error'));
+      .catch((error) => console.error("GET '/' - " + error));
   });
 
   test('It should add a new room to the database', async () => {
@@ -99,6 +102,25 @@ describe('Endpoints', () => {
       .catch((error) => console.warn('POST /room/add - ' + error));
   });
 
+  test('It shouldnt add a new room with the same ID', async () => {
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
+    await request(_app)
+      .post('/room/add')
+      .set('Authorization', `Basic ${base64Credentials}`)
+      .send(messageTestRoom)
+
+      .then((res) => {
+        try {
+          expect(res.status).toEqual(400);
+          const result = res.body;
+          console.warn(result);
+        } catch (error) {
+          console.warn('POST /room/add - ' + error);
+        }
+      })
+      .catch((error) => console.warn('POST /room/add - ' + error));
+  });
+
   test('It should return the room with the given id', async () => {
     await request(_app)
       .get(`/api/room/${roomByIdTest}`)
@@ -110,7 +132,21 @@ describe('Endpoints', () => {
           console.error(`GET /api/room/:roomId - + ${error}`);
         }
       })
-      .catch((error) => pp('GET /api/room/:roomId - ' + error, 'error'));
+      .catch((error) => console.error('GET /api/room/:roomId - ' + error));
+  });
+
+  test('It should return the room with the given custom id', async () => {
+    await request(_app)
+      .get(`/api/room/${CUSTOM_ID}`)
+      .then((res) => {
+        try {
+          expect(res.status).toEqual(200);
+          expect(res.body.name).toEqual(messageTestRoom.roomName);
+        } catch (error) {
+          console.error(`GET /api/room/:roomId - + ${error}`);
+        }
+      })
+      .catch((error) => console.error('GET /api/room/:roomId - ' + error));
   });
 
   test('It should return all rooms', async () => {
@@ -125,10 +161,10 @@ describe('Endpoints', () => {
           expect(typeof res.body).toEqual('object');
           expect(res.body[0].name).toEqual(room.roomName);
         } catch (error) {
-          pp('GET /api/rooms - ' + error, 'error');
+          console.error('GET /api/rooms - ' + error);
         }
       })
-      .catch((error) => pp('GET /api/rooms - ' + error, 'error'));
+      .catch((error) => console.error('GET /api/rooms - ' + error));
   });
 
   test("It should return all claim codes and add a user's identity to the rooms the claim code is associated with", async () => {
@@ -172,10 +208,10 @@ describe('Endpoints', () => {
         try {
           expect(res.statusCode).toEqual(200);
         } catch (error) {
-          pp('GET /api/rooms/:idc - ' + error, 'error');
+          console.error('GET /api/rooms/:idc - ' + error);
         }
       })
-      .catch((error) => pp('GET /api/rooms/:idc - ' + error, 'error'));
+      .catch((error) => console.error('GET /api/rooms/:idc - ' + error));
   });
 
   test('It should send a message to all rooms', async () => {
@@ -192,7 +228,7 @@ describe('Endpoints', () => {
           expect(res.statusCode).toEqual(200);
           expect(res.body).toEqual({ message: 'Messages sent to all rooms' });
         } catch (error) {
-          pp('POST /admin/message - ' + error, 'error');
+          console.error('POST /admin/message - ' + error);
         }
       });
   });
@@ -205,26 +241,28 @@ describe('Endpoints', () => {
           expect(res.statusCode).toEqual(200);
           expect(res.body.length).toBeGreaterThan(0);
         } catch (error) {
-          pp('GET /api/messages/:roomId - ' + error, 'error');
+          console.error('GET /api/messages/:roomId - ' + error);
         }
       })
-      .catch((error) => pp('GET /api/messages/:roomId - ' + error, 'error'));
+      .catch((error) => console.error('GET /api/messages/:roomId - ' + error));
   });
-});
 
-describe('Messages', () => {
-  test('it should send and receive a message', async () => {
-    const room = await request(_app)
-      .get(`/api/room/444`)
-      .then((res) => {
-        try {
-          return res.body;
-        } catch (error) {
-          console.error(`GET /api/room/:roomId - + ${error}`);
-        }
-      })
-      .catch((error) => pp('GET /api/room/:roomId - ' + error, 'error'));
-    console.log(room);
-    expect(1).toBe(1);
+  describe('Messages', () => {
+    let testRoom: RoomI;
+
+    test('it should send and receive a message', async () => {
+      await request(_app)
+        .get(`/api/room/${CUSTOM_ID}`)
+        .then((res) => {
+          try {
+            testRoom = res.body as RoomI;
+          } catch (error) {
+            console.error(`GET /api/room/:roomId - + ${error}`);
+          }
+        })
+        .catch((error) => console.error('GET /api/room/:roomId - ' + error));
+      console.log('testRoom', testRoom);
+      expect(1).toBe(1);
+    });
   });
 });
