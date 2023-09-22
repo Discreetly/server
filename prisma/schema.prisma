@@ -30,6 +30,7 @@ model Rooms {
   claimCodes          ClaimCodes[] @relation(fields: [claimCodeIds], references: [id])
   claimCodeIds        String[]     @default([]) @db.ObjectId
   type                String       @default("PUBLIC")
+  discordIds          String[]     @default([])
 }
 
 model ClaimCodes {
@@ -43,7 +44,7 @@ model ClaimCodes {
 
 model Messages {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  messageId String // Internal Nullifier
+  messageId String   // Internal Nullifier
   message   String
   timeStamp DateTime @default(now())
   roomId    String
