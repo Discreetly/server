@@ -30,6 +30,7 @@ model Rooms {
   claimCodes          ClaimCodes[] @relation(fields: [claimCodeIds], references: [id])
   claimCodeIds        String[]     @default([]) @db.ObjectId
   type                String       @default("PUBLIC")
+  discordIds          String[]     @default([])
 }
 
 model ClaimCodes {
