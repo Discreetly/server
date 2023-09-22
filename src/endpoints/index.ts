@@ -516,7 +516,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         return;
       }
       res.status(200).json(room.discordIds);
-      return room.discordIds as string[];
+      return room.discordIds ;
     }).catch((err) => {
       console.error(err);
       res.status(500).json({ error: 'Internal Server Error' });
