@@ -81,7 +81,6 @@ export async function findRoomsByIdentity(identity: string): Promise<string[]> {
  * @param {string} code - The code to find.
  * @returns {Promise<ClaimCodeI | null>} - The claim code, if found.
  */
-
 export function findClaimCode(code: string): Promise<ClaimCodeI | null> {
   return prisma.claimCodes.findUnique({
     where: { claimcode: code }
