@@ -470,6 +470,59 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
+  app.post('/api/discord/add', adminAuth, (req, res) => {
+    const { discordUserId, roomId } = req.body as { discordUserId: string, roomId: string };
+    if (!discordUserId) {
+      res.status(400).json({ error: 'Bad Request' });
+      return;
+    }
+    prisma.rooms.updateMany({
+      where: {
+        roomId: roomId
+      },
+      data: {
+        discordIds: {
+          push: discordUserId
+        }
+      }
+    }).then(() => {
+      res.status(200).json({ message: 'Discord user added successfully' });
+      return true
+    }).catch((err) => {
+      console.error(err);
+      res.status(500).json({ error: 'Internal Server Error' });
+      return false;
+    }
+    );
+  })
+
+  app.post('/api/discord/users', adminAuth, (req, res) => {
+    const { roomId } = req.body as { roomId: string };
+    console.log(roomId);
+    if (!roomId) {
+      res.status(400).json({ error: 'Bad Request' });
+      return;
+    }
+    prisma.rooms.findUnique({
+      where: {
+        roomId: roomId
+      },
+      select: {
+        discordIds: true
+      }
+    }).then((room) => {
+      if (!room) {
+        res.status(404).json({ error: 'Room not found' });
+        return;
+      }
+      res.status(200).json(room.discordIds);
+      return room.discordIds ;
+    }).catch((err) => {
+      console.error(err);
+      res.status(500).json({ error: 'Internal Server Error' });
+    })
+  })
+
   /**
    * Sends system messages to the specified room, or all rooms if no room is specified
    * @params {string} message - The message to send
