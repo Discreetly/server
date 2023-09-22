@@ -16,6 +16,7 @@ import {
 } from '../data/db/';
 import { MessageI, RoomI } from 'discreetly-interfaces';
 import { RLNFullProof } from 'rlnjs';
+// import expressBasicAuth from 'express-basic-auth';
 
 const prisma = new PrismaClient();
 
@@ -201,6 +202,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     bandadaGroupId?: string;
     membershipType?: string;
     roomId?: string;
+    discordIds?: string[];
   }
 
   /* ~~~~ ADMIN ENDPOINTS ~~~~ */
@@ -216,6 +218,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    * @param {string} bandadaGroupId - The id of the Bandada group
    * @param {string} bandadaAPIKey - The API key of the Bandada group
    * @param {string} membershipType - The type of membership
+   * @param {string[]} discordIds - The ids of the discord users to add to the room
    * @returns {void}
    * @example {
    *          "roomName": "string",
@@ -243,6 +246,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     const bandadaAPIKey = roomMetadata.bandadaAPIKey;
     const membershipType = roomMetadata.membershipType;
     const roomId = roomMetadata.roomId;
+    const discordIds = roomMetadata.discordIds;
     createRoom(
       roomName,
       rateLimit,
@@ -254,9 +258,11 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       bandadaGroupId,
       bandadaAPIKey,
       membershipType,
-      roomId
+      roomId,
+      discordIds
     )
       .then((result) => {
+        console.log(result);
         if (result) {
           // TODO should return roomID and claim codes if they are generated
           res
@@ -275,8 +281,8 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   app.post(
     ['/room/:roomId/delete', '/api/room/:roomId/delete'],
     adminAuth,
-    (req, res) => {
-      const { roomId } = req.params;
+    (req: Request, res: Response) => {
+      const { roomId } = req.body as { roomId: string };
       removeRoom(roomId)
         .then((result) => {
           if (result) {

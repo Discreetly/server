@@ -17,7 +17,8 @@ const room = {
   userMessageLimit: 1,
   numClaimCodes: 0,
   approxNumMockUsers: 10,
-  type: 'PUBLIC_CHAT'
+  type: 'PUBLIC_CHAT',
+  discordIds: []
 };
 
 const messageTestRoom = {

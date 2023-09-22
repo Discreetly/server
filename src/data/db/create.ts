@@ -30,7 +30,8 @@ export async function createRoom(
   bandadaGroupId?: string,
   bandadaAPIKey?: string,
   membershipType?: string,
-  roomId?: string
+  roomId?: string,
+  discordIds: string[] = []
 ): Promise<string | undefined> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
   const mockUsers: string[] = genMockUsers(approxNumMockUsers);
@@ -46,25 +47,25 @@ export async function createRoom(
     create: {
       roomId: _roomId,
       name: roomName,
-      rateLimit: rateLimit,
+      banRateLimit: rateLimit,
       userMessageLimit: userMessageLimit,
       semaphoreIdentities: mockUsers,
       identities: identityCommitments,
-      type,
       bandadaAddress,
       bandadaGroupId,
       bandadaAPIKey,
       membershipType,
+      type,
+      discordIds,
       claimCodes: {
         create: claimCodes
       }
     }
   };
-
   return await prisma.rooms
     .upsert(roomData)
     .then(() => {
-      return roomId;
+      return _roomId;
     })
     .catch((err) => {
       console.error(err);
