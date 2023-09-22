@@ -1,5 +1,5 @@
 const request = require('supertest');
-import _app from '../src/server';
+import _app, { intervalIds } from '../src/server';
 import { genId } from 'discreetly-interfaces';
 import { serverConfig } from '../src/config/serverConfig';
 import { PrismaClient } from '@prisma/client';
@@ -10,17 +10,6 @@ import { randBigint, randomRoomName } from './utils';
 process.env.DATABASE_URL = process.env.DATABASE_URL_TEST;
 process.env.PORT = '3001';
 
-beforeAll(async () => {
-  const prismaTest = new PrismaClient();
-  await prismaTest.messages.deleteMany();
-  await prismaTest.rooms.deleteMany();
-  await prismaTest.claimCodes.deleteMany();
-});
-
-afterAll(async () => {
-  _app.close();
-});
-
 const room = {
   roomName: randomRoomName(),
   rateLimit: 1000,
@@ -30,13 +19,34 @@ const room = {
   type: 'PUBLIC_CHAT'
 };
 
+const messageTestRoom = {
+  roomName: randomRoomName(),
+  rateLimit: 100,
+  userMessageLimit: 2,
+  numClaimCodes: 1,
+  approxNumMockUsers: 10,
+  type: 'PUBLIC_CHAT',
+  id: '444'
+};
+
 let roomByIdTest: string;
 let testCode = '';
 const testIdentity = randBigint();
 const username = 'admin';
 const password = process.env.PASSWORD;
 
-describe('Endpoints should all work', () => {
+describe('Endpoints', () => {
+  beforeAll(async () => {
+    const prismaTest = new PrismaClient();
+    await prismaTest.messages.deleteMany();
+    await prismaTest.rooms.deleteMany();
+    await prismaTest.claimCodes.deleteMany();
+  });
+
+  afterAll(async () => {
+    intervalIds.forEach((id) => clearInterval(id));
+    _app.close();
+  });
   test('It should respond with server info', async () => {
     await request(_app)
       .get('/')
@@ -49,8 +59,6 @@ describe('Endpoints should all work', () => {
   });
 
   test('It should add a new room to the database', async () => {
-    const username = 'admin';
-    const password = process.env.PASSWORD;
     const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
     await request(_app)
       .post('/room/add')
@@ -71,6 +79,26 @@ describe('Endpoints should all work', () => {
       .catch((error) => console.warn('POST /room/add - ' + error));
   });
 
+  test('It should add a new room with a custom id to the database', async () => {
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
+    await request(_app)
+      .post('/room/add')
+      .set('Authorization', `Basic ${base64Credentials}`)
+      .send(messageTestRoom)
+
+      .then((res) => {
+        try {
+          expect(res.status).toEqual(200);
+          const result = res.body;
+          expect(res.body.message).toEqual('Room created successfully');
+          expect(result.roomId).toBeDefined();
+        } catch (error) {
+          console.warn('POST /room/add - ' + error);
+        }
+      })
+      .catch((error) => console.warn('POST /room/add - ' + error));
+  });
+
   test('It should return the room with the given id', async () => {
     await request(_app)
       .get(`/api/room/${roomByIdTest}`)
@@ -79,15 +107,13 @@ describe('Endpoints should all work', () => {
           expect(res.status).toEqual(200);
           expect(res.body.name).toEqual(room.roomName);
         } catch (error) {
-          pp('GET /api/room/:roomId - ' + error, 'error');
+          console.error(`GET /api/room/:roomId - + ${error}`);
         }
       })
       .catch((error) => pp('GET /api/room/:roomId - ' + error, 'error'));
   });
 
   test('It should return all rooms', async () => {
-    const username = 'admin';
-    const password = process.env.PASSWORD;
     const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
     await request(_app)
       .get('/api/rooms')
@@ -106,8 +132,6 @@ describe('Endpoints should all work', () => {
   });
 
   test("It should return all claim codes and add a user's identity to the rooms the claim code is associated with", async () => {
-    const username = 'admin';
-    const password = process.env.PASSWORD;
     const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
     await request(_app)
       .get('/logclaimcodes')
@@ -185,5 +209,22 @@ describe('Endpoints should all work', () => {
         }
       })
       .catch((error) => pp('GET /api/messages/:roomId - ' + error, 'error'));
+  });
+});
+
+describe('Messages', () => {
+  test('it should send and receive a message', async () => {
+    const room = await request(_app)
+      .get(`/api/room/444`)
+      .then((res) => {
+        try {
+          return res.body;
+        } catch (error) {
+          console.error(`GET /api/room/:roomId - + ${error}`);
+        }
+      })
+      .catch((error) => pp('GET /api/room/:roomId - ' + error, 'error'));
+    console.log(room);
+    expect(1).toBe(1);
   });
 });

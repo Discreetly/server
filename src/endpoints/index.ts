@@ -200,6 +200,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     bandadaAPIKey?: string;
     bandadaGroupId?: string;
     membershipType?: string;
+    roomId?: string;
   }
 
   /* ~~~~ ADMIN ENDPOINTS ~~~~ */
@@ -241,6 +242,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     const bandadaGroupId = roomMetadata.bandadaGroupId;
     const bandadaAPIKey = roomMetadata.bandadaAPIKey;
     const membershipType = roomMetadata.membershipType;
+    const roomId = roomMetadata.roomId;
     createRoom(
       roomName,
       rateLimit,
@@ -251,7 +253,8 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       bandadaAddress,
       bandadaGroupId,
       bandadaAPIKey,
-      membershipType
+      membershipType,
+      roomId
     )
       .then((result) => {
         if (result) {
@@ -488,17 +491,16 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
             });
           });
 
-          return Promise.all(createCodes);
-        })
-        .then(() => {
-          res.status(200).json({ message: 'Claim codes added successfully' });
-        })
-        .catch((err) => {
-          console.error(err);
-          res.status(500).json({ error: 'Internal Server Error' });
-        });
-    }
-  );
+        return Promise.all(createCodes);
+      })
+      .then(() => {
+        res.status(200).json({ message: 'Claim codes added successfully', codes });
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      });
+  });
 
   // This code fetches the claim codes from the database.
 

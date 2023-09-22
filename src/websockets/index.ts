@@ -7,7 +7,7 @@ import type { validateMessageResult } from '../data/messages';
 
 const userCount: Record<string, number> = {};
 
-export function websocketSetup(io: SocketIOServer) {
+export function websocketSetup(io: SocketIOServer): NodeJS.Timer {
   io.on('connection', (socket: Socket) => {
     pp('SocketIO: a user connected', 'debug');
 
@@ -47,7 +47,7 @@ export function websocketSetup(io: SocketIOServer) {
       io.to(roomID).emit('Members', userCount[roomID] ? userCount[roomID] : 0);
     });
   });
-  setInterval(() => {
+  return setInterval(() => {
     io.emit('TotalMembers', io.engine.clientsCount);
   }, 30000);
 }

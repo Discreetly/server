@@ -7,7 +7,7 @@ import { faker } from '@faker-js/faker';
 import { MessageI } from 'discreetly-interfaces';
 import { Server as SocketIOServer } from 'socket.io';
 
-export default function Mock(io: SocketIOServer) {
+export default function Mock(io: SocketIOServer): NodeJS.Timer {
   class randomMessagePicker {
     values: any[];
     weightSums: number[];
@@ -38,7 +38,7 @@ export default function Mock(io: SocketIOServer) {
   const weights = [1, 3, 2, 8];
   const picker = new randomMessagePicker(values, weights);
 
-  setInterval(() => {
+  return setInterval(() => {
     const message: MessageI = {
       id: faker.number.bigInt().toString(),
       roomId: BigInt(
