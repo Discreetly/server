@@ -9,10 +9,14 @@ const prisma = new PrismaClient();
  * @param {RoomI} room - The room to remove the identity from
  * @returns {Promise<void | RoomI>} - A promise that resolves to the room
  */
-export function removeIdentityFromRoom(idc: string, room: RoomI): Promise<void | RoomI> {
+export function removeIdentityFromRoom(
+  idc: string,
+  room: RoomI
+): Promise<void | RoomI> {
   const updateSemaphoreIdentities =
-    room.semaphoreIdentities?.map((identity) => (identity === idc ? '0' : (identity as string))) ??
-    [];
+    room.semaphoreIdentities?.map((identity) =>
+      identity === idc ? '0' : (identity as string)
+    ) ?? [];
 
   const rateCommitmentsToUpdate = getRateCommitmentHash(
     BigInt(idc),
@@ -40,12 +44,58 @@ export function removeIdentityFromRoom(idc: string, room: RoomI): Promise<void |
     });
 }
 
-export function removeRoom(roomId: string) {
-  console.warn('removeRoom not implemented', roomId);
-  //TODO removeRoom function
+/**
+ * This code removes a room from the database. It also removes any messages associated with that room.
+ * @param {string} roomId - The id of the room to remove
+ * @returns {Promise<boolean>} - A promise that resolves to true if the room was removed and false otherwise
+ * */
+
+export function removeRoom(roomId: string): Promise<boolean> {
+  return prisma.messages
+    .deleteMany({
+      where: {
+        roomId: roomId
+      }
+    })
+    .then(() => {
+      return prisma.rooms
+        .delete({
+          where: {
+            roomId: roomId
+          }
+        })
+        .then(() => true)
+        .catch((err) => {
+          console.error(err);
+          return false;
+        });
+    })
+    .catch((err) => {
+      console.error(err);
+      return false;
+    });
 }
 
+/**
+ * This function removes a message from the database. It takes in a roomId and a messageId, and uses them to find the message in the database. It then deletes the message from the database and returns true if the message was successfully deleted. If there is an error, it will return false.
+ * @param {string} roomId - The id of the room the message is in
+ * @param {string} messageId - The id of the message to remove
+ * @returns {Promise<boolean>} - A promise that resolves to true if the message was removed and false otherwise
+*/
+
 export function removeMessage(roomId: string, messageId: string) {
-  console.warn('removeMessage not implemented', roomId, messageId);
-  //TODO removeMessage function
+  return prisma.messages
+    .deleteMany({
+      where: {
+        roomId: roomId,
+        messageId: messageId
+      }
+    })
+    .then(() => {
+      return true;
+    })
+    .catch((err) => {
+      console.error(err);
+      return false;
+    });
 }
