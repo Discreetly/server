@@ -32,13 +32,17 @@ export async function createRoom(
   membershipType?: string,
   roomId?: string,
   discordIds: string[] = []
-): Promise<string | undefined> {
+): Promise<string | undefined | null> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
   const mockUsers: string[] = genMockUsers(approxNumMockUsers);
   const identityCommitments: string[] = mockUsers.map((user) =>
     getRateCommitmentHash(BigInt(user), BigInt(userMessageLimit)).toString()
   );
   const _roomId = roomId ? roomId : randomBigInt().toString();
+
+  const room = await prisma.rooms.findUnique({where: {roomId: _roomId}})
+  if (room) return null;
+
   const roomData = {
     where: {
       roomId: _roomId

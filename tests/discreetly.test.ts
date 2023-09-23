@@ -17,8 +17,7 @@ const room = {
   userMessageLimit: 1,
   numClaimCodes: 0,
   approxNumMockUsers: 10,
-  type: 'PUBLIC_CHAT',
-  discordIds: []
+  type: 'PUBLIC_CHAT'
 };
 
 const messageTestRoom = {
@@ -128,6 +127,7 @@ describe('Endpoints', () => {
 
       .then((res) => {
         try {
+          console.log(res.status);
           expect(res.status).toEqual(400);
           const result = res.body;
           console.warn(result);
@@ -266,7 +266,7 @@ describe('Endpoints', () => {
   describe('Messages', () => {
     let testRoom: RoomI;
 
-    test('it should send and receive a message', async () => {
+    test('It should send and receive a message', async () => {
       await request(_app)
         .get(`/api/room/${CUSTOM_ID}`)
         .then((res) => {
