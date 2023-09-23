@@ -186,6 +186,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     userMessageLimit: number;
     numClaimCodes?: number;
     approxNumMockUsers?: number;
+    adminIdentities?: string[];
     roomType?: string;
     bandadaAddress?: string;
     bandadaAPIKey?: string;
@@ -226,6 +227,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     const rateLimit = roomMetadata.rateLimit;
     const userMessageLimit = roomMetadata.userMessageLimit;
     const numClaimCodes = roomMetadata.numClaimCodes ?? 0;
+    const adminIdentities = roomMetadata.adminIdentities;
     const approxNumMockUsers = roomMetadata.approxNumMockUsers;
     const type = roomMetadata.roomType as unknown as string;
     const bandadaAddress = roomMetadata.bandadaAddress;
@@ -239,6 +241,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       numClaimCodes,
       approxNumMockUsers,
       type,
+      adminIdentities,
       bandadaAddress,
       bandadaGroupId,
       bandadaAPIKey,
