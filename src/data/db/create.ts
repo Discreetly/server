@@ -30,41 +30,46 @@ export async function createRoom(
   bandadaGroupId?: string,
   bandadaAPIKey?: string,
   membershipType?: string,
-  id?: string
-): Promise<string | undefined> {
+  roomId?: string,
+  discordIds: string[] = []
+): Promise<string | undefined | null> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
   const mockUsers: string[] = genMockUsers(approxNumMockUsers);
   const identityCommitments: string[] = mockUsers.map((user) =>
     getRateCommitmentHash(BigInt(user), BigInt(userMessageLimit)).toString()
   );
-  const roomId = id ? id : randomBigInt().toString();
+  const _roomId = roomId ? roomId : randomBigInt().toString();
+
+  const room = await prisma.rooms.findUnique({where: {roomId: _roomId}})
+  if (room) return null;
+
   const roomData = {
     where: {
-      roomId: roomId
+      roomId: _roomId
     },
     update: {},
     create: {
-      roomId: roomId,
+      roomId: _roomId,
       name: roomName,
-      rateLimit: rateLimit,
+      banRateLimit: rateLimit,
       userMessageLimit: userMessageLimit,
       semaphoreIdentities: mockUsers,
       identities: identityCommitments,
-      type,
       bandadaAddress,
       bandadaGroupId,
       bandadaAPIKey,
       membershipType,
+      type,
+      discordIds,
       claimCodes: {
         create: claimCodes
       }
     }
   };
-
   return await prisma.rooms
     .upsert(roomData)
     .then(() => {
-      return roomId;
+      return _roomId;
     })
     .catch((err) => {
       console.error(err);

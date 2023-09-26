@@ -16,6 +16,7 @@ import {
 } from '../data/db/';
 import { MessageI, RoomI } from 'discreetly-interfaces';
 import { RLNFullProof } from 'rlnjs';
+// import expressBasicAuth from 'express-basic-auth';
 
 const prisma = new PrismaClient();
 
@@ -201,6 +202,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     bandadaGroupId?: string;
     membershipType?: string;
     roomId?: string;
+    discordIds?: string[];
   }
 
   /* ~~~~ ADMIN ENDPOINTS ~~~~ */
@@ -216,6 +218,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    * @param {string} bandadaGroupId - The id of the Bandada group
    * @param {string} bandadaAPIKey - The API key of the Bandada group
    * @param {string} membershipType - The type of membership
+   * @param {string[]} discordIds - The ids of the discord users to add to the room
    * @returns {void}
    * @example {
    *          "roomName": "string",
@@ -243,6 +246,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     const bandadaAPIKey = roomMetadata.bandadaAPIKey;
     const membershipType = roomMetadata.membershipType;
     const roomId = roomMetadata.roomId;
+    const discordIds = roomMetadata.discordIds;
     createRoom(
       roomName,
       rateLimit,
@@ -254,17 +258,18 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       bandadaGroupId,
       bandadaAPIKey,
       membershipType,
-      roomId
+      roomId,
+      discordIds
     )
       .then((result) => {
-        if (result) {
-          // TODO should return roomID and claim codes if they are generated
-          res
-            .status(200)
-            .json({ message: 'Room created successfully', roomId: result });
-        } else {
-          res.status(500).json({ error: 'Internal Server Error' });
-        }
+        const response =
+          result === null
+            ? { status: 400, message: 'Room already exists' }
+            : result
+            ? { status: 200, message: 'Room created successfully', roomId: result }
+            : { status: 500, error: 'Internal Server Error' };
+
+        res.status(response.status).json(response);
       })
       .catch((err) => {
         console.error(err);
@@ -275,8 +280,8 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   app.post(
     ['/room/:roomId/delete', '/api/room/:roomId/delete'],
     adminAuth,
-    (req, res) => {
-      const { roomId } = req.params;
+    (req: Request, res: Response) => {
+      const { roomId } = req.body as { roomId: string };
       removeRoom(roomId)
         .then((result) => {
           if (result) {
@@ -292,23 +297,27 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     }
   );
 
-  app.post(['/room/:roomId/message/delete', '/api/room/:roomId/message/delete'], adminAuth, (req, res) => {
-    const { roomId } = req.params;
-    const { messageId } = req.body as { messageId: string };
+  app.post(
+    ['/room/:roomId/message/delete', '/api/room/:roomId/message/delete'],
+    adminAuth,
+    (req, res) => {
+      const { roomId } = req.params;
+      const { messageId } = req.body as { messageId: string };
 
-    removeMessage(roomId, messageId)
-      .then((result) => {
-        if (result) {
-          res.status(200).json({ message: 'Message deleted successfully' });
-        } else {
-          res.status(500).json({ error: 'Internal Server Error' });
-        }
-      })
-      .catch((err) => {
-        console.error(err);
-        res.status(500).json({ error: String(err) });
-      });
-  })
+      removeMessage(roomId, messageId)
+        .then((result) => {
+          if (result) {
+            res.status(200).json({ message: 'Message deleted successfully' });
+          } else {
+            res.status(500).json({ error: 'Internal Server Error' });
+          }
+        })
+        .catch((err) => {
+          console.error(err);
+          res.status(500).json({ error: String(err) });
+        });
+    }
+  );
 
   /*
   This code handles the get request to get a list of messages for a particular room.
@@ -491,16 +500,19 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
             });
           });
 
-        return Promise.all(createCodes);
-      })
-      .then(() => {
-        res.status(200).json({ message: 'Claim codes added successfully', codes });
-      })
-      .catch((err) => {
-        console.error(err);
-        res.status(500).json({ error: 'Internal Server Error' });
-      });
-  });
+          return Promise.all(createCodes);
+        })
+        .then(() => {
+          res
+            .status(200)
+            .json({ message: 'Claim codes added successfully', codes });
+        })
+        .catch((err) => {
+          console.error(err);
+          res.status(500).json({ error: 'Internal Server Error' });
+        });
+    }
+  );
 
   // This code fetches the claim codes from the database.
 
@@ -532,30 +544,35 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   });
 
   app.post('/api/discord/add', adminAuth, (req, res) => {
-    const { discordUserId, roomId } = req.body as { discordUserId: string, roomId: string };
+    const { discordUserId, roomId } = req.body as {
+      discordUserId: string;
+      roomId: string;
+    };
     if (!discordUserId) {
       res.status(400).json({ error: 'Bad Request' });
       return;
     }
-    prisma.rooms.updateMany({
-      where: {
-        roomId: roomId
-      },
-      data: {
-        discordIds: {
-          push: discordUserId
+    prisma.rooms
+      .updateMany({
+        where: {
+          roomId: roomId
+        },
+        data: {
+          discordIds: {
+            push: discordUserId
+          }
         }
-      }
-    }).then(() => {
-      res.status(200).json({ message: 'Discord user added successfully' });
-      return true
-    }).catch((err) => {
-      console.error(err);
-      res.status(500).json({ error: 'Internal Server Error' });
-      return false;
-    }
-    );
-  })
+      })
+      .then(() => {
+        res.status(200).json({ message: 'Discord user added successfully' });
+        return true;
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+        return false;
+      });
+  });
 
   app.post('/api/discord/users', adminAuth, (req, res) => {
     const { roomId } = req.body as { roomId: string };
@@ -564,25 +581,28 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       res.status(400).json({ error: 'Bad Request' });
       return;
     }
-    prisma.rooms.findUnique({
-      where: {
-        roomId: roomId
-      },
-      select: {
-        discordIds: true
-      }
-    }).then((room) => {
-      if (!room) {
-        res.status(404).json({ error: 'Room not found' });
-        return;
-      }
-      res.status(200).json(room.discordIds);
-      return room.discordIds ;
-    }).catch((err) => {
-      console.error(err);
-      res.status(500).json({ error: 'Internal Server Error' });
-    })
-  })
+    prisma.rooms
+      .findUnique({
+        where: {
+          roomId: roomId
+        },
+        select: {
+          discordIds: true
+        }
+      })
+      .then((room) => {
+        if (!room) {
+          res.status(404).json({ error: 'Room not found' });
+          return;
+        }
+        res.status(200).json(room.discordIds);
+        return room.discordIds;
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      });
+  });
 
   /**
    * Sends system messages to the specified room, or all rooms if no room is specified
