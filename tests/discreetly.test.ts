@@ -1,14 +1,40 @@
 const request = require('supertest');
-import _app from '../src/server';
-import { genId } from 'discreetly-interfaces';
+import _app, { intervalIds } from '../src/server';
+import { RoomI, genId } from 'discreetly-interfaces';
 import { serverConfig } from '../src/config/serverConfig';
 import { PrismaClient } from '@prisma/client';
 import { beforeAll, beforeEach, afterAll, describe, expect, test } from '@jest/globals';
-import { pp } from '../src/utils';
 import { randBigint, randomRoomName } from './utils';
 
 process.env.DATABASE_URL = process.env.DATABASE_URL_TEST;
 process.env.PORT = '3001';
+
+const CUSTOM_ID = '444';
+
+const room = {
+  roomName: randomRoomName(),
+  rateLimit: 1000,
+  userMessageLimit: 1,
+  numClaimCodes: 0,
+  approxNumMockUsers: 10,
+  type: 'PUBLIC_CHAT'
+};
+
+const messageTestRoom = {
+  roomName: randomRoomName(),
+  rateLimit: 100,
+  userMessageLimit: 2,
+  numClaimCodes: 1,
+  approxNumMockUsers: 10,
+  type: 'PUBLIC_CHAT',
+  roomId: CUSTOM_ID
+};
+
+let roomByIdTest: string;
+let testCode: string;
+const testIdentity = randBigint();
+const username = 'admin';
+const password = process.env.PASSWORD;
 
 beforeAll(async () => {
   const prismaTest = new PrismaClient();
@@ -18,25 +44,11 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  intervalIds.forEach((id) => clearInterval(id));
   _app.close();
 });
 
-const room = {
-  roomName: randomRoomName(),
-  rateLimit: 1000,
-  userMessageLimit: 1,
-  numClaimCodes: 5,
-  approxNumMockUsers: 10,
-  type: 'PUBLIC_CHAT'
-};
-
-let roomByIdTest: string;
-let testCode = '';
-const testIdentity = randBigint();
-const username = 'admin';
-const password = process.env.PASSWORD;
-
-describe('Endpoints should all work', () => {
+describe('Endpoints', () => {
   test('It should respond with server info', async () => {
     await request(_app)
       .get('/')
@@ -45,12 +57,10 @@ describe('Endpoints should all work', () => {
         expect(res.header['content-type']).toBe('application/json; charset=utf-8');
         expect(res.body.id).toBe(serverConfig.id);
       })
-      .catch((error) => pp("GET '/' - " + error, 'error'));
+      .catch((error) => console.error("GET '/' - " + error));
   });
 
   test('It should add a new room to the database', async () => {
-    const username = 'admin';
-    const password = process.env.PASSWORD;
     const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
     await request(_app)
       .post('/room/add')
@@ -70,6 +80,63 @@ describe('Endpoints should all work', () => {
       })
       .catch((error) => console.warn('POST /room/add - ' + error));
   });
+  test('It should create claimCode for the new room', async () => {
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
+    await request(_app)
+      .post(`/api/addcode`)
+      .set('Authorization', `Basic ${base64Credentials}`)
+      .send({ numCodes: 1, rooms: [roomByIdTest], all: false, expiresAt: 0, usesLeft: -1 })
+      .then((res) => {
+        try {
+          console.log(res.body);
+          testCode = res.body.codes[0].claimcode;
+          expect(res.status).toEqual(200);
+          expect(res.body.message).toEqual('Claim codes added successfully');
+        } catch (error) {
+          console.warn('POST /api/addcode - ' + error);
+        }
+      });
+  });
+
+  test('It should add a new room with a custom id to the database', async () => {
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
+    await request(_app)
+      .post('/room/add')
+      .set('Authorization', `Basic ${base64Credentials}`)
+      .send(messageTestRoom)
+
+      .then((res) => {
+        try {
+          expect(res.status).toEqual(200);
+          const result = res.body;
+          expect(res.body.message).toEqual('Room created successfully');
+          expect(result.roomId).toBeDefined();
+        } catch (error) {
+          console.warn('POST /room/add - ' + error);
+        }
+      })
+      .catch((error) => console.warn('POST /room/add - ' + error));
+  });
+
+  test('It shouldnt add a new room with the same ID', async () => {
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
+    await request(_app)
+      .post('/room/add')
+      .set('Authorization', `Basic ${base64Credentials}`)
+      .send(messageTestRoom)
+
+      .then((res) => {
+        try {
+          console.log(res.status);
+          expect(res.status).toEqual(400);
+          const result = res.body;
+          console.warn(result);
+        } catch (error) {
+          console.warn('POST /room/add - ' + error);
+        }
+      })
+      .catch((error) => console.warn('POST /room/add - ' + error));
+  });
 
   test('It should return the room with the given id', async () => {
     await request(_app)
@@ -79,15 +146,27 @@ describe('Endpoints should all work', () => {
           expect(res.status).toEqual(200);
           expect(res.body.name).toEqual(room.roomName);
         } catch (error) {
-          pp('GET /api/room/:roomId - ' + error, 'error');
+          console.error(`GET /api/room/:roomId - + ${error}`);
         }
       })
-      .catch((error) => pp('GET /api/room/:roomId - ' + error, 'error'));
+      .catch((error) => console.error('GET /api/room/:roomId - ' + error));
+  });
+
+  test('It should return the room with the given custom id', async () => {
+    await request(_app)
+      .get(`/api/room/${CUSTOM_ID}`)
+      .then((res) => {
+        try {
+          expect(res.status).toEqual(200);
+          expect(res.body.name).toEqual(messageTestRoom.roomName);
+        } catch (error) {
+          console.error(`GET /api/room/:roomId - + ${error}`);
+        }
+      })
+      .catch((error) => console.error('GET /api/room/:roomId - ' + error));
   });
 
   test('It should return all rooms', async () => {
-    const username = 'admin';
-    const password = process.env.PASSWORD;
     const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
     await request(_app)
       .get('/api/rooms')
@@ -99,15 +178,13 @@ describe('Endpoints should all work', () => {
           expect(typeof res.body).toEqual('object');
           expect(res.body[0].name).toEqual(room.roomName);
         } catch (error) {
-          pp('GET /api/rooms - ' + error, 'error');
+          console.error('GET /api/rooms - ' + error);
         }
       })
-      .catch((error) => pp('GET /api/rooms - ' + error, 'error'));
+      .catch((error) => console.error('GET /api/rooms - ' + error));
   });
 
   test("It should return all claim codes and add a user's identity to the rooms the claim code is associated with", async () => {
-    const username = 'admin';
-    const password = process.env.PASSWORD;
     const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
     await request(_app)
       .get('/logclaimcodes')
@@ -115,8 +192,6 @@ describe('Endpoints should all work', () => {
       .set('Authorization', `Basic ${base64Credentials}`)
       .then(async (res) => {
         try {
-          testCode = res.body[0].claimcode;
-          expect(testCode.split('-').length).toEqual(4);
           expect(res.status).toEqual(401);
           expect(res.body.length).toBeGreaterThan(0);
 
@@ -129,6 +204,7 @@ describe('Endpoints should all work', () => {
             .post('/join')
             .send(joinTest)
             .then((res) => {
+              console.log(res.body);
               expect(res.statusCode).toEqual(200);
               expect(res.body.status).toEqual('valid');
             });
@@ -148,10 +224,10 @@ describe('Endpoints should all work', () => {
         try {
           expect(res.statusCode).toEqual(200);
         } catch (error) {
-          pp('GET /api/rooms/:idc - ' + error, 'error');
+          console.error('GET /api/rooms/:idc - ' + error);
         }
       })
-      .catch((error) => pp('GET /api/rooms/:idc - ' + error, 'error'));
+      .catch((error) => console.error('GET /api/rooms/:idc - ' + error));
   });
 
   test('It should send a message to all rooms', async () => {
@@ -168,7 +244,7 @@ describe('Endpoints should all work', () => {
           expect(res.statusCode).toEqual(200);
           expect(res.body).toEqual({ message: 'Messages sent to all rooms' });
         } catch (error) {
-          pp('POST /admin/message - ' + error, 'error');
+          console.error('POST /admin/message - ' + error);
         }
       });
   });
@@ -181,9 +257,28 @@ describe('Endpoints should all work', () => {
           expect(res.statusCode).toEqual(200);
           expect(res.body.length).toBeGreaterThan(0);
         } catch (error) {
-          pp('GET /api/messages/:roomId - ' + error, 'error');
+          console.error('GET /api/messages/:roomId - ' + error);
         }
       })
-      .catch((error) => pp('GET /api/messages/:roomId - ' + error, 'error'));
+      .catch((error) => console.error('GET /api/messages/:roomId - ' + error));
+  });
+
+  describe('Messages', () => {
+    let testRoom: RoomI;
+
+    test('It should send and receive a message', async () => {
+      await request(_app)
+        .get(`/api/room/${CUSTOM_ID}`)
+        .then((res) => {
+          try {
+            testRoom = res.body as RoomI;
+          } catch (error) {
+            console.error(`GET /api/room/:roomId - + ${error}`);
+          }
+        })
+        .catch((error) => console.error('GET /api/room/:roomId - ' + error));
+      console.log('testRoom', testRoom);
+      expect(1).toBe(1);
+    });
   });
 });

@@ -30,42 +30,48 @@ export async function createRoom(
   bandadaAddress?: string,
   bandadaGroupId?: string,
   bandadaAPIKey?: string,
-  membershipType?: string
-): Promise<{ roomId: string ; claimCodes: { claimcode: string }[] } | undefined> {
+  membershipType?: string,
+  roomId?: string,
+  discordIds: string[] = []
+): Promise<{ roomId: string ; claimCodes: { claimcode: string }[] } | undefined | null> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
   const mockUsers: string[] = genMockUsers(approxNumMockUsers);
   const identityCommitments: string[] = mockUsers.map((user) =>
     getRateCommitmentHash(BigInt(user), BigInt(userMessageLimit)).toString()
   );
-  const roomIdFromRandom = randomBigInt().toString();
+  const _roomId = roomId ? roomId : randomBigInt().toString();
+
+  const room = await prisma.rooms.findUnique({where: {roomId: _roomId}})
+  if (room) return null;
+
   const roomData = {
     where: {
-      roomId: roomIdFromRandom
+      roomId: _roomId
     },
     update: {},
     create: {
-      roomId: roomIdFromRandom,
+      roomId: _roomId,
       name: roomName,
-      rateLimit: rateLimit,
+      banRateLimit: rateLimit,
       userMessageLimit: userMessageLimit,
       adminIdentities: adminIdentities,
       semaphoreIdentities: mockUsers,
       identities: identityCommitments,
-      type,
       bandadaAddress,
       bandadaGroupId,
       bandadaAPIKey,
       membershipType,
+      type,
+      discordIds,
       claimCodes: {
         create: claimCodes
       }
     }
   };
-
   return await prisma.rooms
     .upsert(roomData)
     .then(() => {
-      return {roomId: roomIdFromRandom, claimCodes};
+      return {roomId: _roomId, claimCodes};
     })
     .catch((err) => {
       console.error(err);
