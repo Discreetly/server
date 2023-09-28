@@ -31,7 +31,7 @@ export async function createRoom(
   bandadaGroupId?: string,
   bandadaAPIKey?: string,
   membershipType?: string
-): Promise<string | undefined> {
+): Promise<{ roomId: string ; claimCodes: { claimcode: string }[] } | undefined> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
   const mockUsers: string[] = genMockUsers(approxNumMockUsers);
   const identityCommitments: string[] = mockUsers.map((user) =>
@@ -65,7 +65,7 @@ export async function createRoom(
   return await prisma.rooms
     .upsert(roomData)
     .then(() => {
-      return roomIdFromRandom;
+      return {roomId: roomIdFromRandom, claimCodes};
     })
     .catch((err) => {
       console.error(err);
