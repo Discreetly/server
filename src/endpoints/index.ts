@@ -203,6 +203,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     bandadaGroupId?: string;
     membershipType?: string;
     roomId?: string;
+    admin?: boolean;
     discordIds?: string[];
   }
 
@@ -214,11 +215,13 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    * @param {number} userMessageLimit - The user message limit of the room
    * @param {number} numClaimCodes - The number of claim codes to generate
    * @param {number} approxNumMockUsers - The approximate number of mock users to generate
+   * @param {string[]} adminIdentities - The identities of the admins of the room
    * @param {string} type - The type of room
    * @param {string} bandadaAddress - The address of the Bandada group
    * @param {string} bandadaGroupId - The id of the Bandada group
    * @param {string} bandadaAPIKey - The API key of the Bandada group
    * @param {string} membershipType - The type of membership
+   * @param {string} roomId - The id of the room
    * @param {string[]} discordIds - The ids of the discord users to add to the room
    * @returns {void}
    * @example {
@@ -227,11 +230,14 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    *          "userMessageLimit": number,
    *          "numClaimCodes": number,      // optional
    *          "approxNumMockUsers": number, // optional
+   *          "adminIdentities": string[],  // optional
    *          "roomType": "string",         // optional
    *          "bandadaAddress": "string",   // optional
    *          "bandadaGroupId": "string",   // optional
    *          "bandadaAPIKey": "string",    // optional
-   *          "membershipType": "string"      // optional if not an IDENTITY_LIST
+   *          "membershipType": "string"    // optional if not an IDENTITY_LIST
+   *          "roomId": "string",           // optional
+   *          "discordIds": string[]        // optional
    *          }
    */
   app.post(['/room/add', '/api/room/add'], adminAuth, (req, res) => {
@@ -285,7 +291,17 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
-  app.post(
+  /**
+   * This code is used to delete a room from the database.
+   *  It takes in the roomId from the request body, and pass it to the removeRoom function.
+   *  If removeRoom returns true, it means the room is deleted successfully, and the server returns a 200 status code.
+   *  If removeRoom returns false, the server returns a 500 status code.
+   *  If removeRoom throws an error, the server returns a 500 status code.
+   * @param {string} roomId - The id of the room to be deleted
+   * @returns {void}
+   *  */
+
+app.post(
     ['/room/:roomId/delete', '/api/room/:roomId/delete'],
     adminAuth,
     (req: Request, res: Response) => {
@@ -305,7 +321,18 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     }
   );
 
-  app.post(
+  /**
+   * This code deletes a message from a room
+   * It takes in the roomId and messageId from the request body, and pass it to the removeMessage function.
+   * If removeMessage returns true, it means the message is deleted successfully, and the server returns a 200 status code.
+   * If removeMessage returns false, the server returns a 500 status code.
+   * If removeMessage throws an error, the server returns a 500 status code.
+   * @param {string} roomId - The id of the room to be deleted
+   * @param {string} messageId - The id of the message to be deleted
+   * @returns {void}
+   * */
+
+app.post(
     ['/room/:roomId/message/delete', '/api/room/:roomId/message/delete'],
     adminAuth,
     (req, res) => {
@@ -327,10 +354,12 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     }
   );
 
-  /*
-  This code handles the get request to get a list of messages for a particular room.
-   It uses the Prisma client to query the database and return the messages for a particular room.
-    It also parses the proof from a string to a JSON object.
+  /**
+  * This code handles the get request to get a list of messages for a particular room.
+  * It uses the Prisma client to query the database and return the messages for a particular room.
+  * It also parses the proof from a string to a JSON object.
+  * @param {string} id - The id of the room to get messages for
+  * @returns {void}
 */
   app.get('/api/room/:id/messages', (req, res) => {
     const { id } = req.params;
@@ -378,11 +407,15 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    * @param {number} numCodes - The number of codes to add to the room
    * @param {string[]} rooms - The ids of the rooms to add codes to
    * @param {boolean} all - Whether to add codes to all rooms or just the selected ones
+   * @param {number} expiresAt - The date the codes expire - if not specified, defaults to 3 months from now
+   * @param {number} usesLeft - The number of uses left for the codes - if not specified, defaults to -1 (unlimited)
    * @returns {void}
    * @example {
    *          "numCodes": number,
-   *          "rooms": string[],  // optional
-   *          "all": boolean
+   *          "rooms": string[],
+   *          "all": boolean,
+   *          "expiresAt": number, // optional
+   *          "usesLeft": number   // optional
    *          }
    */
   app.post(
@@ -457,6 +490,8 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    * Adds claim codes to a room
    *
    * @param {number} numCodes The number of codes to add to the room
+   * @param {number} expires The date the codes expire - if not specified, defaults to 3 months from now
+   * @param {number} usesLeft The number of uses left for the codes - if not specified, defaults to -1 (unlimited)
    * @param {string} roomId The id of the room to add codes to
    * @returns {void}
    * @example {
@@ -616,7 +651,12 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
 
   /*---------------------DISCORD BOT APIS ---------------------*/
 
-  app.post('/api/discord/addguild', adminAuth, (req, res) => {
+  /**
+   * Creates a new guild in the database when the bot is added to a discord server.
+  * @param {string} guildId - The id of the guild to be added
+  * @returns {void}
+  */
+app.post('/api/discord/addguild', adminAuth, (req, res) => {
     const { guildId } = req.body as {
       guildId: string;
     };
@@ -644,8 +684,16 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         return false;
       });
   });
+  /**
+   *  This code creates a new role-room mapping in the database if one does not already exist,
+   *  otherwise it updates the mapping with the new roles.
+   * @param {string[]} roles - The roles to be added to the room
+   * @param {string} roomId - The id of the room to be added
+   * @param {string} guildId - The id of the guild to be added
+   * @returns {void}
+   */
 
-  app.post('/api/discord/addrole', adminAuth, (req, res) => {
+app.post('/api/discord/addrole', adminAuth, (req, res) => {
     const { roles, roomId, guildId } = req.body as {
       roles: string[];
       roomId: string;
@@ -684,7 +732,16 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
-  app.post('/api/discord/getrooms', adminAuth, (req, res) => {
+  /**
+   * This code takes the roleId from the request body and tries to find all the rooms that have that role mapped to it.
+   *  If it finds any, it returns them as a list in the response body.
+   * If it doesn't find any, it returns a 404 error.
+   * If it throws an error, it returns a 500 error.
+   * @param {string} roleId - The id of the role to be added
+   * @returns {string[]} - An array of room ids
+   *  */
+
+app.post('/api/discord/getrooms', adminAuth, (req, res) => {
     const { roleId } = req.body as { roleId: string };
     if (!roleId) {
       res.status(400).json({ error: 'Bad Request' });
@@ -711,7 +768,15 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
-  app.post('/api/discord/users', adminAuth, (req, res) => {
+/**
+  * # This code returns a list of all the discord IDs in a room.
+  * It uses the Discord IDs as a unique identifier for the room.
+  * It also uses adminAuth to ensure that only admins can access this information.
+  * @param {string} roomId - The id of the room to get the discord IDs for
+  * @returns {string} - The discordId found
+ */
+
+app.post('/api/discord/users', adminAuth, (req, res) => {
     const { roomId } = req.body as { roomId: string };
     console.log(roomId);
     if (!roomId) {
@@ -741,7 +806,13 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
-  app.post('/api/discord/rooms', adminAuth, (req, res) => {
+/**
+ * This endpoint takes a discord user id and returns all rooms that the user is a part of.
+ * @param {string} discordUserId - The id of the discord user to get rooms for
+ * @returns {string[]} - An array of rooms that the user is a part of
+ */
+
+app.post('/api/discord/rooms', adminAuth, (req, res) => {
     const { discordUserId } = req.body as { discordUserId: string };
     prisma.rooms
       .findMany({
@@ -767,7 +838,18 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
-  app.post('/api/discord/add', adminAuth, (req, res) => {
+/**
+ * This code adds a discord user to a room.
+ *  It receives the discord id and room id from the body of the request,
+ *  and updates the room in the database with the new discord id.
+ * If it is successful, it returns a 200 status code.
+ * If it fails, it returns a 500 status code.
+ * @param {string} discordUserId - The id of the discord user to add
+ * @param {string} roomId - The id of the room to add the user to
+ * @returns {boolean} - True if successful, false if not
+ */
+
+app.post('/api/discord/add', adminAuth, (req, res) => {
     const { discordUserId, roomId } = req.body as {
       discordUserId: string;
       roomId: string;
@@ -797,8 +879,13 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         return false;
       });
   });
+/**
+ * This endpoint gets all the rooms that a user is allowed to access based on their discordId.
+ * @params {string} discordId - The id of the discord user to get rooms for
+ * @returns {string[]} - An array of rooms that the user is a part of
+ */
 
-  app.post('/api/discord/checkrooms', adminAuth, (req, res) => {
+app.post('/api/discord/checkrooms', adminAuth, (req, res) => {
     const { discordId } = req.body as { discordId: string };
     prisma.roleRoomMapping.findMany({
       where: {
