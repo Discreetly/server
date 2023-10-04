@@ -269,7 +269,12 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
           result === null
             ? { status: 400, message: 'Room already exists' }
             : result
-            ? { status: 200, message: 'Room created successfully', roomId: result.roomId, claimCodes: result.claimCodes }
+            ? {
+                status: 200,
+                message: 'Room created successfully',
+                roomId: result.roomId,
+                claimCodes: result.claimCodes
+              }
             : { status: 500, error: 'Internal Server Error' };
 
         res.status(response.status).json(response);
@@ -410,7 +415,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
                 claimcode: code.claimcode,
                 roomIds: roomIds,
                 expiresAt: codeExpires,
-                usesLeft: usesLeft
+                usesLeft: usesLeft,
               }
             })
             .then((newCode) => {
@@ -546,66 +551,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
-  app.post('/api/discord/add', adminAuth, (req, res) => {
-    const { discordUserId, roomId } = req.body as {
-      discordUserId: string;
-      roomId: string;
-    };
-    if (!discordUserId) {
-      res.status(400).json({ error: 'Bad Request' });
-      return;
-    }
-    prisma.rooms
-      .updateMany({
-        where: {
-          roomId: roomId
-        },
-        data: {
-          discordIds: {
-            push: discordUserId
-          }
-        }
-      })
-      .then(() => {
-        res.status(200).json({ message: 'Discord user added successfully' });
-        return true;
-      })
-      .catch((err) => {
-        console.error(err);
-        res.status(500).json({ error: 'Internal Server Error' });
-        return false;
-      });
-  });
 
-  app.post('/api/discord/users', adminAuth, (req, res) => {
-    const { roomId } = req.body as { roomId: string };
-    console.log(roomId);
-    if (!roomId) {
-      res.status(400).json({ error: 'Bad Request' });
-      return;
-    }
-    prisma.rooms
-      .findUnique({
-        where: {
-          roomId: roomId
-        },
-        select: {
-          discordIds: true
-        }
-      })
-      .then((room) => {
-        if (!room) {
-          res.status(404).json({ error: 'Room not found' });
-          return;
-        }
-        res.status(200).json(room.discordIds);
-        return room.discordIds;
-      })
-      .catch((err) => {
-        console.error(err);
-        res.status(500).json({ error: 'Internal Server Error' });
-      });
-  });
 
   /**
    * Sends system messages to the specified room, or all rooms if no room is specified
@@ -667,4 +613,203 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       }
     })
   );
+
+  /*---------------------DISCORD BOT APIS ---------------------*/
+
+  app.post('/api/discord/addguild', adminAuth, (req, res) => {
+    const { guildId } = req.body as {
+      guildId: string;
+    };
+    if (!guildId) {
+      res.status(400).json({ error: 'Bad Request' });
+      return;
+    }
+    prisma.discord
+      .upsert({
+        where: {
+          discordId: guildId
+        },
+        update: {},
+        create: {
+          discordId: guildId
+        }
+      })
+      .then(() => {
+        res.status(200).json({ message: 'Discord guild added successfully' });
+        return true;
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+        return false;
+      });
+  });
+
+  app.post('/api/discord/addrole', adminAuth, (req, res) => {
+    const { roles, roomId, guildId } = req.body as {
+      roles: string[];
+      roomId: string;
+      guildId: string;
+    };
+    if (!roles || !roomId || !guildId) {
+      res.status(400).json({ error: 'Bad Request' });
+      return;
+    }
+    prisma.roleRoomMapping
+      .upsert({
+        where: {
+          roomId: roomId
+        },
+        update: {
+          roles: {
+            set: roles
+          }
+        },
+        create: {
+          roomId: roomId,
+          discordId: guildId,
+          roles: {
+            set: roles
+          }
+        }
+      })
+      .then(() => {
+        res.status(200).json({ message: 'Discord roles added successfully' });
+        return true;
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+        return false;
+      });
+  });
+
+  app.post('/api/discord/getrooms', adminAuth, (req, res) => {
+    const { roleId } = req.body as { roleId: string };
+    if (!roleId) {
+      res.status(400).json({ error: 'Bad Request' });
+      return;
+    }
+    prisma.roleRoomMapping
+      .findMany({
+        where: {
+          roles: {
+            has: roleId
+          }
+        },
+        select: {
+          roomId: true
+        }
+      })
+      .then((rooms) => {
+        res.status(200).json(rooms);
+        return rooms;
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      });
+  });
+
+  app.post('/api/discord/users', adminAuth, (req, res) => {
+    const { roomId } = req.body as { roomId: string };
+    console.log(roomId);
+    if (!roomId) {
+      res.status(400).json({ error: 'Bad Request' });
+      return;
+    }
+    prisma.rooms
+      .findUnique({
+        where: {
+          roomId: roomId
+        },
+        select: {
+          discordIds: true
+        }
+      })
+      .then((room) => {
+        if (!room) {
+          res.status(404).json({ error: 'Room not found' });
+          return;
+        }
+        res.status(200).json(room.discordIds);
+        return room.discordIds;
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      });
+  });
+
+  app.post('/api/discord/rooms', adminAuth, (req, res) => {
+    const { discordUserId } = req.body as { discordUserId: string };
+    prisma.rooms
+      .findMany({
+        where: {
+          discordIds: {
+            has: discordUserId
+          }
+        },
+        select: {
+          name: true,
+          roomId: true,
+          adminIdentities: true,
+          discordIds: true
+        }
+      })
+      .then((rooms) => {
+        res.status(200).json(rooms);
+        return rooms;
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      });
+  });
+
+  app.post('/api/discord/add', adminAuth, (req, res) => {
+    const { discordUserId, roomId } = req.body as {
+      discordUserId: string;
+      roomId: string;
+    };
+    if (!discordUserId) {
+      res.status(400).json({ error: 'Bad Request' });
+      return;
+    }
+    prisma.rooms
+      .updateMany({
+        where: {
+          roomId: roomId
+        },
+        data: {
+          discordIds: {
+            push: discordUserId
+          }
+        }
+      })
+      .then(() => {
+        res.status(200).json({ message: 'Discord user added successfully' });
+        return true;
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+        return false;
+      });
+  });
+
+  app.post('/api/discord/checkrooms', adminAuth, (req, res) => {
+    const { discordId } = req.body as { discordId: string };
+    prisma.roleRoomMapping.findMany({
+      where: {
+        discordId: discordId
+      }
+      }).then((rooms) => {
+        res.status(200).json(rooms);
+        return rooms;
+      }).catch(err => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      })
+    })
 }

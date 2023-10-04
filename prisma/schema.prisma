@@ -44,7 +44,7 @@ model ClaimCodes {
 
 model Messages {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  messageId String   // Internal Nullifier
+  messageId String // Internal Nullifier
   message   String
   timeStamp DateTime @default(now())
   roomId    String
@@ -60,4 +60,19 @@ model Epoch {
   messages Messages[]
   rooms    Rooms?     @relation(fields: [roomsId], references: [id])
   roomsId  String?    @db.ObjectId
+}
+
+model Discord {
+  id           String            @id @default(auto()) @map("_id") @db.ObjectId
+  discordId    String            @unique
+  admins       String[]          @default([])
+  roomsMapping RoleRoomMapping[]
+}
+
+model RoleRoomMapping {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  discordId String
+  roomId    String   @unique
+  roles     String[]
+  discord   Discord  @relation(fields: [discordId], references: [discordId])
 }
