@@ -14,9 +14,9 @@ model Rooms {
   id                  String       @id @default(auto()) @map("_id") @db.ObjectId
   roomId              String       @unique
   name                String
-  rateLimit           Int          @default(1000) // epoch length in ms
+  rateLimit           Int          @default(10000) // epoch length in ms
   banRateLimit        Int          @default(1000000) // starting number of epochs banned for
-  userMessageLimit    Int          @default(1) // per epoch
+  userMessageLimit    Int          @default(12) // per epoch
   membershipType      String       @default("IDENTITY_LIST")
   adminIdentities     String[]     @default([])
   identities          String[]     @default([])
