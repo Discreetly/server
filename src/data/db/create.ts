@@ -21,10 +21,10 @@ const prisma = new PrismaClient();
  */
 export async function createRoom(
   roomName: string,
-  rateLimit = 1000,
-  userMessageLimit = 1,
+  rateLimit = 100000,
+  userMessageLimit = 12,
   numClaimCodes = 0,
-  approxNumMockUsers = 20,
+  approxNumMockUsers = 5,
   type: string,
   adminIdentities?: string[],
   bandadaAddress?: string,
