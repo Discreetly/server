@@ -16,6 +16,7 @@ import {
 } from '../data/db/';
 import { MessageI, RoomI } from 'discreetly-interfaces';
 import { RLNFullProof } from 'rlnjs';
+// import expressBasicAuth from 'express-basic-auth';
 
 const prisma = new PrismaClient();
 
@@ -97,7 +98,6 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    * @param {string} idc - The id of the identity to get rooms for.
    * @returns {Array} - An array of room objects.
    */
-
   app.get(
     ['/rooms/:idc', '/api/rooms/:idc'],
     asyncHandler(async (req: Request, res: Response) => {
@@ -194,6 +194,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     bandadaGroupId?: string;
     membershipType?: string;
     roomId?: string;
+    discordIds?: string[];
   }
 
   /* ~~~~ ADMIN ENDPOINTS ~~~~ */
@@ -209,6 +210,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    * @param {string} bandadaGroupId - The id of the Bandada group
    * @param {string} bandadaAPIKey - The API key of the Bandada group
    * @param {string} membershipType - The type of membership
+   * @param {string[]} discordIds - The ids of the discord users to add to the room
    * @returns {void}
    * @example {
    *          "roomName": "string",
@@ -236,6 +238,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     const bandadaAPIKey = roomMetadata.bandadaAPIKey;
     const membershipType = roomMetadata.membershipType;
     const roomId = roomMetadata.roomId;
+    const discordIds = roomMetadata.discordIds;
     createRoom(
       roomName,
       rateLimit,
@@ -247,7 +250,8 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       bandadaGroupId,
       bandadaAPIKey,
       membershipType,
-      roomId
+      roomId,
+      discordIds
     )
       .then((result) => {
         if (result) {
@@ -303,8 +307,8 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
 
   /*
   This code handles the get request to get a list of messages for a particular room.
-   It uses the Prisma client to query the database and return the messages for a particular room.
-    It also parses the proof from a string to a JSON object.
+  It uses the Prisma client to query the database and return the messages for a particular room.
+  It also parses the proof from a string to a JSON object.
 */
   app.get('/api/room/:id/messages', (req, res) => {
     const { id } = req.params;
@@ -484,8 +488,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
-  // This code fetches the claim codes from the database.
-
+  // This fetches the claim/invite codes from the database and returns them as JSON
   app.get(['/logclaimcodes', '/api/logclaimcodes'], adminAuth, (req, res) => {
     pp('Express: fetching claim codes');
     prisma.claimCodes
