@@ -31,6 +31,8 @@ model Rooms {
   claimCodeIds        String[]     @default([]) @db.ObjectId
   type                String       @default("PUBLIC")
   discordIds          String[]     @default([])
+  ephemeral           String       @default("PERSISTENT")
+  encrypted           String       @default("PLAINTEXT")
 }
 
 model ClaimCodes {
