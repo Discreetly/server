@@ -31,8 +31,14 @@ export async function updateRoomIdentities(
       throw new Error('No rooms found with the provided IDs');
     }
 
-    const identityRooms: string[] = await addIdentityToIdentityListRooms(rooms, identityCommitment);
-    const bandadaRooms: string[] = await addIdentityToBandadaRooms(rooms, identityCommitment);
+    const identityRooms: string[] = await addIdentityToIdentityListRooms(
+      rooms,
+      identityCommitment
+    );
+    const bandadaRooms: string[] = await addIdentityToBandadaRooms(
+      rooms,
+      identityCommitment
+    );
 
     return [...identityRooms, ...bandadaRooms];
   } catch (err) {
@@ -48,12 +54,15 @@ export async function updateRoomIdentities(
  * @param {string} code - The claim code to update
  * @returns {Promise<ClaimCodeI | void>} - A promise that resolves to a ClaimCodeI object
  */
-export async function updateClaimCode(code: string): Promise<ClaimCodeI | void> {
+export async function updateClaimCode(
+  code: string
+): Promise<ClaimCodeI | void> {
   const claimCode = await findClaimCode(code);
   if (!claimCode) {
     return;
   } else {
-    const newUsesLeft = claimCode.usesLeft === -1 ? claimCode.usesLeft : claimCode.usesLeft - 1;
+    const newUsesLeft =
+      claimCode.usesLeft === -1 ? claimCode.usesLeft : claimCode.usesLeft - 1;
     return await prisma.claimCodes.update({
       where: { claimcode: code },
       data: {
@@ -76,42 +85,65 @@ export async function addIdentityToIdentityListRooms(
   const identityListRooms = rooms
     .filter(
       (room: RoomI) =>
-        room.membershipType === 'IDENTITY_LIST' &&
-        !room.semaphoreIdentities?.includes(identityCommitment)
+        room.membershipType === 'IDENTITY_LIST'
     )
     .map((room) => room.roomId as string);
 
   const addedRooms: string[] = [];
 
-  const promises = identityListRooms.map(async (roomId) => {
+  for(const roomId of identityListRooms) {
     const room = rooms.find((r) => r.roomId === roomId);
     if (room) {
       try {
-        await prisma.rooms.update({
-          where: { roomId: roomId },
-          data: {
-            identities: {
-              push: getRateCommitmentHash(
-                BigInt(identityCommitment),
-                BigInt(room.userMessageLimit! ?? 1)
-              ).toString()
-            },
-            gateways: {
-              connect: {
-                semaphoreIdentity: identityCommitment
-              }
-            }
+        const gateway = await prisma.gateWayIdentity.findUnique({
+          where: {
+            semaphoreIdentity: identityCommitment
           }
         });
-        console.debug(`Successfully added user to Identity List room ${room.roomId}`);
-        addedRooms.push(roomId);
+        if (gateway) {
+          await prisma.rooms.update({
+            where: { roomId: roomId },
+            data: {
+              identities: {
+                push: getRateCommitmentHash(
+                  BigInt(identityCommitment),
+                  BigInt(room.userMessageLimit! ?? 1)
+                ).toString()
+              },
+              gateways: {
+                connect: {
+                  semaphoreIdentity: identityCommitment
+                }
+              }
+            }
+          });
+          console.debug(`Successfully added user to Identity List room ${room.roomId}`);
+          addedRooms.push(roomId);
+        } else {
+          await prisma.rooms.update({
+            where: { roomId: roomId },
+            data: {
+              identities: {
+                push: getRateCommitmentHash(
+                  BigInt(identityCommitment),
+                  BigInt(room.userMessageLimit! ?? 1)
+                ).toString()
+              },
+              gateways: {
+                create: {
+                  semaphoreIdentity: identityCommitment,
+                  discordId: '',
+                  steamId64: ''
+                }
+              }
+            }
+          })
+        }
       } catch (err) {
         console.error(err);
       }
     }
-  });
-
-  await Promise.all(promises);
+  }
   return addedRooms;
 }
 
@@ -132,8 +164,7 @@ export async function addIdentityToBandadaRooms(
   const bandadaGroupRooms = rooms
     .filter(
       (room: RoomI) =>
-        room.membershipType === 'BANDADA_GROUP' &&
-        !room.semaphoreIdentities?.includes(identityCommitment)
+        room.membershipType === 'BANDADA_GROUP'
     )
     .map((room) => room);
 
@@ -160,24 +191,50 @@ export async function addIdentityToBandadaRooms(
       };
 
       try {
-        await prisma.rooms.update({
-          where: { id: room.id },
-          data: {
-            identities: {
-              push: rateCommitment
-            },
-            gateways: {
-              connect: {
-                semaphoreIdentity: identityCommitment
-              }
-            }
+        const gateway = await prisma.gateWayIdentity.findUnique({
+          where: {
+            semaphoreIdentity: identityCommitment
           }
         });
+
+        if (gateway) {
+          await prisma.rooms.update({
+            where: { id: room.id },
+            data: {
+              identities: {
+                push: rateCommitment
+              },
+              gateways: {
+                connect: {
+                  semaphoreIdentity: identityCommitment
+                }
+              }
+            }
+          });
+        } else {
+          await prisma.rooms.update({
+            where: { id: room.id },
+            data: {
+              identities: {
+                push: rateCommitment
+              },
+              gateways: {
+                create: {
+                  semaphoreIdentity: identityCommitment,
+                  discordId: '',
+                  steamId64: '',
+                }
+              }
+            }
+          });
+        }
 
         const url = `https://${room.bandadaAddress}/groups/${room.bandadaGroupId}/members/${rateCommitment}`;
         const response = await fetch(url, requestOptions);
         if (response.status == 201) {
-          console.debug(`Successfully added user to Bandada group ${room.bandadaAddress}`);
+          console.debug(
+            `Successfully added user to Bandada group ${room.bandadaAddress}`
+          );
           addedRooms.push(room.id);
         }
       } catch (err) {

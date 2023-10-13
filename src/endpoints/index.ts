@@ -86,7 +86,6 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
             }
             if (membershipType === 'IDENTITY_LIST') {
               roomResult.identities = identities;
-
             }
 
             res.status(200).json(roomResult);
