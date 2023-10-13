@@ -26,7 +26,9 @@ export async function findRoomById(id: string): Promise<RoomI | null> {
         contractAddress: true,
         bandadaAddress: true,
         bandadaGroupId: true,
-        type: true
+        type: true,
+        ephemeral: true,
+        encrypted: true
       }
     })
     .then((room) => {

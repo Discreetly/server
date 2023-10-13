@@ -20,7 +20,6 @@ model Rooms {
   membershipType      String       @default("IDENTITY_LIST")
   adminIdentities     String[]     @default([])
   identities          String[]     @default([])
-  semaphoreIdentities String[]     @default([])
   contractAddress     String? // RLN_CONTRACT as "chainID:0xADDRESS"
   bandadaAddress      String? // BANDADA as "url:groupID"
   bandadaGroupId      String? // Bandada Group ID
@@ -30,7 +29,22 @@ model Rooms {
   claimCodes          ClaimCodes[] @relation(fields: [claimCodeIds], references: [id])
   claimCodeIds        String[]     @default([]) @db.ObjectId
   type                String       @default("PUBLIC")
-  discordIds          String[]     @default([])
+  ephemeral           String       @default("PERSISTENT")
+  encrypted           String       @default("PLAINTEXT")
+  gatewayIds String[] @default([]) @db.ObjectId
+  gateways GateWayIdentity[] @relation(fields: [gatewayIds], references: [id])
+}
+
+model GateWayIdentity {
+  id  String @id @default(auto()) @map("_id") @db.ObjectId
+  semaphoreIdentity String
+  discordId String
+  jubmojii String[]
+  steamId64 String
+  ethereumAddresses String[]
+  roomIds String[] @default([]) @db.ObjectId
+  rooms Rooms[] @relation(fields: [roomIds], references: [id])
+  usedClaimCodes String[]
 }
 
 model ClaimCodes {
