@@ -82,11 +82,13 @@ export async function addIdentityToIdentityListRooms(
   rooms: RoomI[] | RoomWithSecretsI[],
   identityCommitment: string
 ): Promise<string[]> {
+
   const identityListRooms = rooms
     .filter(
       (room: RoomI) =>
-        room.membershipType === 'IDENTITY_LIST'
-    )
+        room.membershipType === 'IDENTITY_LIST' &&
+        !room.identities?.includes(getRateCommitmentHash(BigInt(identityCommitment), BigInt(room.userMessageLimit! ?? 1)).toString()
+    ))
     .map((room) => room.roomId as string);
 
   const addedRooms: string[] = [];
@@ -164,8 +166,9 @@ export async function addIdentityToBandadaRooms(
   const bandadaGroupRooms = rooms
     .filter(
       (room: RoomI) =>
-        room.membershipType === 'BANDADA_GROUP'
-    )
+        room.membershipType === 'BANDADA_GROUP' &&
+        !room.identities?.includes(getRateCommitmentHash(BigInt(identityCommitment), BigInt(room.userMessageLimit! ?? 1)).toString()
+    ))
     .map((room) => room);
 
   const addedRooms: string[] = [];
