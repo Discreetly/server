@@ -33,7 +33,11 @@ export function removeIdentityFromRoom(
       where: { id: room.id },
       data: {
         identities: updatedRateCommitments,
-
+        gateways: {
+          disconnect: {
+            semaphoreIdentity: idc
+          }
+        }
       }
     })
     .then((room) => {

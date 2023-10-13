@@ -37,7 +37,7 @@ model Rooms {
 
 model GateWayIdentity {
   id                String   @id @default(auto()) @map("_id") @db.ObjectId
-  semaphoreIdentity String
+  semaphoreIdentity String   @unique
   discordId         String
   jubmojii          String[]
   steamId64         String
