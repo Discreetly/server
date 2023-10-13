@@ -75,14 +75,20 @@ async function handleCollision(
   const roomId = room.roomId.toString();
   if (!collisionResult.collision) {
     try {
-      await createMessageInRoom(roomId, message);
-      console.debug(
-        `Message added to room: ${
-          typeof message.message === 'string'
-            ? message.message.slice(0, 10)
-            : JSON.stringify(message.message).slice(0, 10)
-        }...`
-      );
+      if (!room.ephemeral) {
+        await createMessageInRoom(roomId, message);
+        console.debug(
+          `Message added to room: ${
+            typeof message.message === 'string'
+              ? message.message.slice(0, 10)
+              : JSON.stringify(message.message).slice(0, 10)
+          }...`
+        );
+      } else {
+        // TODO! Need to store roomId/message in a cache to check for collisions, but then drop the messages once the epoch has passed
+        console.debug('Ephemeral room, not adding message to DB');
+      }
+
       return { success: true };
     } catch (error) {
       console.error(`Couldn't add message room ${error}`);
