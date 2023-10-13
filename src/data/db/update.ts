@@ -96,7 +96,11 @@ export async function addIdentityToIdentityListRooms(
                 BigInt(room.userMessageLimit! ?? 1)
               ).toString()
             },
-
+            gateways: {
+              connect: {
+                semaphoreIdentity: identityCommitment
+              }
+            }
           }
         });
         console.debug(`Successfully added user to Identity List room ${room.roomId}`);
@@ -162,7 +166,11 @@ export async function addIdentityToBandadaRooms(
             identities: {
               push: rateCommitment
             },
-            
+            gateways: {
+              connect: {
+                semaphoreIdentity: identityCommitment
+              }
+            }
           }
         });
 
