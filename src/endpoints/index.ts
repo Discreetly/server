@@ -66,7 +66,6 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
               userMessageLimit,
               membershipType,
               identities,
-              semaphoreIdentities,
               bandadaAddress,
               bandadaGroupId
             } = room || {};
@@ -83,11 +82,11 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
             if (membershipType === 'BANDADA_GROUP') {
               roomResult.bandadaAddress = bandadaAddress;
               roomResult.bandadaGroupId = bandadaGroupId;
-              roomResult.semaphoreIdentities = semaphoreIdentities;
+
             }
             if (membershipType === 'IDENTITY_LIST') {
               roomResult.identities = identities;
-              roomResult.semaphoreIdentities = semaphoreIdentities;
+
             }
 
             res.status(200).json(roomResult);
@@ -253,7 +252,6 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     const bandadaAPIKey = roomMetadata.bandadaAPIKey;
     const membershipType = roomMetadata.membershipType;
     const roomId = roomMetadata.roomId;
-    const discordIds = roomMetadata.discordIds;
     createRoom(
       roomName,
       rateLimit,
@@ -267,7 +265,6 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       bandadaAPIKey,
       membershipType,
       roomId,
-      discordIds
     )
       .then((result) => {
         const response =
@@ -663,11 +660,11 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     prisma.discord
       .upsert({
         where: {
-          discordId: guildId
+          discordServerId: guildId
         },
         update: {},
         create: {
-          discordId: guildId
+          discordServerId: guildId
         }
       })
       .then(() => {
@@ -699,7 +696,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       res.status(400).json({ error: 'Bad Request' });
       return;
     }
-    prisma.roleRoomMapping
+    prisma.discordRoleRoomMapping
       .upsert({
         where: {
           roomId: roomId
@@ -711,7 +708,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         },
         create: {
           roomId: roomId,
-          discordId: guildId,
+          discordServerId: guildId,
           roles: {
             set: roles
           }
@@ -743,7 +740,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       res.status(400).json({ error: 'Bad Request' });
       return;
     }
-    prisma.roleRoomMapping
+    prisma.discordRoleRoomMapping
       .findMany({
         where: {
           roles: {
@@ -797,10 +794,10 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
 
   app.post('/api/discord/checkrooms', adminAuth, (req, res) => {
     const { discordId } = req.body as { discordId: string };
-    prisma.roleRoomMapping
+    prisma.discordRoleRoomMapping
       .findMany({
         where: {
-          discordId: discordId
+          discordServerId: discordId
         }
       })
       .then((rooms) => {

@@ -60,16 +60,20 @@ https://github.com/Discreetly/IdentityCommitmentNullifierCircuit <- Circuit and 
 export async function findRoomsByIdentity(identity: string): Promise<string[]> {
   const r: string[] = [];
   try {
-    const rooms = await prisma.rooms.findMany({
+    const gateway = await prisma.gateWayIdentity.findFirst({
       where: {
-        semaphoreIdentities: {
-          has: identity
-        }
+        semaphoreIdentity: identity
+      },
+      include: {
+        rooms: true
       }
     });
-    rooms.forEach((room) => {
+    if (!gateway) {
+      return [];
+    }
+    gateway.rooms.forEach((room) => {
       r.push(room.roomId);
-    });
+    })
     return r;
   } catch (err) {
     console.error(err);

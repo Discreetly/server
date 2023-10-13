@@ -19,7 +19,6 @@ const prisma = new PrismaClient();
  * @param {string} [bandadaAPIKey] - The API key for the bandada server.
  * @param {string} [membershipType] - The membership type of the room.
  * @param {string} [roomId] - The ID of the room to create.
- * @param {string[]} [discordIds=[]] - The discord IDs of the users in the room.
  * @returns {Promise<boolean>} - A promise that resolves to true if the room was created successfully.
  */
 export async function createRoom(
@@ -34,8 +33,7 @@ export async function createRoom(
   bandadaGroupId?: string,
   bandadaAPIKey?: string,
   membershipType?: string,
-  roomId?: string,
-  discordIds: string[] = []
+  roomId?: string
 ): Promise<{ roomId: string ; claimCodes: { claimcode: string }[] } | undefined | null> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
   const mockUsers: string[] = genMockUsers(approxNumMockUsers);
@@ -58,19 +56,25 @@ export async function createRoom(
       banRateLimit: rateLimit,
       userMessageLimit: userMessageLimit,
       adminIdentities: adminIdentities,
-      semaphoreIdentities: mockUsers,
       identities: identityCommitments,
       bandadaAddress,
       bandadaGroupId,
       bandadaAPIKey,
       membershipType,
       type,
-      discordIds,
       claimCodes: {
         create: claimCodes
+      },
+      gateways: {
+        create: mockUsers.map((user) => ({
+          semaphoreIdentity: user,
+          discordId: '',
+          steamId64: ''
+        }))
       }
     }
   };
+
   return await prisma.rooms
     .upsert(roomData)
     .then(() => {

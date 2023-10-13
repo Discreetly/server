@@ -13,10 +13,10 @@ export function removeIdentityFromRoom(
   idc: string,
   room: RoomI
 ): Promise<void | RoomI> {
-  const updateSemaphoreIdentities =
-    room.semaphoreIdentities?.map((identity) =>
-      identity === idc ? '0' : (identity as string)
-    ) ?? [];
+  // const updateSemaphoreIdentities =
+  //   room.semaphoreIdentities?.map((identity) =>
+  //     identity === idc ? '0' : (identity as string)
+  //   ) ?? [];
 
   const rateCommitmentsToUpdate = getRateCommitmentHash(
     BigInt(idc),
@@ -33,7 +33,7 @@ export function removeIdentityFromRoom(
       where: { id: room.id },
       data: {
         identities: updatedRateCommitments,
-        semaphoreIdentities: updateSemaphoreIdentities
+
       }
     })
     .then((room) => {
