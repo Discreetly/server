@@ -124,9 +124,7 @@ export async function addIdentityToIdentityListRooms(
   const addedRooms: string[] = [];
 
   for (const roomId of identityListRooms) {
-    console.log(roomId);
     const room = rooms.find((r) => r.roomId === roomId);
-    console.log(room);
     if (room) {
       try {
         const gateway = await findGatewayByIdentity(identityCommitment);
