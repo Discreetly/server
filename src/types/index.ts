@@ -19,4 +19,12 @@ export interface ClaimCodeI {
   usesLeft: number;
 }
 
+export interface GateWayIdentityI {
+  semaphoreIdentity: string;
+  discordId: string;
+  steamId64: string;
+  roomIds: string[];
+  usedClaimCodes: string[];
+}
+
 export type userCountI = Record<string, number>;

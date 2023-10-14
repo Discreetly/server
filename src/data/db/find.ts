@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { MessageI, RoomI } from 'discreetly-interfaces';
-import { ClaimCodeI } from '../../types/';
+import { ClaimCodeI, GateWayIdentityI } from '../../types/';
 const prisma = new PrismaClient();
 
 /**
@@ -87,10 +87,18 @@ export async function findRoomsByIdentity(identity: string): Promise<string[]> {
  * @param {string} code - The code to find.
  * @returns {Promise<ClaimCodeI | null>} - The claim code, if found.
  */
-export function findClaimCode(code: string): Promise<ClaimCodeI | null> {
+export async function findClaimCode(code: string): Promise<ClaimCodeI | null> {
   return prisma.claimCodes.findUnique({
     where: { claimcode: code }
   });
+}
+
+export async function findGatewayByIdentity(identity: string): Promise<GateWayIdentityI | null> {
+  return prisma.gateWayIdentity.findFirst({
+    where: {
+      semaphoreIdentity: identity
+    }
+    })
 }
 
 /**

@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { sanitizeIDC } from '../utils';
-import { findClaimCode } from './find';
+import { findClaimCode, findGatewayByIdentity } from './find';
 import { RoomI } from 'discreetly-interfaces';
 import { getRateCommitmentHash } from '../../crypto';
 import { pp } from '../../utils';
@@ -19,7 +19,7 @@ const prisma = new PrismaClient();
  */
 export async function updateRoomIdentities(
   idc: string,
-  roomIds: string[]
+  roomIds: string[],
 ): Promise<string[] | void> {
   try {
     const identityCommitment: string = sanitizeIDC(idc);
@@ -55,7 +55,8 @@ export async function updateRoomIdentities(
  * @returns {Promise<ClaimCodeI | void>} - A promise that resolves to a ClaimCodeI object
  */
 export async function updateClaimCode(
-  code: string
+  code: string,
+  idc: string
 ): Promise<ClaimCodeI | void> {
   const claimCode = await findClaimCode(code);
   if (!claimCode) {
@@ -63,12 +64,35 @@ export async function updateClaimCode(
   } else {
     const newUsesLeft =
       claimCode.usesLeft === -1 ? claimCode.usesLeft : claimCode.usesLeft - 1;
-    return await prisma.claimCodes.update({
-      where: { claimcode: code },
-      data: {
-        usesLeft: newUsesLeft
-      }
-    });
+
+    const gateway = await findGatewayByIdentity(idc);
+    if (gateway) {
+      return await prisma.claimCodes.update({
+        where: {claimcode: code},
+        data: {
+          usesLeft: newUsesLeft,
+          gateways: {
+            connect: {
+              semaphoreIdentity: idc
+            }
+          }
+        }
+      })
+    } else {
+      return await prisma.claimCodes.update({
+        where: {claimcode: code},
+        data: {
+          usesLeft: newUsesLeft,
+          gateways: {
+            create: {
+              semaphoreIdentity: idc,
+              discordId: '',
+              steamId64: ''
+            }
+          }
+        }
+      })
+    }
   }
 }
 
@@ -97,11 +121,7 @@ export async function addIdentityToIdentityListRooms(
     const room = rooms.find((r) => r.roomId === roomId);
     if (room) {
       try {
-        const gateway = await prisma.gateWayIdentity.findUnique({
-          where: {
-            semaphoreIdentity: identityCommitment
-          }
-        });
+        const gateway = await findGatewayByIdentity(identityCommitment);
         if (gateway) {
           await prisma.rooms.update({
             where: { roomId: roomId },
@@ -161,7 +181,7 @@ export async function addIdentityToIdentityListRooms(
  */
 export async function addIdentityToBandadaRooms(
   rooms: RoomWithSecretsI[],
-  identityCommitment: string
+  identityCommitment: string,
 ): Promise<string[]> {
   const bandadaGroupRooms = rooms
     .filter(
@@ -194,12 +214,7 @@ export async function addIdentityToBandadaRooms(
       };
 
       try {
-        const gateway = await prisma.gateWayIdentity.findUnique({
-          where: {
-            semaphoreIdentity: identityCommitment
-          }
-        });
-
+        const gateway = await findGatewayByIdentity(identityCommitment);
         if (gateway) {
           await prisma.rooms.update({
             where: { id: room.id },

@@ -153,7 +153,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         return;
       }
       if (foundCode && (foundCode.usesLeft >= 0 || foundCode.usesLeft === -1)) {
-        const updatedCode = await updateClaimCode(code);
+        const updatedCode = await updateClaimCode(code, idc);
         if (updatedCode && updatedCode.usesLeft === 0) {
           await prisma.claimCodes.delete({
             where: {

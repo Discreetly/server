@@ -44,7 +44,8 @@ model GateWayIdentity {
   ethereumAddresses String[]
   roomIds           String[] @default([]) @db.ObjectId
   rooms             Rooms[]  @relation(fields: [roomIds], references: [id])
-  usedClaimCodes    String[]
+  usedClaimCodes    String[] @default([]) @db.ObjectId
+  claimCodes        ClaimCodes[] @relation(fields: [usedClaimCodes], references: [id])
 }
 
 model ClaimCodes {
@@ -54,6 +55,8 @@ model ClaimCodes {
   expiresAt Int      @default(0)
   usesLeft  Int      @default(-1)
   rooms     Rooms[]  @relation(fields: [roomIds], references: [id])
+  gatewayIds String[] @default([]) @db.ObjectId
+  gateways  GateWayIdentity[] @relation(fields: [gatewayIds], references: [id])
 }
 
 model Messages {
