@@ -60,8 +60,8 @@ export async function createRoom(
       bandadaAddress,
       bandadaGroupId,
       bandadaAPIKey,
-      membershipType,
       type,
+      membershipType,
       claimCodes: {
         create: claimCodes
       },

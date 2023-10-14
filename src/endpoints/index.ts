@@ -166,9 +166,9 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         return;
       }
       const roomIds = foundCode.roomIds;
-
-      const addedRooms = await updateRoomIdentities(idc, roomIds);
-
+      console.log(roomIds);
+      const addedRooms = await updateRoomIdentities(idc, roomIds, foundCode.discordId!);
+      console.log(addedRooms);
       const updatedRooms = await findUpdatedRooms(addedRooms as string[]);
 
       // Return the room ids of the updated rooms
@@ -411,18 +411,20 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    *          "all": boolean,
    *          "expiresAt": number, // optional
    *          "usesLeft": number   // optional
+   *          "discordId": string // optional
    *          }
    */
   app.post(
     ['/addcode', '/api/addcode'],
     adminAuth,
     asyncHandler(async (req: Request, res: Response) => {
-      const { numCodes, rooms, all, expiresAt, usesLeft } = req.body as {
+      const { numCodes, rooms, all, expiresAt, usesLeft, discordId } = req.body as {
         numCodes: number;
         rooms: string[];
         all: boolean;
         expiresAt: number;
         usesLeft: number;
+        discordId: string;
       };
 
       const currentDate = new Date();
@@ -443,7 +445,8 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
                 claimcode: code.claimcode,
                 roomIds: roomIds,
                 expiresAt: codeExpires,
-                usesLeft: usesLeft
+                usesLeft: usesLeft,
+                discordId: discordId
               }
             })
             .then((newCode) => {
@@ -733,32 +736,36 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    * @returns {string[]} - An array of room ids
    *  */
 
-  app.post('/api/discord/getrooms', adminAuth, (req, res) => {
-    const { roleId } = req.body as { roleId: string };
+  app.post('/api/discord/getrooms', adminAuth, asyncHandler(async (req: Request, res: Response) => {
+    const { roleId, discordId } = req.body as { roleId: string, discordId: string };
     if (!roleId) {
       res.status(400).json({ error: 'Bad Request' });
       return;
     }
-    prisma.discordRoleRoomMapping
-      .findMany({
-        where: {
-          roles: {
-            has: roleId
+    const rooms = await prisma.gateWayIdentity.findFirst({
+      where: {
+        discordId: discordId
+      },
+      include: {
+        rooms: true
+      }
+      })
+      if (rooms) {
+        const discordRoleRoomMapping = await prisma.discordRoleRoomMapping.findMany({
+          where: {
+            roles: {
+              has: roleId
+            }
           }
-        },
-        select: {
-          roomId: true
-        }
-      })
-      .then((rooms) => {
-        res.status(200).json(rooms);
-        return rooms;
-      })
-      .catch((err) => {
-        console.error(err);
-        res.status(500).json({ error: 'Internal Server Error' });
-      });
-  });
+        })
+        const roomIds = discordRoleRoomMapping.map((mapping) => mapping.roomId);
+        const filteredRooms = rooms.rooms.filter((room) => !roomIds.includes(room.roomId));
+        console.log(rooms);
+        res.status(200).json(filteredRooms);
+      }
+      // console.log(filteredRooms)
+
+  }));
 
   /**
    * This endpoint takes a discord user id and returns all rooms that the user is a part of.
@@ -772,19 +779,18 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       .findFirst({
         where: {
           discordId: discordUserId
-        }
-      })
+        },
+        include: {
+          rooms: true,
+          }
+        })
       .then((identity) => {
-        if (!identity) {
-          res.status(404).json({ error: 'Identity not found' });
-          return;
-        }
-        return res.status(200).json(identity.roomIds);
+        return identity
       }).catch((err) => {
         console.error(err);
         res.status(500).json({ error: 'Internal Server Error' });
-      })
-  });
+      });
+    });
   /**
    * This endpoint gets all the rooms that a user is allowed to access based on their discordId.
    * @params {string} discordId - The id of the discord user to get rooms for

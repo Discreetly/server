@@ -17,6 +17,7 @@ export interface ClaimCodeI {
   roomIds: string[];
   expiresAt: number;
   usesLeft: number;
+  discordId: string | null;
 }
 
 export interface GateWayIdentityI {

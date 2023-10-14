@@ -20,6 +20,7 @@ const prisma = new PrismaClient();
 export async function updateRoomIdentities(
   idc: string,
   roomIds: string[],
+  discordId?: string
 ): Promise<string[] | void> {
   try {
     const identityCommitment: string = sanitizeIDC(idc);
@@ -33,11 +34,13 @@ export async function updateRoomIdentities(
 
     const identityRooms: string[] = await addIdentityToIdentityListRooms(
       rooms,
-      identityCommitment
+      identityCommitment,
+      discordId
     );
     const bandadaRooms: string[] = await addIdentityToBandadaRooms(
       rooms,
-      identityCommitment
+      identityCommitment,
+      discordId
     );
 
     return [...identityRooms, ...bandadaRooms];
@@ -68,7 +71,7 @@ export async function updateClaimCode(
     const gateway = await findGatewayByIdentity(idc);
     if (gateway) {
       return await prisma.claimCodes.update({
-        where: {claimcode: code},
+        where: { claimcode: code },
         data: {
           usesLeft: newUsesLeft,
           gateways: {
@@ -77,19 +80,19 @@ export async function updateClaimCode(
             }
           }
         }
-      })
+      });
     } else {
       return await prisma.claimCodes.update({
-        where: {claimcode: code},
+        where: { claimcode: code },
         data: {
           usesLeft: newUsesLeft,
           gateways: {
             create: {
-              semaphoreIdentity: idc,
+              semaphoreIdentity: idc
             }
           }
         }
-      })
+      });
     }
   }
 }
@@ -102,21 +105,28 @@ export async function updateClaimCode(
  */
 export async function addIdentityToIdentityListRooms(
   rooms: RoomI[] | RoomWithSecretsI[],
-  identityCommitment: string
+  identityCommitment: string,
+  discordId?: string
 ): Promise<string[]> {
-
   const identityListRooms = rooms
     .filter(
       (room: RoomI) =>
         room.membershipType === 'IDENTITY_LIST' &&
-        !room.identities?.includes(getRateCommitmentHash(BigInt(identityCommitment), BigInt(room.userMessageLimit! ?? 1)).toString()
-    ))
+        !room.identities?.includes(
+          getRateCommitmentHash(
+            BigInt(identityCommitment),
+            BigInt(room.userMessageLimit! ?? 1)
+          ).toString()
+        )
+    )
     .map((room) => room.roomId as string);
 
   const addedRooms: string[] = [];
 
-  for(const roomId of identityListRooms) {
+  for (const roomId of identityListRooms) {
+    console.log(roomId);
     const room = rooms.find((r) => r.roomId === roomId);
+    console.log(room);
     if (room) {
       try {
         const gateway = await findGatewayByIdentity(identityCommitment);
@@ -137,7 +147,17 @@ export async function addIdentityToIdentityListRooms(
               }
             }
           });
-          console.debug(`Successfully added user to Identity List room ${room.roomId}`);
+          if (discordId) {
+            await prisma.gateWayIdentity.update({
+              where: { semaphoreIdentity: identityCommitment },
+              data: {
+                discordId: discordId
+              }
+            })
+          }
+          console.debug(
+            `Successfully added user to Identity List room ${room.roomId}`
+          );
           addedRooms.push(roomId);
         } else {
           await prisma.rooms.update({
@@ -152,10 +172,11 @@ export async function addIdentityToIdentityListRooms(
               gateways: {
                 create: {
                   semaphoreIdentity: identityCommitment,
+                  discordId: discordId
                 }
               }
             }
-          })
+          });
         }
       } catch (err) {
         console.error(err);
@@ -178,13 +199,19 @@ export async function addIdentityToIdentityListRooms(
 export async function addIdentityToBandadaRooms(
   rooms: RoomWithSecretsI[],
   identityCommitment: string,
+  discordId?: string
 ): Promise<string[]> {
   const bandadaGroupRooms = rooms
     .filter(
       (room: RoomI) =>
         room.membershipType === 'BANDADA_GROUP' &&
-        !room.identities?.includes(getRateCommitmentHash(BigInt(identityCommitment), BigInt(room.userMessageLimit! ?? 1)).toString()
-    ))
+        !room.identities?.includes(
+          getRateCommitmentHash(
+            BigInt(identityCommitment),
+            BigInt(room.userMessageLimit! ?? 1)
+          ).toString()
+        )
+    )
     .map((room) => room);
 
   const addedRooms: string[] = [];
@@ -225,6 +252,12 @@ export async function addIdentityToBandadaRooms(
               }
             }
           });
+          await prisma.gateWayIdentity.update({
+            where: { semaphoreIdentity: identityCommitment },
+            data: {
+              discordId: discordId
+            }
+          })
         } else {
           await prisma.rooms.update({
             where: { id: room.id },
@@ -235,6 +268,7 @@ export async function addIdentityToBandadaRooms(
               gateways: {
                 create: {
                   semaphoreIdentity: identityCommitment,
+                  discordId: discordId
                 }
               }
             }
