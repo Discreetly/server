@@ -68,8 +68,6 @@ export async function createRoom(
       gateways: {
         create: mockUsers.map((user) => ({
           semaphoreIdentity: user,
-          discordId: '',
-          steamId64: ''
         }))
       }
     }

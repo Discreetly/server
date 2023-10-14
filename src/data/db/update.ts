@@ -86,8 +86,6 @@ export async function updateClaimCode(
           gateways: {
             create: {
               semaphoreIdentity: idc,
-              discordId: '',
-              steamId64: ''
             }
           }
         }
@@ -154,8 +152,6 @@ export async function addIdentityToIdentityListRooms(
               gateways: {
                 create: {
                   semaphoreIdentity: identityCommitment,
-                  discordId: '',
-                  steamId64: ''
                 }
               }
             }
@@ -239,8 +235,6 @@ export async function addIdentityToBandadaRooms(
               gateways: {
                 create: {
                   semaphoreIdentity: identityCommitment,
-                  discordId: '',
-                  steamId64: '',
                 }
               }
             }

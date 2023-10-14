@@ -38,9 +38,9 @@ model Rooms {
 model GateWayIdentity {
   id                String   @id @default(auto()) @map("_id") @db.ObjectId
   semaphoreIdentity String   @unique
-  discordId         String
+  discordId         String?
   jubmojii          String[]
-  steamId64         String
+  steamId64         String?
   ethereumAddresses String[]
   roomIds           String[] @default([]) @db.ObjectId
   rooms             Rooms[]  @relation(fields: [roomIds], references: [id])
