@@ -35,6 +35,7 @@
     "discreetly-claimcodes": "^1.1.5",
     "discreetly-interfaces": "^0.1.39",
     "dotenv": "^16.3.1",
+    "ethereumjs-util": "^7.1.5",
     "express": "^4.18.2",
     "express-basic-auth": "^1.2.1",
     "ffjavascript": "^0.2.60",

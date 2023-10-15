@@ -33,31 +33,48 @@ model Rooms {
   encrypted        String            @default("PLAINTEXT")
   gatewayIds       String[]          @default([]) @db.ObjectId
   gateways         GateWayIdentity[] @relation(fields: [gatewayIds], references: [id])
+  EthereumGroup    EthereumGroup[]   @relation(fields: [ethereumGroupIds], references: [id])
+  ethereumGroupIds String[]          @db.ObjectId
 }
 
 model GateWayIdentity {
-  id                String   @id @default(auto()) @map("_id") @db.ObjectId
-  semaphoreIdentity String   @unique
+  id                String            @id @default(auto()) @map("_id") @db.ObjectId
+  semaphoreIdentity String           @unique
   discordId         String?
   jubmojii          String[]
   steamId64         String?
-  ethereumAddresses String[]
+  roomIds           String[]          @default([]) @db.ObjectId
+  rooms             Rooms[]           @relation(fields: [roomIds], references: [id])
+  usedClaimCodes    String[]          @default([]) @db.ObjectId
+  claimCodes        ClaimCodes[]      @relation(fields: [usedClaimCodes], references: [id])
+  ethereumAddress   EthereumAddress[]
+}
+
+model EthereumGroup {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  name              String   @unique
   roomIds           String[] @default([]) @db.ObjectId
   rooms             Rooms[]  @relation(fields: [roomIds], references: [id])
-  usedClaimCodes    String[] @default([]) @db.ObjectId
-  claimCodes        ClaimCodes[] @relation(fields: [usedClaimCodes], references: [id])
+  ethereumAddresses String[] @default([])
+}
+
+model EthereumAddress {
+  id              String          @id @default(auto()) @map("_id") @db.ObjectId
+  ethereumAddress String          @unique
+  gateways        GateWayIdentity @relation(fields: [gatewayId], references: [id])
+  gatewayId       String          @db.ObjectId
 }
 
 model ClaimCodes {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  claimcode String   @unique
-  roomIds   String[] @default([]) @db.ObjectId
-  expiresAt Int      @default(0)
-  usesLeft  Int      @default(-1)
-  rooms     Rooms[]  @relation(fields: [roomIds], references: [id])
-  discordId String?
-  gatewayIds String[] @default([]) @db.ObjectId
-  gateways  GateWayIdentity[] @relation(fields: [gatewayIds], references: [id])
+  id         String            @id @default(auto()) @map("_id") @db.ObjectId
+  claimcode  String            @unique
+  roomIds    String[]          @default([]) @db.ObjectId
+  expiresAt  Int               @default(0)
+  usesLeft   Int               @default(-1)
+  rooms      Rooms[]           @relation(fields: [roomIds], references: [id])
+  discordId  String?
+  gatewayIds String[]          @default([]) @db.ObjectId
+  gateways   GateWayIdentity[] @relation(fields: [gatewayIds], references: [id])
 }
 
 model Messages {
@@ -81,8 +98,8 @@ model Epoch {
 }
 
 model Discord {
-  id              String            @id @default(auto()) @map("_id") @db.ObjectId
-  discordServerId String            @unique
+  id              String                   @id @default(auto()) @map("_id") @db.ObjectId
+  discordServerId String                   @unique
   roomsMapping    DiscordRoleRoomMapping[]
 }
 

@@ -1,7 +1,7 @@
 import type { Express, RequestHandler, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { serverConfig } from '../config/serverConfig';
-import { genClaimCodeArray, pp } from '../utils';
+import { genClaimCodeArray, genMockUsers, pp } from '../utils';
 import {
   findRoomById,
   findRoomsByIdentity,
@@ -16,6 +16,15 @@ import {
 } from '../data/db/';
 import { MessageI, RoomI } from 'discreetly-interfaces';
 import { RLNFullProof } from 'rlnjs';
+import {
+  ecrecover,
+  pubToAddress,
+  bufferToHex,
+  fromRpcSig,
+  toBuffer,
+  hashPersonalMessage
+} from 'ethereumjs-util';
+
 // import expressBasicAuth from 'express-basic-auth';
 
 const prisma = new PrismaClient();
@@ -82,7 +91,6 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
             if (membershipType === 'BANDADA_GROUP') {
               roomResult.bandadaAddress = bandadaAddress;
               roomResult.bandadaGroupId = bandadaGroupId;
-
             }
             if (membershipType === 'IDENTITY_LIST') {
               roomResult.identities = identities;
@@ -166,7 +174,11 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         return;
       }
       const roomIds = foundCode.roomIds;
-      const addedRooms = await updateRoomIdentities(idc, roomIds, foundCode.discordId!);
+      const addedRooms = await updateRoomIdentities(
+        idc,
+        roomIds,
+        foundCode.discordId!
+      );
       const updatedRooms = await findUpdatedRooms(addedRooms as string[]);
 
       // Return the room ids of the updated rooms
@@ -261,7 +273,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       bandadaGroupId,
       bandadaAPIKey,
       membershipType,
-      roomId,
+      roomId
     )
       .then((result) => {
         const response =
@@ -416,14 +428,15 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     ['/addcode', '/api/addcode'],
     adminAuth,
     asyncHandler(async (req: Request, res: Response) => {
-      const { numCodes, rooms, all, expiresAt, usesLeft, discordId } = req.body as {
-        numCodes: number;
-        rooms: string[];
-        all: boolean;
-        expiresAt: number;
-        usesLeft: number;
-        discordId: string;
-      };
+      const { numCodes, rooms, all, expiresAt, usesLeft, discordId } =
+        req.body as {
+          numCodes: number;
+          rooms: string[];
+          all: boolean;
+          expiresAt: number;
+          usesLeft: number;
+          discordId: string;
+        };
 
       const currentDate = new Date();
       const threeMonthsLater = new Date(currentDate).setMonth(
@@ -642,6 +655,147 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     })
   );
 
+  app.get(['/eth/groups/all', '/api/eth/groups/all'], adminAuth, (req, res) => {
+    prisma.ethereumGroup
+      .findMany({
+        select: {
+          name: true
+        }
+      })
+      .then((groups) => {
+        res.status(200).json(groups);
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      });
+  });
+
+  app.get(['/eth/group/:address', '/api/eth/group/:address'], (req, res) => {
+    const { address } = req.params as { address: string };
+    prisma.ethereumGroup
+      .findMany({
+        where: {
+          ethereumAddresses: {
+            has: address
+          }
+        },
+        select: {
+          name: true
+        }
+        })
+      .then((groups) => {
+        res.status(200).json(groups);
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      });
+  });
+
+  app.post(
+    ['/eth/group/create', '/api/eth/group/create'],
+    adminAuth,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { name, roomIds } = req.body as {
+        name: string;
+        roomIds: string[];
+      };
+      const ethereumGroup = await prisma.ethereumGroup.create({
+        data: {
+          name: name,
+          rooms: {
+            connect: roomIds.map((roomId) => ({ roomId }))
+          }
+        }
+      });
+      res.json({ success: true, ethereumGroup });
+    })
+  );
+
+  app.post(
+    ['/eth/group/add', '/api/eth/group/add'],
+    adminAuth,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { names, ethAddresses } = req.body as {
+        names: string[];
+        ethAddresses: string[];
+      };
+      if (!names) return;
+      const groups = await prisma.ethereumGroup.updateMany({
+        where: {
+          name: {
+            in: names
+          }
+        },
+        data: {
+          ethereumAddresses: {
+            push: ethAddresses
+          }
+        }
+        })
+      res.json({ success: true, groups });
+    }));
+
+  app.post(
+    ['/eth/group/edit', '/api/eth/group/edit'],
+    adminAuth,
+    (req, res) => {
+      const { name, ethAddresses, roomIds } = req.body as {
+        name: string;
+        ethAddresses: string[];
+        roomIds: [];
+      };
+    }
+  );
+
+  app.post(
+    ['/eth/group/delete', '/api/eth/group/delete'],
+    adminAuth,
+    (req, res) => {
+      const { name } = req.body as { name: string };
+      prisma.ethereumGroup
+        .delete({
+          where: {
+            name: name
+          }
+        })
+        .then((group) => {
+          res.status(200).json(group);
+        })
+        .catch((err) => {
+          console.error(err);
+          res.status(500).json({ error: 'Internal Server Error' });
+        });
+    }
+  );
+
+  app.post(
+    ['/eth/message/sign', '/api/eth/message/sign'],
+    adminAuth,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { message, signature } = req.body as {
+        message: string;
+        signature: string;
+      };
+
+      try {
+        const msgHex = bufferToHex(Buffer.from(message));
+        const msgBuffer = toBuffer(msgHex);
+        const msgHash = hashPersonalMessage(msgBuffer);
+
+        const { v, r, s } = fromRpcSig(signature);
+        const publicKey = ecrecover(msgHash, v, r, s);
+        const address = pubToAddress(publicKey);
+
+        const recoveredAddress = bufferToHex(address);
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
+    })
+  );
+
   /*---------------------DISCORD BOT APIS ---------------------*/
 
   /**
@@ -734,55 +888,71 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    * @returns {string[]} - An array of room ids
    *  */
 
-  app.post('/api/discord/getrooms', adminAuth, asyncHandler(async (req: Request, res: Response) => {
-    const { roles, discordId } = req.body as { roles: string[], discordId: string };
-    if (roles.length === 0 || !discordId) {
-      res.status(400).json({ error: 'Bad Request' });
-      return;
-    }
-    const rooms = await prisma.gateWayIdentity.findFirst({
-      where: {
-        discordId: discordId
-      },
-      include: {
-        rooms: true
+  app.post(
+    '/api/discord/getrooms',
+    adminAuth,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { roles, discordId } = req.body as {
+        roles: string[];
+        discordId: string;
+      };
+      if (roles.length === 0 || !discordId) {
+        res.status(400).json({ error: 'Bad Request' });
+        return;
       }
-    })
+      const rooms = await prisma.gateWayIdentity.findFirst({
+        where: {
+          discordId: discordId
+        },
+        include: {
+          rooms: true
+        }
+      });
       if (rooms) {
         const roomIds = rooms.rooms.map((room) => room.roomId);
         const filteredRooms: string[] = [];
         const filteredNames: string[] = [];
         for (const role of roles) {
-          const discordRoleRoomMapping = await prisma.discordRoleRoomMapping.findMany({
-            where: {
-              roles: {
-                has: role
+          const discordRoleRoomMapping =
+            await prisma.discordRoleRoomMapping.findMany({
+              where: {
+                roles: {
+                  has: role
+                }
               }
-            }
-          });
-          const mappingRoomIds = discordRoleRoomMapping.map((mapping) => mapping.roomId);
-          const newRooms = mappingRoomIds.filter((roomId) => roomIds.includes(roomId));
+            });
+          const mappingRoomIds = discordRoleRoomMapping.map(
+            (mapping) => mapping.roomId
+          );
+          const newRooms = mappingRoomIds.filter((roomId) =>
+            roomIds.includes(roomId)
+          );
           const newRoomNames = newRooms.map((roomId) => {
             const room = rooms.rooms.find((room) => room.roomId === roomId);
             return room?.name;
-          })
+          });
           filteredRooms.push(...newRooms);
-          filteredNames.push(...newRoomNames as string[]);
+          filteredNames.push(...(newRoomNames as string[]));
         }
-        console.log(filteredRooms)
-        res.status(200).json({ rooms: filteredRooms, roomNames: filteredNames });
+        console.log(filteredRooms);
+        res
+          .status(200)
+          .json({ rooms: filteredRooms, roomNames: filteredNames });
       } else {
         const roomIds: string[] = [];
 
         for (const role of roles) {
-          const discordRoleRoomMapping = await prisma.discordRoleRoomMapping.findMany({
-            where: {
-              roles: {
-                has: role
+          const discordRoleRoomMapping =
+            await prisma.discordRoleRoomMapping.findMany({
+              where: {
+                roles: {
+                  has: role
+                }
               }
-            }
-          });
-          const mappingRoomIds = discordRoleRoomMapping.map((mapping) => mapping.roomId);
+            });
+          const mappingRoomIds = discordRoleRoomMapping.map(
+            (mapping) => mapping.roomId
+          );
           roomIds.push(...mappingRoomIds);
         }
         const roomNames = await prisma.rooms.findMany({
@@ -795,9 +965,13 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
             name: true
           }
         });
-        res.status(200).json({ rooms: roomIds, roomNames: roomNames.map((room) => room.name)});
+        res.status(200).json({
+          rooms: roomIds,
+          roomNames: roomNames.map((room) => room.name)
+        });
       }
-  }));
+    })
+  );
 
   /**
    * This endpoint takes a discord user id and returns all rooms that the user is a part of.
@@ -814,16 +988,17 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
           discordId: discordUserId
         },
         include: {
-          rooms: true,
-          }
-        })
+          rooms: true
+        }
+      })
       .then((identity) => {
         res.status(200).json(identity);
-      }).catch((err) => {
+      })
+      .catch((err) => {
         console.error(err);
         res.status(500).json({ error: 'Internal Server Error' });
       });
-    });
+  });
   /**
    * This endpoint gets all the rooms that a user is allowed to access based on their discordId.
    * @params {string} discordId - The id of the discord user to get rooms for

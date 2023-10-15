@@ -21,7 +21,7 @@ export interface ClaimCodeI {
 }
 
 export interface GateWayIdentityI {
-  semaphoreIdentity: string;
+  semaphoreIdentity: string | null;
   roomIds: string[];
   usedClaimCodes: string[];
 }
