@@ -1,7 +1,7 @@
 import type { Express, RequestHandler, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { serverConfig } from '../config/serverConfig';
-import { genClaimCodeArray, genMockUsers, pp } from '../utils';
+import { genClaimCodeArray, pp } from '../utils';
 import {
   findRoomById,
   findRoomsByIdentity,
@@ -683,7 +683,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         select: {
           name: true
         }
-        })
+      })
       .then((groups) => {
         res.status(200).json(groups);
       })
@@ -733,20 +733,56 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
             push: ethAddresses
           }
         }
-        })
+      });
       res.json({ success: true, groups });
-    }));
+    })
+  );
 
   app.post(
     ['/eth/group/edit', '/api/eth/group/edit'],
     adminAuth,
-    (req, res) => {
+    asyncHandler(async (req: Request, res: Response) => {
       const { name, ethAddresses, roomIds } = req.body as {
         name: string;
         ethAddresses: string[];
         roomIds: [];
       };
-    }
+      try {
+        const foundGroup = await prisma.ethereumGroup.findUnique({
+          where: {
+            name: name
+          },
+          select: {
+            ethereumAddresses: true
+          }
+        });
+        let addresses: string[] = [];
+        if (foundGroup?.ethereumAddresses) {
+          addresses = ethAddresses.filter((address) => {
+            return !(foundGroup.ethereumAddresses as string[]).includes(
+              address
+            );
+          });
+        }
+        const updatedGroup = await prisma.ethereumGroup.update({
+          where: {
+            name: name
+          },
+          data: {
+            ethereumAddresses: {
+              push: addresses
+            },
+            rooms: {
+              connect: roomIds.map((roomId) => ({ roomId }))
+            }
+          }
+        });
+        res.json({ success: true, updatedGroup });
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
+    })
   );
 
   app.post(
@@ -789,6 +825,43 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         const address = pubToAddress(publicKey);
 
         const recoveredAddress = bufferToHex(address);
+        const gatewayIdentity = await prisma.gateWayIdentity.upsert({
+          where: { semaphoreIdentity: message },
+          update: {},
+          create: {
+            semaphoreIdentity: message
+          }
+        });
+
+        await prisma.ethereumAddress.upsert({
+          where: { ethereumAddress: recoveredAddress },
+          update: {},
+          create: {
+            ethereumAddress: recoveredAddress,
+            gatewayId: gatewayIdentity.id
+          }
+        });
+
+        const roomsToJoin = await prisma.ethereumGroup.findMany({
+          where: {
+            ethereumAddresses: {
+              has: recoveredAddress
+            }
+          },
+          select: {
+            roomIds: true
+          }
+        });
+
+        const roomIdsSet = new Set(roomsToJoin.map((room) => room.roomIds).flat());
+        const roomIds = Array.from(roomIdsSet);
+
+        await prisma.gateWayIdentity.update({
+          where: { id: gatewayIdentity.id },
+          data: { roomIds: { set: roomIds } }
+        });
+
+        res.json({ status: 'valid', roomIds: roomIds });
       } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Internal Server Error' });
