@@ -17,8 +17,19 @@ type EphemeralMessagesI = Record<roomIdT, epoch>;
 
 const ephemeralMessageStore: EphemeralMessagesI = {};
 
-function checkEmphemeralStore(roomId, message) {
+function checkEmphemeralStore(roomId: string, message: MessageI): MessageI | null {
   // Check ephemeralMessages
+  const epoch = message.epoch?.toString();
+  if (ephemeralMessageStore[roomId] && epoch) {
+    if (ephemeralMessageStore[roomId][epoch]) {
+      ephemeralMessageStore[roomId][epoch].forEach((oldMessage) => {
+        if (oldMessage.messageId === message.messageId) {
+          return oldMessage;
+        }
+      });
+    }
+  }
+  return null;
 }
 
 function addMessageToEphemeralStore(roomId: string, message: MessageI) {
@@ -26,7 +37,7 @@ function addMessageToEphemeralStore(roomId: string, message: MessageI) {
   if (!ephemeralMessageStore[roomId]) {
     ephemeralMessageStore[roomId] = {};
   }
-  const epochString = String(message.epoch)
+  const epochString = String(message.epoch);
   if (!ephemeralMessageStore[roomId][epochString]) {
     ephemeralMessageStore[roomId][epochString] = [];
   }
@@ -40,41 +51,61 @@ function addMessageToEphemeralStore(roomId: string, message: MessageI) {
  * @returns {Promise<CollisionCheckResult>} - Returns a promise that resolves to a CollisionCheckResult
  */
 async function checkRLNCollision(roomId: string, message: MessageI): Promise<CollisionCheckResult> {
-  const oldMessage: MessageI | null = await findRoomWithMessageId(roomId, message);
+  let oldMessage: MessageI;
+  const oldDBMessage: MessageI | null = await findRoomWithMessageId(roomId, message);
 
-  checkEmphemeralStore(roomId, message);
+  const oldEphemeralMessage: MessageI | null = checkEmphemeralStore(roomId, message);
   addMessageToEphemeralStore(roomId, message);
+
   if (!message.proof) {
     throw new Error('Proof not provided');
   }
 
-  if (!oldMessage?.proof) {
-    console.debug('No collision', oldMessage);
+  if (!oldDBMessage?.proof && !oldEphemeralMessage?.proof) {
+    console.debug('No collision');
     return { collision: false } as CollisionCheckResult;
   } else {
     let oldMessageProof: RLNFullProof;
-    if (typeof oldMessage.proof === 'string') {
-      oldMessageProof = JSON.parse(oldMessage.proof) as RLNFullProof;
+    let oldMessageX2: bigint;
+    let oldMessageY2: bigint;
+    let newMessageProof: RLNFullProof;
+
+    // Collision Found, determine if the collsion is from an ephemeral message or a DB message
+    if (oldEphemeralMessage?.proof) {
+      if (typeof oldEphemeralMessage.proof === 'string') {
+        oldMessageProof = JSON.parse(oldEphemeralMessage.proof) as RLNFullProof;
+      } else {
+        oldMessageProof = oldEphemeralMessage.proof!;
+      }
+      oldMessageX2 = BigInt(oldMessageProof.snarkProof.publicSignals.x);
+      oldMessageY2 = BigInt(oldMessageProof.snarkProof.publicSignals.y);
+      oldMessage = oldEphemeralMessage;
+    } else if (oldDBMessage?.proof) {
+      if (typeof oldDBMessage.proof === 'string') {
+        oldMessageProof = JSON.parse(oldDBMessage.proof) as RLNFullProof;
+      } else {
+        oldMessageProof = oldDBMessage.proof!;
+      }
+      oldMessageX2 = BigInt(oldMessageProof.snarkProof.publicSignals.x);
+      oldMessageY2 = BigInt(oldMessageProof.snarkProof.publicSignals.y);
+      oldMessage = oldDBMessage;
     } else {
-      oldMessageProof = oldMessage.proof;
+      throw new Error('Collision found but no old message found, something is wrong');
     }
-    const oldMessagex2 = BigInt(oldMessageProof.snarkProof.publicSignals.x);
-    const oldMessagey2 = BigInt(oldMessageProof.snarkProof.publicSignals.y);
 
-    let proof: RLNFullProof;
-
+    // Recover the secret
     if (typeof message.proof === 'string') {
-      proof = JSON.parse(message.proof) as RLNFullProof;
+      newMessageProof = JSON.parse(message.proof) as RLNFullProof;
     } else {
-      proof = message.proof;
+      newMessageProof = message.proof;
     }
-    const [x1, y1] = [
-      BigInt(proof.snarkProof.publicSignals.x),
-      BigInt(proof.snarkProof.publicSignals.y)
-    ];
-    const [x2, y2] = [oldMessagex2, oldMessagey2];
 
-    const secret = shamirRecovery(x1, x2, y1, y2);
+    const [newMessageX1, newMessageY1] = [
+      BigInt(newMessageProof.snarkProof.publicSignals.x),
+      BigInt(newMessageProof.snarkProof.publicSignals.y)
+    ];
+
+    const secret = shamirRecovery(newMessageX1, oldMessageX2, newMessageY1, oldMessageY2);
 
     return {
       collision: true,
