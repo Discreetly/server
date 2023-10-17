@@ -10,6 +10,13 @@ interface CollisionCheckResult {
   oldMessage?: MessageI;
 }
 
+type roomIdT = string;
+type epochT = string;
+type epoch = Record<epochT, MessageI[]>;
+type EphemeralMessagesI = Record<roomIdT, epoch>;
+
+const ephemeralMessages: EphemeralMessagesI = {};
+
 /**
  * This code is used to check if there is a collision in the room, and if there is, to recover the secret.
  * It does this by checking if the message already exists in the DB, and if it does, it uses the secret recovery algorithm to recover the secret.
@@ -17,7 +24,6 @@ interface CollisionCheckResult {
  * @param {MessageI} message - The message to check for collisions with
  * @returns {Promise<CollisionCheckResult>} - Returns a promise that resolves to a CollisionCheckResult
  */
-
 async function checkRLNCollision(roomId: string, message: MessageI): Promise<CollisionCheckResult> {
   const oldMessage: MessageI | null = await findRoomWithMessageId(roomId, message);
 
@@ -84,11 +90,7 @@ async function handleCollision(
               : JSON.stringify(message.message).slice(0, 10)
           }...`
         );
-      } else {
-        // TODO! Need to store roomId/message in a cache to check for collisions, but then drop the messages once the epoch has passed
-        console.debug('Ephemeral room, not adding message to DB');
       }
-
       return { success: true };
     } catch (error) {
       console.error(`Couldn't add message room ${error}`);
