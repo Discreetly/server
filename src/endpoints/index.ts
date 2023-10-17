@@ -759,7 +759,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         let addresses: string[] = [];
         if (foundGroup?.ethereumAddresses) {
           addresses = ethAddresses.filter((address) => {
-            return !(foundGroup.ethereumAddresses as string[]).includes(
+            return !(foundGroup.ethereumAddresses).includes(
               address
             );
           });

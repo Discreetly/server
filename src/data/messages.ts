@@ -21,6 +21,17 @@ function checkEmphemeralStore(roomId, message) {
   // Check ephemeralMessages
 }
 
+function addMessageToEphemeralStore(roomId: string, message: MessageI) {
+  // Add message to ephemeralMessages
+  if (!ephemeralMessageStore[roomId]) {
+    ephemeralMessageStore[roomId] = {};
+  }
+  const epochString = String(message.epoch)
+  if (!ephemeralMessageStore[roomId][epochString]) {
+    ephemeralMessageStore[roomId][epochString] = [];
+  }
+  ephemeralMessageStore[roomId][epochString].push(message);
+}
 /**
  * This code is used to check if there is a collision in the room, and if there is, to recover the secret.
  * It does this by checking if the message already exists in the DB, and if it does, it uses the secret recovery algorithm to recover the secret.
@@ -32,7 +43,7 @@ async function checkRLNCollision(roomId: string, message: MessageI): Promise<Col
   const oldMessage: MessageI | null = await findRoomWithMessageId(roomId, message);
 
   checkEmphemeralStore(roomId, message);
-
+  addMessageToEphemeralStore(roomId, message);
   if (!message.proof) {
     throw new Error('Proof not provided');
   }
