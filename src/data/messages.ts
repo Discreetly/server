@@ -15,7 +15,11 @@ type epochT = string;
 type epoch = Record<epochT, MessageI[]>;
 type EphemeralMessagesI = Record<roomIdT, epoch>;
 
-const ephemeralMessages: EphemeralMessagesI = {};
+const ephemeralMessageStore: EphemeralMessagesI = {};
+
+function checkEmphemeralStore(roomId, message) {
+  // Check ephemeralMessages
+}
 
 /**
  * This code is used to check if there is a collision in the room, and if there is, to recover the secret.
@@ -26,6 +30,8 @@ const ephemeralMessages: EphemeralMessagesI = {};
  */
 async function checkRLNCollision(roomId: string, message: MessageI): Promise<CollisionCheckResult> {
   const oldMessage: MessageI | null = await findRoomWithMessageId(roomId, message);
+
+  checkEmphemeralStore(roomId, message);
 
   if (!message.proof) {
     throw new Error('Proof not provided');
@@ -81,7 +87,7 @@ async function handleCollision(
   const roomId = room.roomId.toString();
   if (!collisionResult.collision) {
     try {
-      if (!room.ephemeral) {
+      if (room.ephemeral != 'EPHEMERAL') {
         await createMessageInRoom(roomId, message);
         console.debug(
           `Message added to room: ${
