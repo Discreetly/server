@@ -9,7 +9,7 @@ const v = new RLNVerifier(vkey);
 export async function verifyProof(
   room: RoomI,
   msg: MessageI,
-  epochErrorRange = 5
+  epochErrorRange = 1
 ): Promise<boolean> {
   if (!msg.roomId || !msg.message || !msg.proof || !msg.epoch) {
     console.warn('Missing required fields:', msg);
