@@ -64,12 +64,15 @@ function addMessageToEphemeralStore(roomId: string, message: MessageI) {
  * @param {MessageI} message - The message to check for collisions with
  * @returns {Promise<CollisionCheckResult>} - Returns a promise that resolves to a CollisionCheckResult
  */
-async function checkRLNCollision(roomId: string, message: MessageI): Promise<CollisionCheckResult> {
+async function checkRLNCollision(room: RoomI, message: MessageI): Promise<CollisionCheckResult> {
+  const roomId = room.roomId.toString();
   let oldMessage: MessageI;
   const oldDBMessage: MessageI | null = await findRoomWithMessageId(roomId, message);
 
   const oldEphemeralMessage: MessageI | null = checkEmphemeralStore(roomId, message);
-  addMessageToEphemeralStore(roomId, message);
+  if (room.ephemeral === 'EPHEMERAL') {
+    addMessageToEphemeralStore(roomId, message);
+  }
 
   if (!message.proof) {
     throw new Error('Proof not provided');
@@ -181,10 +184,9 @@ export async function validateMessage(
   room: RoomI,
   message: MessageI
 ): Promise<validateMessageResult> {
-  const roomId = room.roomId.toString();
   const validProof: boolean = await verifyProof(room, message);
   if (validProof) {
-    const collisionResult = await checkRLNCollision(roomId, message);
+    const collisionResult = await checkRLNCollision(room, message);
     const result = await handleCollision(room, message, collisionResult);
     return result;
   }
