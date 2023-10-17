@@ -4,12 +4,15 @@ import vkey from './verification_key';
 import { Group } from '@semaphore-protocol/group';
 import { calculateSignalHash } from './signalHash';
 
+const DEFAULT_RATE_LIMIT = 1000; // 1 second
+const DEFAULT_EPOCH_ERROR_RANGE = 1; // A message can pass if it's within 1 epoch of the current epoch
+
 const v = new RLNVerifier(vkey);
 
 export async function verifyProof(
   room: RoomI,
   msg: MessageI,
-  epochErrorRange = 1
+  epochErrorRange = DEFAULT_EPOCH_ERROR_RANGE
 ): Promise<boolean> {
   if (!msg.roomId || !msg.message || !msg.proof || !msg.epoch) {
     console.warn('Missing required fields:', msg);
@@ -17,7 +20,7 @@ export async function verifyProof(
   }
   console.debug(`Verifying message ${msg.messageId} for room ${room.roomId}`);
   const timestamp = Date.now();
-  const rateLimit = room.rateLimit ? room.rateLimit : 1000;
+  const rateLimit = room.rateLimit ? room.rateLimit : DEFAULT_RATE_LIMIT;
   const currentEpoch = Math.floor(timestamp / rateLimit);
   const rlnIdentifier = BigInt(msg.roomId);
   const msgHash = calculateSignalHash(JSON.stringify(msg.message));
