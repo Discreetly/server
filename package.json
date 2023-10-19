@@ -40,6 +40,7 @@
     "express-basic-auth": "^1.2.1",
     "ffjavascript": "^0.2.60",
     "helmet": "^7.0.0",
+    "idc-nullifier": "^0.0.4",
     "mongodb": "^5.8.0",
     "poseidon-lite": "^0.2.0",
     "rlnjs": "^3.2.0",

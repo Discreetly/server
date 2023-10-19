@@ -24,7 +24,8 @@ import {
   toBuffer,
   hashPersonalMessage
 } from 'ethereumjs-util';
-
+import { SNARKProof } from 'idc-nullifier/dist/types/types';
+import { verifyIdentityProof } from '../crypto/idcVerifier/verifier';
 // import expressBasicAuth from 'express-basic-auth';
 
 const prisma = new PrismaClient();
@@ -594,10 +595,25 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
-  // app.post(['/change-identity', '/api/change-identity'], (req: Request, res: Response) => {
-  //   const { identity, proof } = req.body as { identity: string, proof: string };
+  app.post(['/change-identity', '/api/change-identity'], asyncHandler(async (req: Request, res: Response) => {
+    const { generatedProof } = req.body as { generatedProof: SNARKProof };
 
-  // })
+    const isValid = await verifyIdentityProof(generatedProof);
+    
+    if (isValid) {
+      const updatedIdentity = await prisma.gateWayIdentity.update({
+        where: {
+          semaphoreIdentity: String(generatedProof.publicSignals.identityCommitment)
+        },
+        data: {
+          semaphoreIdentity: String(generatedProof.publicSignals.externalNullifier)
+        }
+      })
+      res.status(200).json({ message: 'Identity updated successfully', updatedIdentity });
+    } else {
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  }))
 
   /**
    * Sends system messages to the specified room, or all rooms if no room is specified
@@ -647,7 +663,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   *         "roomId": "string",
   *        "idc": "string"
   * }
-   */
+  */
 
 app.post(
     '/room/:roomId/addAdmin',
@@ -874,7 +890,7 @@ app.post(
         });
     }
   );
-  
+
   /**
   * This code validates the signature in the request body and if it is valid,
   * it will store the semaphore identity and ethereum address in the database.
@@ -1153,6 +1169,8 @@ app.post(
         res.status(500).json({ error: 'Internal Server Error' });
       });
   });
+
+
   /**
    * This endpoint gets all the rooms that a user is allowed to access based on their discordId.
    * @params {string} discordId - The id of the discord user to get rooms for
