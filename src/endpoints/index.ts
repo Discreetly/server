@@ -111,11 +111,15 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   app.get(
     ['/rooms/:idc', '/api/rooms/:idc'],
     asyncHandler(async (req: Request, res: Response) => {
-      try {
-        res.status(200).json(await findRoomsByIdentity(req.params.idc));
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Internal Server Error' });
+      const { proof } = req.body as { proof: SNARKProof };
+      const isValid = await verifyIdentityProof(proof);
+      if (isValid) {
+        try {
+          res.status(200).json(await findRoomsByIdentity(req.params.idc));
+        } catch (error) {
+          console.error(error);
+          res.status(500).json({ error: 'Internal Server Error' });
+        }
       }
     })
   );
@@ -599,7 +603,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     const { generatedProof } = req.body as { generatedProof: SNARKProof };
 
     const isValid = await verifyIdentityProof(generatedProof);
-    
+
     if (isValid) {
       const updatedIdentity = await prisma.gateWayIdentity.update({
         where: {
