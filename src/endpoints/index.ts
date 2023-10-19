@@ -594,6 +594,11 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
+  // app.post(['/change-identity', '/api/change-identity'], (req: Request, res: Response) => {
+  //   const { identity, proof } = req.body as { identity: string, proof: string };
+
+  // })
+
   /**
    * Sends system messages to the specified room, or all rooms if no room is specified
    * @params {string} message - The message to send
@@ -631,7 +636,20 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     })
   );
 
-  app.post(
+  /**
+  * This code adds an admin to a room. The admin must be logged in and authorized to add an admin to the room.
+  *  The admin must provide the room ID and the identity of the admin to be added.
+  *  The code will then add the admin to the room's list of admin identities.
+  *  @param {string} roomId - The id of the room to add the admin to
+  *  @param {string} idc - The id of the admin to be added
+  * @returns {void}
+  * @example {
+  *         "roomId": "string",
+  *        "idc": "string"
+  * }
+   */
+
+app.post(
     '/room/:roomId/addAdmin',
     adminAuth,
     asyncHandler(async (req: Request, res: Response) => {
@@ -655,7 +673,9 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     })
   );
 
-  app.get(['/eth/groups/all', '/api/eth/groups/all'], adminAuth, (req, res) => {
+ // This endpoint returns a list of all Ethereum groups in the database.
+
+ app.get(['/eth/groups/all', '/api/eth/groups/all'], adminAuth, (req, res) => {
     prisma.ethereumGroup
       .findMany({
         select: {
@@ -671,7 +691,15 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
-  app.get(['/eth/group/:address', '/api/eth/group/:address'], (req, res) => {
+  /**
+   * This code gets the Ethereum group with the given address.
+   * @param {string} address - The address of the Ethereum group to get
+   * @returns {void}
+   * @example {
+   *         "address": "string"
+   * }
+*/
+app.get(['/eth/group/:address', '/api/eth/group/:address'], (req, res) => {
     const { address } = req.params as { address: string };
     prisma.ethereumGroup
       .findMany({
@@ -693,7 +721,20 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
-  app.post(
+/**
+ * This code creates a new Ethereum group with the given name, and
+ * connects the group to the given rooms. It then sends back a JSON
+ * response with the newly created Ethereum group.
+  * @param {string} name - The name of the Ethereum group to create
+  * @param {string[]} roomIds - The ids of the rooms to connect to the group
+  * @returns {void}
+  * @example {
+  *        "name": "string",
+  *       "roomIds": string[]
+  * }
+ */
+
+app.post(
     ['/eth/group/create', '/api/eth/group/create'],
     adminAuth,
     asyncHandler(async (req: Request, res: Response) => {
@@ -713,7 +754,12 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     })
   );
 
-  app.post(
+
+  /**  Add a new ethereum address to a group
+   * @param {string[]} names - The names of the Ethereum groups to add the address to
+   * @param {string[]} ethAddresses - The addresses to add to the Ethereum groups
+  */
+app.post(
     ['/eth/group/add', '/api/eth/group/add'],
     adminAuth,
     asyncHandler(async (req: Request, res: Response) => {
@@ -738,7 +784,23 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     })
   );
 
-  app.post(
+
+
+/** This code creates a new Ethereum group by adding a new entry to the EthereumGroup table in the database.
+ *  The body of the request contains the name of the group, the ethereum addresses to associate with the group,
+ *  and the room IDs to associate with the group. The code uses Prisma to create a new entry in the EthereumGroup table,
+ *  and then returns the newly created group.
+ * @param {string} name - The name of the Ethereum group to create
+ * @param {string[]} ethAddresses - The addresses to add to the Ethereum groups
+ * @param {string[]} roomIds - The ids of the rooms to connect to the group
+ * @returns {void}
+ * @example {
+ *       "name": "string",
+ *      "ethAddresses": string[],
+ *     "roomIds": string[]
+ * }
+*/
+app.post(
     ['/eth/group/edit', '/api/eth/group/edit'],
     adminAuth,
     asyncHandler(async (req: Request, res: Response) => {
@@ -785,7 +847,14 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     })
   );
 
-  app.post(
+  /** This code deletes an ethereum group from the database.
+   * @param {string} name - The name of the Ethereum group to delete
+   * @returns {void}
+   * @example {
+   *      "name": "string"
+   * }
+    */
+app.post(
     ['/eth/group/delete', '/api/eth/group/delete'],
     adminAuth,
     (req, res) => {
@@ -805,8 +874,20 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         });
     }
   );
-
-  app.post(
+  
+  /**
+  * This code validates the signature in the request body and if it is valid,
+  * it will store the semaphore identity and ethereum address in the database.
+  * It will also return an array of roomIds that the user should join.
+  * @param {string} message - The message to be signed in this case their semaphore identity
+  * @param {string} signature - The signature of the message in this case their private key
+  * @returns {void}
+  * @example {
+  *        "message": "string",
+  *      "signature": "string"
+  * }
+  */
+app.post(
     ['/eth/message/sign', '/api/eth/message/sign'],
     adminAuth,
     asyncHandler(async (req: Request, res: Response) => {
