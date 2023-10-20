@@ -33,7 +33,7 @@ model Rooms {
   encrypted        String            @default("PLAINTEXT")
   gatewayIds       String[]          @default([]) @db.ObjectId
   gateways         GateWayIdentity[] @relation(fields: [gatewayIds], references: [id])
-  EthereumGroup    EthereumGroup[]   @relation(fields: [ethereumGroupIds], references: [id])
+  ethereumGroups    EthereumGroup[]   @relation(fields: [ethereumGroupIds], references: [id])
   ethereumGroupIds String[]          @db.ObjectId
 }
 

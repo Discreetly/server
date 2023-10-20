@@ -153,7 +153,7 @@ export async function addIdentityToIdentityListRooms(
               data: {
                 discordId: discordId
               }
-            })
+            });
           }
           console.debug(
             `Successfully added user to Identity List room ${room.roomId}`
@@ -257,7 +257,7 @@ export async function addIdentityToBandadaRooms(
             data: {
               discordId: discordId
             }
-          })
+          });
         } else {
           await prisma.rooms.update({
             where: { id: room.id },
@@ -292,4 +292,32 @@ export async function addIdentityToBandadaRooms(
   }
 
   return addedRooms;
+}
+
+/** Creates a new Ethereum group for a room.
+ * @param {string} name - The name of the group
+ * @param {string} roomId - The ID of the room
+ * @param {string[]} ethAddresses - The list of Ethereum addresses to add to the group
+*/
+
+export async function createEthGroup(
+  name: string,
+  roomId: string,
+  ethAddresses: string[]
+) {
+  await prisma.rooms.update({
+    where: {
+      roomId: roomId
+    },
+    data: {
+      ethereumGroups: {
+        create: {
+          name: name,
+          ethereumAddresses: {
+            set: ethAddresses
+          }
+        }
+      }
+    }
+  });
 }
