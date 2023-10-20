@@ -26,6 +26,7 @@ import {
 } from 'ethereumjs-util';
 import { SNARKProof } from 'idc-nullifier/dist/types/types';
 import { verifyIdentityProof } from '../crypto/idcVerifier/verifier';
+import { rateLimit } from 'express-rate-limit';
 // import expressBasicAuth from 'express-basic-auth';
 
 const prisma = new PrismaClient();
@@ -42,6 +43,11 @@ function asyncHandler(fn: {
   };
 }
 
+const limiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60 // 60 requests per minute
+})
+
 export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   // This code is used to fetch the server info from the api
   // This is used to display the server info on the client side
@@ -54,7 +60,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   // If room is null, it returns a 500 error.
   // Otherwise, it returns a 200 status code and the room object.
 
-  app.get(['/room/:id', '/api/room/:id'], (req, res) => {
+  app.get(['/room/:id', '/api/room/:id'], limiter, (req, res) => {
     if (!req.params.id) {
       res.status(400).json({ error: 'Bad Request' });
     } else {
@@ -109,7 +115,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    * @returns {Array} - An array of room objects.
    */
   app.get(
-    ['/rooms/:idc', '/api/rooms/:idc'],
+    ['/rooms/:idc', '/api/rooms/:idc'], limiter,
     asyncHandler(async (req: Request, res: Response) => {
       const { proof } = req.body as { proof: SNARKProof };
       const isValid = await verifyIdentityProof(proof);
@@ -143,7 +149,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    *           }
    */
   app.post(
-    ['/join', '/api/join'],
+    ['/join', '/api/join'], limiter,
     asyncHandler(async (req: Request, res: Response) => {
       const parsedBody: JoinData = req.body as JoinData;
 
@@ -371,7 +377,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    * @param {string} id - The id of the room to get messages for
    * @returns {void}
    */
-  app.get('/api/room/:id/messages', (req, res) => {
+  app.get('/api/room/:id/messages', limiter, (req, res) => {
     const { id } = req.params;
     prisma.messages
       .findMany({
@@ -599,7 +605,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
-  app.post(['/change-identity', '/api/change-identity'], asyncHandler(async (req: Request, res: Response) => {
+  app.post(['/change-identity', '/api/change-identity'], limiter, asyncHandler(async (req: Request, res: Response) => {
     const { generatedProof } = req.body as { generatedProof: SNARKProof };
 
     const isValid = await verifyIdentityProof(generatedProof);
@@ -719,7 +725,7 @@ app.post(
    *         "address": "string"
    * }
 */
-app.get(['/eth/group/:address', '/api/eth/group/:address'], (req, res) => {
+app.get(['/eth/group/:address', '/api/eth/group/:address'], limiter, (req, res) => {
     const { address } = req.params as { address: string };
     prisma.ethereumGroup
       .findMany({
@@ -909,7 +915,7 @@ app.post(
   */
 app.post(
     ['/eth/message/sign', '/api/eth/message/sign'],
-    adminAuth,
+    limiter,
     asyncHandler(async (req: Request, res: Response) => {
       const { message, signature } = req.body as {
         message: string;
@@ -977,7 +983,7 @@ app.post(
    * @param {string} guildId - The id of the guild to be added
    * @returns {void}
    */
-  app.post('/api/discord/addguild', adminAuth, (req, res) => {
+  app.post('/api/discord/addguild', adminAuth, limiter, (req, res) => {
     const { guildId } = req.body as {
       guildId: string;
     };
@@ -1014,7 +1020,7 @@ app.post(
    * @returns {void}
    */
 
-  app.post('/api/discord/addrole', adminAuth, (req, res) => {
+  app.post('/api/discord/addrole', limiter, adminAuth, (req, res) => {
     const { roles, roomId, guildId } = req.body as {
       roles: string[];
       roomId: string;
@@ -1064,6 +1070,7 @@ app.post(
 
   app.post(
     '/api/discord/getrooms',
+    limiter,
     adminAuth,
     asyncHandler(async (req: Request, res: Response) => {
       const { roles, discordId } = req.body as {
@@ -1153,7 +1160,7 @@ app.post(
    * @returns {string[]} - An array of rooms that the user is a part of
    */
 
-  app.post('/api/discord/rooms', adminAuth, (req, res) => {
+  app.post('/api/discord/rooms', limiter, adminAuth, (req, res) => {
     const { discordUserId } = req.body as { discordUserId: string };
     console.log('here');
     prisma.gateWayIdentity
@@ -1181,7 +1188,7 @@ app.post(
    * @returns {string[]} - An array of rooms that the user is a part of
    */
 
-  app.post('/api/discord/checkrooms', adminAuth, (req, res) => {
+  app.post('/api/discord/checkrooms', limiter, adminAuth, (req, res) => {
     const { discordId } = req.body as { discordId: string };
     prisma.discordRoleRoomMapping
       .findMany({

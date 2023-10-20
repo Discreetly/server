@@ -55,6 +55,7 @@ export async function updateRoomIdentities(
  * If the claim code is not found, then it returns undefined.
  * Otherwise it returns a ClaimCodeI object.
  * @param {string} code - The claim code to update
+ * @param {string} idc - The identity of the user
  * @returns {Promise<ClaimCodeI | void>} - A promise that resolves to a ClaimCodeI object
  */
 export async function updateClaimCode(
@@ -101,6 +102,7 @@ export async function updateClaimCode(
  * Adds a user's identity commitment to the semaphoreIdentities list and adds their rate commitment to the identities list for each of the identity list rooms that they are in.
  * @param {rooms} - The list of rooms that the user is in
  * @param {string} identityCommitment - The user's identity commitment
+ * @param {string} discordId - The user's discord ID
  * @return {string[]} addedRooms - The list of rooms that the user was added to
  */
 export async function addIdentityToIdentityListRooms(
