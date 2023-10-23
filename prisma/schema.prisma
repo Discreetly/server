@@ -33,13 +33,13 @@ model Rooms {
   encrypted        String            @default("PLAINTEXT")
   gatewayIds       String[]          @default([]) @db.ObjectId
   gateways         GateWayIdentity[] @relation(fields: [gatewayIds], references: [id])
-  ethereumGroups    EthereumGroup[]   @relation(fields: [ethereumGroupIds], references: [id])
+  ethereumGroups   EthereumGroup[]   @relation(fields: [ethereumGroupIds], references: [id])
   ethereumGroupIds String[]          @db.ObjectId
 }
 
 model GateWayIdentity {
   id                String            @id @default(auto()) @map("_id") @db.ObjectId
-  semaphoreIdentity String           @unique
+  semaphoreIdentity String            @unique
   discordId         String?
   jubmojii          String[]
   steamId64         String?
@@ -81,8 +81,10 @@ model Messages {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   messageId String // Internal Nullifier
   message   String
+  title     String? 
   timeStamp DateTime @default(now())
   roomId    String
+  type      String   @default("TEXTMESSAGE")
   room      Rooms    @relation(fields: [roomId], references: [roomId])
   proof     String
   epoch     Epoch?   @relation(fields: [epochId], references: [id])
