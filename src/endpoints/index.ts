@@ -190,20 +190,30 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         roomIds,
         foundCode.discordId!
       );
-      const updatedRooms = await findUpdatedRooms(addedRooms as string[]);
-
-      // Return the room ids of the updated rooms
-      if (updatedRooms.length > 0) {
-        res.status(200).json({
-          status: 'valid',
-          roomIds: updatedRooms.map((room: RoomI) => room.roomId)
-        });
-      } else {
+      if (addedRooms.length === 0) {
         res.status(400).json({
-          message: `No rooms found or identity already exists in ${String(
+          status: 'already-added',
+          message: `Identity already exists in ${String(
             roomIds
           )}`
         });
+      } else {
+        const updatedRooms = await findUpdatedRooms(addedRooms);
+
+        // Return the room ids of the updated rooms
+        if (updatedRooms.length > 0) {
+          res.status(200).json({
+            status: 'valid',
+            roomIds: updatedRooms.map((room: RoomI) => room.roomId)
+          });
+        } else {
+          res.status(400).json({
+            status: 'already-added',
+            message: `No rooms found for ${String(
+              roomIds
+            )}`
+          });
+        }
       }
     })
   );

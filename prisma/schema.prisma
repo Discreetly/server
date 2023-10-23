@@ -78,17 +78,16 @@ model ClaimCodes {
 }
 
 model Messages {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  messageId String // Internal Nullifier
-  message   String
-  title     String? 
-  timeStamp DateTime @default(now())
-  roomId    String
-  type      String   @default("TEXTMESSAGE")
-  room      Rooms    @relation(fields: [roomId], references: [roomId])
-  proof     String
-  epoch     Epoch?   @relation(fields: [epochId], references: [id])
-  epochId   String?  @db.ObjectId
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  messageId   String // Internal Nullifier
+  message     String
+  timeStamp   DateTime @default(now())
+  roomId      String
+  messageType String?   @default("TEXT")
+  room        Rooms    @relation(fields: [roomId], references: [roomId])
+  proof       String
+  epoch       Epoch?   @relation(fields: [epochId], references: [id])
+  epochId     String?  @db.ObjectId
 }
 
 model Epoch {

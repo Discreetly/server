@@ -21,7 +21,7 @@ export async function updateRoomIdentities(
   idc: string,
   roomIds: string[],
   discordId?: string
-): Promise<string[] | void> {
+): Promise<string[]> {
   try {
     const identityCommitment: string = sanitizeIDC(idc);
     const rooms: RoomWithSecretsI[] | null = (await prisma.rooms.findMany({
