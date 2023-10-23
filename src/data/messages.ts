@@ -1,10 +1,17 @@
-import { getRoomByID, removeIdentityFromRoom } from './db';
-import { PrismaClient } from '@prisma/client';
-import { MessageI } from 'discreetly-interfaces';
-import { shamirRecovery, getIdentityCommitmentFromSecret } from '../crypto/shamirRecovery';
+import {
+  createMessageInRoom,
+  findRoomWithMessageId,
+  removeIdentityFromRoom
+} from './db/';
+import { MessageI, RoomI } from 'discreetly-interfaces';
+import {
+  shamirRecovery,
+  getIdentityCommitmentFromSecret
+} from '../crypto/shamirRecovery';
 import { RLNFullProof } from 'rlnjs';
+import { verifyProof } from '../crypto/';
 
-const prisma = new PrismaClient();
+const EPHEMERAL_EPOCH_AGE = 2;
 
 interface CollisionCheckResult {
   collision: boolean;
@@ -12,132 +19,203 @@ interface CollisionCheckResult {
   oldMessage?: MessageI;
 }
 
-async function checkRLNCollision(roomId: string, message: MessageI): Promise<CollisionCheckResult> {
-  return new Promise((res) => {
-    prisma.rooms
-      .findFirst({
-        where: { roomId },
-        include: {
-          epochs: {
-            where: { epoch: String(message.epoch) },
-            include: {
-              messages: {
-                where: { messageId: message.messageId }
-              }
-            }
-          }
+type roomIdT = string;
+type epochT = string;
+type epoch = Record<epochT, MessageI[]>;
+type EphemeralMessagesI = Record<roomIdT, epoch>;
+
+const ephemeralMessageStore: EphemeralMessagesI = {};
+
+function checkEmphemeralStore(
+  roomId: string,
+  message: MessageI
+): MessageI | null {
+  // Check ephemeralMessages
+  const epoch = message.epoch?.toString();
+  if (ephemeralMessageStore[roomId] && epoch) {
+    if (ephemeralMessageStore[roomId][epoch]) {
+      ephemeralMessageStore[roomId][epoch].forEach((oldMessage) => {
+        if (oldMessage.messageId === message.messageId) {
+          return oldMessage;
         }
-      })
-      .then((oldMessage) => {
-        if (!message.proof) {
-          throw new Error('Proof not provided');
-        }
-        if (!oldMessage) {
-          res({ collision: false } as CollisionCheckResult);
-        } else {
-          const oldMessageProof = JSON.parse(
-            oldMessage.epochs[0].messages[0].proof
-          ) as RLNFullProof;
-          const oldMessagex2 = BigInt(oldMessageProof.snarkProof.publicSignals.x);
-          const oldMessagey2 = BigInt(oldMessageProof.snarkProof.publicSignals.y);
-
-          let proof: RLNFullProof;
-
-          if (typeof message.proof === 'string') {
-            proof = JSON.parse(message.proof) as RLNFullProof;
-          } else {
-            proof = message.proof;
-          }
-          const [x1, y1] = [
-            BigInt(proof.snarkProof.publicSignals.x),
-            BigInt(proof.snarkProof.publicSignals.y)
-          ];
-          const [x2, y2] = [oldMessagex2, oldMessagey2];
-
-          const secret = shamirRecovery(x1, x2, y1, y2);
-
-          res({
-            collision: true,
-            secret,
-            oldMessage: oldMessage.epochs[0].messages[0] as unknown as MessageI
-          } as CollisionCheckResult);
-        }
-      })
-      .catch((err) => console.error(err));
-  });
+      });
+    }
+  }
+  return null;
 }
 
-function addMessageToRoom(roomId: string, message: MessageI): Promise<unknown> {
-  if (!message.epoch) {
-    throw new Error('Epoch not provided');
+function addMessageToEphemeralStore(roomId: string, message: MessageI) {
+  const currentEpoch = String(message.epoch);
+
+  // Add roomId if it doesn't exist
+  if (!ephemeralMessageStore[roomId]) {
+    ephemeralMessageStore[roomId] = {};
   }
-  return prisma.rooms.update({
-    where: {
-      roomId: roomId
-    },
-    data: {
-      epochs: {
-        create: {
-          epoch: String(message.epoch),
-          messages: {
-            create: {
-              message: message.message ? message.message.toString() : '',
-              messageId: message.messageId ? message.messageId.toString() : '',
-              proof: JSON.stringify(message.proof),
-              roomId: roomId
-            }
-          }
-        }
-      }
+
+  // delete old epochs
+  Object.keys(ephemeralMessageStore[roomId]).forEach((epoch) => {
+    if (Number(epoch) < Number(currentEpoch) - EPHEMERAL_EPOCH_AGE) {
+      delete ephemeralMessageStore[roomId][epoch];
     }
   });
+
+  // Add epoch if it doesn't exist
+  if (!ephemeralMessageStore[roomId][currentEpoch]) {
+    ephemeralMessageStore[roomId][currentEpoch] = [];
+  }
+  ephemeralMessageStore[roomId][currentEpoch].push(message);
 }
-export interface createMessageResult {
+
+/**
+ * This code is used to check if there is a collision in the room, and if there is, to recover the secret.
+ * It does this by checking if the message already exists in the DB, and if it does, it uses the secret recovery algorithm to recover the secret.
+ * @param {string} roomId - The ID of the room to check for collisions in
+ * @param {MessageI} message - The message to check for collisions with
+ * @returns {Promise<CollisionCheckResult>} - Returns a promise that resolves to a CollisionCheckResult
+ */
+async function checkRLNCollision(
+  room: RoomI,
+  message: MessageI
+): Promise<CollisionCheckResult> {
+  const roomId = room.roomId.toString();
+  let oldMessage: MessageI;
+  const oldDBMessage: MessageI | null = await findRoomWithMessageId(
+    roomId,
+    message
+  );
+
+  const oldEphemeralMessage: MessageI | null = checkEmphemeralStore(
+    roomId,
+    message
+  );
+  if (room.ephemeral === 'EPHEMERAL') {
+    addMessageToEphemeralStore(roomId, message);
+  }
+
+  if (!message.proof) {
+    throw new Error('Proof not provided');
+  }
+
+  if (!oldDBMessage?.proof && !oldEphemeralMessage?.proof) {
+    console.debug('No collision');
+    return { collision: false } as CollisionCheckResult;
+  } else {
+    let oldMessageProof: RLNFullProof;
+    let oldMessageX2: bigint;
+    let oldMessageY2: bigint;
+    let newMessageProof: RLNFullProof;
+
+    // Collision Found, determine if the collsion is from an ephemeral message or a DB message
+    if (oldEphemeralMessage?.proof) {
+      if (typeof oldEphemeralMessage.proof === 'string') {
+        oldMessageProof = JSON.parse(oldEphemeralMessage.proof) as RLNFullProof;
+      } else {
+        oldMessageProof = oldEphemeralMessage.proof!;
+      }
+      oldMessageX2 = BigInt(oldMessageProof.snarkProof.publicSignals.x);
+      oldMessageY2 = BigInt(oldMessageProof.snarkProof.publicSignals.y);
+      oldMessage = oldEphemeralMessage;
+    } else if (oldDBMessage?.proof) {
+      if (typeof oldDBMessage.proof === 'string') {
+        oldMessageProof = JSON.parse(oldDBMessage.proof) as RLNFullProof;
+      } else {
+        oldMessageProof = oldDBMessage.proof!;
+      }
+      oldMessageX2 = BigInt(oldMessageProof.snarkProof.publicSignals.x);
+      oldMessageY2 = BigInt(oldMessageProof.snarkProof.publicSignals.y);
+      oldMessage = oldDBMessage;
+    } else {
+      throw new Error(
+        'Collision found but no old message found, something is wrong'
+      );
+    }
+
+    // Recover the secret
+    if (typeof message.proof === 'string') {
+      newMessageProof = JSON.parse(message.proof) as RLNFullProof;
+    } else {
+      newMessageProof = message.proof;
+    }
+
+    const [newMessageX1, newMessageY1] = [
+      BigInt(newMessageProof.snarkProof.publicSignals.x),
+      BigInt(newMessageProof.snarkProof.publicSignals.y)
+    ];
+
+    const secret = shamirRecovery(
+      newMessageX1,
+      oldMessageX2,
+      newMessageY1,
+      oldMessageY2
+    );
+
+    return {
+      collision: true,
+      secret,
+      oldMessage: oldMessage
+    } as CollisionCheckResult;
+  }
+}
+
+export interface validateMessageResult {
   success: boolean;
   message?: MessageI;
   idc?: string | bigint;
 }
 
-export function createMessage(roomId: string, message: MessageI): createMessageResult {
-  getRoomByID(roomId)
-    .then((room) => {
-      if (room) {
-        // Todo This should check that there is no duplicate messageId with in this room and epoch,
-        // if there is, we need to return an error and
-        // reconstruct the secret from both messages, and ban the user
-        checkRLNCollision(roomId, message)
-          .then((collisionResult) => {
-            if (!collisionResult.collision) {
-              addMessageToRoom(roomId, message)
-                .then((roomToUpdate) => {
-                  console.log(roomToUpdate);
-                  return { success: true };
-                })
-                .catch((error) => {
-                  console.error(`Couldn't add message room ${error}`);
-                  return false;
-                });
-            } else {
-              console.log('Collision found');
-              const identityCommitment = getIdentityCommitmentFromSecret(collisionResult.secret!);
-              removeIdentityFromRoom(identityCommitment.toString(), room)
-                .then(() => {
-                  return { success: false };
-                })
-                .catch((error) => {
-                  console.error(`Couldn't remove identity from room ${error}`);
-                });
-            }
-          })
-          .catch((error) => {
-            console.error(`Error getting room: ${error}`);
-            return { success: false };
-          });
+async function handleCollision(
+  room: RoomI,
+  message: MessageI,
+  collisionResult: CollisionCheckResult
+): Promise<validateMessageResult> {
+  const roomId = room.roomId.toString();
+  if (!collisionResult.collision) {
+    try {
+      if (room.ephemeral != 'EPHEMERAL') {
+        await createMessageInRoom(roomId, message);
+        console.debug(
+          `Message added to room: ${
+            typeof message.message === 'string'
+              ? message.message.slice(0, 10)
+              : JSON.stringify(message.message).slice(0, 10)
+          }...`
+        );
       }
-    })
-    .catch((error) => {
-      console.error(`Error getting room: ${error}`);
+      return { success: true };
+    } catch (error) {
+      console.error(`Couldn't add message room ${error}`);
       return { success: false };
-    });
+    }
+  } else {
+    console.warn('Collision found');
+    const identityCommitment = getIdentityCommitmentFromSecret(
+      collisionResult.secret!
+    );
+    try {
+      await removeIdentityFromRoom(identityCommitment.toString(), room);
+      return { success: false, idc: identityCommitment.toString() };
+    } catch (error) {
+      console.error(`Couldn't remove identity from room ${error}`);
+    }
+  }
+  return { success: false };
+}
+
+/**
+ * Validates a message and adds it to the room if it is valid.
+ * @param {RoomI} room - The room which the message will be added
+ * @param {MessageI} message - The message to be created
+ * @returns {Promise<validateMessageResult>} - A result object which contains a boolean indicating whether the operation was successful
+ */
+export async function validateMessage(
+  room: RoomI,
+  message: MessageI
+): Promise<validateMessageResult> {
+  const validProof: boolean = await verifyProof(room, message);
+  if (validProof) {
+    const collisionResult = await checkRLNCollision(room, message);
+    const result = await handleCollision(room, message, collisionResult);
+    return result;
+  }
   return { success: false };
 }

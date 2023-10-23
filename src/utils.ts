@@ -20,7 +20,7 @@ export function genMockUsers(numMockUsers: number): string[] {
   for (let i = 0; i < newNumMockUsers; i++) {
     mockUsers.push(
       genId(
-        serverConfig.id as string,
+        serverConfig.id as bigint,
         // Generates a random string of length 10
         Math.random()
           .toString(36)
