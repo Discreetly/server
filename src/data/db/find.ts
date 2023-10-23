@@ -88,13 +88,13 @@ export async function findRoomsByIdentity(identity: string): Promise<string[]> {
  * @returns {Promise<ClaimCodeI | null>} - The claim code, if found.
  */
 export async function findClaimCode(code: string): Promise<ClaimCodeI | null> {
-  return prisma.claimCodes.findUnique({
+  return await prisma.claimCodes.findUnique({
     where: { claimcode: code }
   });
 }
 
 export async function findGatewayByIdentity(identity: string): Promise<GateWayIdentityI | null> {
-  return prisma.gateWayIdentity.findFirst({
+  return await prisma.gateWayIdentity.findFirst({
     where: {
       semaphoreIdentity: identity
     }
