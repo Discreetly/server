@@ -16,6 +16,17 @@ import {
 } from '../data/db/';
 import { MessageI, RoomI } from 'discreetly-interfaces';
 import { RLNFullProof } from 'rlnjs';
+import {
+  ecrecover,
+  pubToAddress,
+  bufferToHex,
+  fromRpcSig,
+  toBuffer,
+  hashPersonalMessage
+} from 'ethereumjs-util';
+import { SNARKProof } from 'idc-nullifier/dist/types/types';
+import { verifyIdentityProof } from '../crypto/idcVerifier/verifier';
+import { rateLimit } from 'express-rate-limit';
 // import expressBasicAuth from 'express-basic-auth';
 
 const prisma = new PrismaClient();
@@ -32,6 +43,11 @@ function asyncHandler(fn: {
   };
 }
 
+const limiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60 // 60 requests per minute
+})
+
 export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   // This code is used to fetch the server info from the api
   // This is used to display the server info on the client side
@@ -44,7 +60,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   // If room is null, it returns a 500 error.
   // Otherwise, it returns a 200 status code and the room object.
 
-  app.get(['/room/:id', '/api/room/:id'], (req, res) => {
+  app.get(['/room/:id', '/api/room/:id'], limiter, (req, res) => {
     if (!req.params.id) {
       res.status(400).json({ error: 'Bad Request' });
     } else {
@@ -54,7 +70,10 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         .then((room: RoomI) => {
           if (!room) {
             // This is set as a timeout to prevent someone from trying to brute force room ids
-            setTimeout(() => res.status(500).json({ error: 'Internal Server Error' }), 1000);
+            setTimeout(
+              () => res.status(500).json({ error: 'Internal Server Error' }),
+              1000
+            );
           } else {
             const {
               roomId,
@@ -63,7 +82,6 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
               userMessageLimit,
               membershipType,
               identities,
-              semaphoreIdentities,
               bandadaAddress,
               bandadaGroupId
             } = room || {};
@@ -80,11 +98,9 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
             if (membershipType === 'BANDADA_GROUP') {
               roomResult.bandadaAddress = bandadaAddress;
               roomResult.bandadaGroupId = bandadaGroupId;
-              roomResult.semaphoreIdentities = semaphoreIdentities;
             }
             if (membershipType === 'IDENTITY_LIST') {
               roomResult.identities = identities;
-              roomResult.semaphoreIdentities = semaphoreIdentities;
             }
 
             res.status(200).json(roomResult);
@@ -99,13 +115,17 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    * @returns {Array} - An array of room objects.
    */
   app.get(
-    ['/rooms/:idc', '/api/rooms/:idc'],
+    ['/rooms/:idc', '/api/rooms/:idc'], limiter,
     asyncHandler(async (req: Request, res: Response) => {
-      try {
-        res.status(200).json(await findRoomsByIdentity(req.params.idc));
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Internal Server Error' });
+      const { proof } = req.body as { proof: SNARKProof };
+      const isValid = await verifyIdentityProof(proof);
+      if (isValid) {
+        try {
+          res.status(200).json(await findRoomsByIdentity(req.params.idc));
+        } catch (error) {
+          console.error(error);
+          res.status(500).json({ error: 'Internal Server Error' });
+        }
       }
     })
   );
@@ -129,12 +149,14 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    *           }
    */
   app.post(
-    ['/join', '/api/join'],
+    ['/join', '/api/join'], limiter,
     asyncHandler(async (req: Request, res: Response) => {
       const parsedBody: JoinData = req.body as JoinData;
 
       if (!parsedBody.code || !parsedBody.idc) {
-        res.status(400).json({ message: '{code: string, idc: string} expected' });
+        res
+          .status(400)
+          .json({ message: '{code: string, idc: string} expected' });
       }
       const { code, idc } = parsedBody;
       console.debug('Invite Code:', code);
@@ -150,7 +172,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         return;
       }
       if (foundCode && (foundCode.usesLeft >= 0 || foundCode.usesLeft === -1)) {
-        const updatedCode = await updateClaimCode(code);
+        const updatedCode = await updateClaimCode(code, idc);
         if (updatedCode && updatedCode.usesLeft === 0) {
           await prisma.claimCodes.delete({
             where: {
@@ -163,21 +185,35 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         return;
       }
       const roomIds = foundCode.roomIds;
-
-      const addedRooms = await updateRoomIdentities(idc, roomIds);
-
-      const updatedRooms = await findUpdatedRooms(addedRooms as string[]);
-
-      // Return the room ids of the updated rooms
-      if (updatedRooms.length > 0) {
-        res.status(200).json({
-          status: 'valid',
-          roomIds: updatedRooms.map((room: RoomI) => room.roomId)
+      const addedRooms = await updateRoomIdentities(
+        idc,
+        roomIds,
+        foundCode.discordId!
+      );
+      if (addedRooms.length === 0) {
+        res.status(400).json({
+          status: 'already-added',
+          message: `Identity already exists in ${String(
+            roomIds
+          )}`
         });
       } else {
-        res.status(400).json({
-          message: `No rooms found or identity already exists in ${String(roomIds)}`
-        });
+        const updatedRooms = await findUpdatedRooms(addedRooms);
+
+        // Return the room ids of the updated rooms
+        if (updatedRooms.length > 0) {
+          res.status(200).json({
+            status: 'valid',
+            roomIds: updatedRooms.map((room: RoomI) => room.roomId)
+          });
+        } else {
+          res.status(400).json({
+            status: 'already-added',
+            message: `No rooms found for ${String(
+              roomIds
+            )}`
+          });
+        }
       }
     })
   );
@@ -188,12 +224,14 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     userMessageLimit: number;
     numClaimCodes?: number;
     approxNumMockUsers?: number;
+    adminIdentities?: string[];
     roomType?: string;
     bandadaAddress?: string;
     bandadaAPIKey?: string;
     bandadaGroupId?: string;
     membershipType?: string;
     roomId?: string;
+    admin?: boolean;
     discordIds?: string[];
   }
 
@@ -205,11 +243,13 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    * @param {number} userMessageLimit - The user message limit of the room
    * @param {number} numClaimCodes - The number of claim codes to generate
    * @param {number} approxNumMockUsers - The approximate number of mock users to generate
+   * @param {string[]} adminIdentities - The identities of the admins of the room
    * @param {string} type - The type of room
    * @param {string} bandadaAddress - The address of the Bandada group
    * @param {string} bandadaGroupId - The id of the Bandada group
    * @param {string} bandadaAPIKey - The API key of the Bandada group
    * @param {string} membershipType - The type of membership
+   * @param {string} roomId - The id of the room
    * @param {string[]} discordIds - The ids of the discord users to add to the room
    * @returns {void}
    * @example {
@@ -218,11 +258,14 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    *          "userMessageLimit": number,
    *          "numClaimCodes": number,      // optional
    *          "approxNumMockUsers": number, // optional
+   *          "adminIdentities": string[],  // optional
    *          "roomType": "string",         // optional
    *          "bandadaAddress": "string",   // optional
    *          "bandadaGroupId": "string",   // optional
    *          "bandadaAPIKey": "string",    // optional
-   *          "membershipType": "string"      // optional if not an IDENTITY_LIST
+   *          "membershipType": "string"    // optional if not an IDENTITY_LIST
+   *          "roomId": "string",           // optional
+   *          "discordIds": string[]        // optional
    *          }
    */
   app.post(['/room/add', '/api/room/add'], adminAuth, (req, res) => {
@@ -231,6 +274,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     const rateLimit = roomMetadata.rateLimit;
     const userMessageLimit = roomMetadata.userMessageLimit;
     const numClaimCodes = roomMetadata.numClaimCodes ?? 0;
+    const adminIdentities = roomMetadata.adminIdentities;
     const approxNumMockUsers = roomMetadata.approxNumMockUsers;
     const type = roomMetadata.roomType as unknown as string;
     const bandadaAddress = roomMetadata.bandadaAddress;
@@ -238,7 +282,6 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     const bandadaAPIKey = roomMetadata.bandadaAPIKey;
     const membershipType = roomMetadata.membershipType;
     const roomId = roomMetadata.roomId;
-    const discordIds = roomMetadata.discordIds;
     createRoom(
       roomName,
       rateLimit,
@@ -246,20 +289,27 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       numClaimCodes,
       approxNumMockUsers,
       type,
+      adminIdentities,
       bandadaAddress,
       bandadaGroupId,
       bandadaAPIKey,
       membershipType,
-      roomId,
-      discordIds
+      roomId
     )
       .then((result) => {
-        if (result) {
-          // TODO should return roomID and claim codes if they are generated
-          res.status(200).json({ message: 'Room created successfully', roomId: result });
-        } else {
-          res.status(500).json({ error: 'Internal Server Error' });
-        }
+        const response =
+          result === null
+            ? { status: 400, message: 'Room already exists' }
+            : result
+            ? {
+                status: 200,
+                message: 'Room created successfully',
+                roomId: result.roomId,
+                claimCodes: result.claimCodes
+              }
+            : { status: 500, error: 'Internal Server Error' };
+
+        res.status(response.status).json(response);
       })
       .catch((err) => {
         console.error(err);
@@ -267,21 +317,46 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
-  app.post(['/room/:roomId/delete', '/api/room/:roomId/delete'], adminAuth, (req, res) => {
-    const { roomId } = req.params;
-    removeRoom(roomId)
-      .then((result) => {
-        if (result) {
-          res.status(200).json({ message: 'Room deleted successfully' });
-        } else {
-          res.status(500).json({ error: 'Internal Server Error' });
-        }
-      })
-      .catch((err) => {
-        console.error(err);
-        res.status(500).json({ error: String(err) });
-      });
-  });
+  /**
+   * This code is used to delete a room from the database.
+   *  It takes in the roomId from the request body, and pass it to the removeRoom function.
+   *  If removeRoom returns true, it means the room is deleted successfully, and the server returns a 200 status code.
+   *  If removeRoom returns false, the server returns a 500 status code.
+   *  If removeRoom throws an error, the server returns a 500 status code.
+   * @param {string} roomId - The id of the room to be deleted
+   * @returns {void}
+   *  */
+
+  app.post(
+    ['/room/:roomId/delete', '/api/room/:roomId/delete'],
+    adminAuth,
+    (req: Request, res: Response) => {
+      const { roomId } = req.body as { roomId: string };
+      removeRoom(roomId)
+        .then((result) => {
+          if (result) {
+            res.status(200).json({ message: 'Room deleted successfully' });
+          } else {
+            res.status(500).json({ error: 'Internal Server Error' });
+          }
+        })
+        .catch((err) => {
+          console.error(err);
+          res.status(500).json({ error: String(err) });
+        });
+    }
+  );
+
+  /**
+   * This code deletes a message from a room
+   * It takes in the roomId and messageId from the request body, and pass it to the removeMessage function.
+   * If removeMessage returns true, it means the message is deleted successfully, and the server returns a 200 status code.
+   * If removeMessage returns false, the server returns a 500 status code.
+   * If removeMessage throws an error, the server returns a 500 status code.
+   * @param {string} roomId - The id of the room to be deleted
+   * @param {string} messageId - The id of the message to be deleted
+   * @returns {void}
+   * */
 
   app.post(
     ['/room/:roomId/message/delete', '/api/room/:roomId/message/delete'],
@@ -305,12 +380,14 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     }
   );
 
-  /*
-  This code handles the get request to get a list of messages for a particular room.
-  It uses the Prisma client to query the database and return the messages for a particular room.
-  It also parses the proof from a string to a JSON object.
-*/
-  app.get('/api/room/:id/messages', (req, res) => {
+  /**
+   * This code handles the get request to get a list of messages for a particular room.
+   * It uses the Prisma client to query the database and return the messages for a particular room.
+   * It also parses the proof from a string to a JSON object.
+   * @param {string} id - The id of the room to get messages for
+   * @returns {void}
+   */
+  app.get('/api/room/:id/messages', limiter, (req, res) => {
     const { id } = req.params;
     prisma.messages
       .findMany({
@@ -356,27 +433,36 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    * @param {number} numCodes - The number of codes to add to the room
    * @param {string[]} rooms - The ids of the rooms to add codes to
    * @param {boolean} all - Whether to add codes to all rooms or just the selected ones
+   * @param {number} expiresAt - The date the codes expire - if not specified, defaults to 3 months from now
+   * @param {number} usesLeft - The number of uses left for the codes - if not specified, defaults to -1 (unlimited)
    * @returns {void}
    * @example {
    *          "numCodes": number,
-   *          "rooms": string[],  // optional
-   *          "all": boolean
+   *          "rooms": string[],
+   *          "all": boolean,
+   *          "expiresAt": number, // optional
+   *          "usesLeft": number   // optional
+   *          "discordId": string // optional
    *          }
    */
   app.post(
     ['/addcode', '/api/addcode'],
     adminAuth,
     asyncHandler(async (req: Request, res: Response) => {
-      const { numCodes, rooms, all, expiresAt, usesLeft } = req.body as {
-        numCodes: number;
-        rooms: string[];
-        all: boolean;
-        expiresAt: number;
-        usesLeft: number;
-      };
+      const { numCodes, rooms, all, expiresAt, usesLeft, discordId } =
+        req.body as {
+          numCodes: number;
+          rooms: string[];
+          all: boolean;
+          expiresAt: number;
+          usesLeft: number;
+          discordId: string;
+        };
 
       const currentDate = new Date();
-      const threeMonthsLater = new Date(currentDate).setMonth(currentDate.getMonth() + 3);
+      const threeMonthsLater = new Date(currentDate).setMonth(
+        currentDate.getMonth() + 3
+      );
 
       const codeExpires = expiresAt ? expiresAt : threeMonthsLater;
       const query = all ? undefined : { where: { roomId: { in: rooms } } };
@@ -391,7 +477,8 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
                 claimcode: code.claimcode,
                 roomIds: roomIds,
                 expiresAt: codeExpires,
-                usesLeft: usesLeft
+                usesLeft: usesLeft,
+                discordId: discordId
               }
             })
             .then((newCode) => {
@@ -417,7 +504,9 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
 
         return Promise.all(createCodes)
           .then(() => {
-            res.status(200).json({ message: 'Claim codes added successfully', codes });
+            res
+              .status(200)
+              .json({ message: 'Claim codes added successfully', codes });
           })
           .catch((err) => {
             console.error(err);
@@ -431,62 +520,72 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    * Adds claim codes to a room
    *
    * @param {number} numCodes The number of codes to add to the room
+   * @param {number} expires The date the codes expire - if not specified, defaults to 3 months from now
+   * @param {number} usesLeft The number of uses left for the codes - if not specified, defaults to -1 (unlimited)
    * @param {string} roomId The id of the room to add codes to
    * @returns {void}
    * @example {
    *          "numCodes": number
    *          }
    */
-  app.post(['/room/:roomId/addcode', '/api/room/:roomId/addcode'], adminAuth, (req, res) => {
-    const { roomId } = req.params;
-    const { numCodes, expires, usesLeft } = req.body as {
-      numCodes: number;
-      expires: number;
-      usesLeft: number;
-    };
-    const codes = genClaimCodeArray(numCodes);
+  app.post(
+    ['/room/:roomId/addcode', '/api/room/:roomId/addcode'],
+    adminAuth,
+    (req, res) => {
+      const { roomId } = req.params;
+      const { numCodes, expires, usesLeft } = req.body as {
+        numCodes: number;
+        expires: number;
+        usesLeft: number;
+      };
+      const codes = genClaimCodeArray(numCodes);
 
-    const currentDate = new Date();
-    const threeMonthsLater = new Date(currentDate).setMonth(currentDate.getMonth() + 3);
+      const currentDate = new Date();
+      const threeMonthsLater = new Date(currentDate).setMonth(
+        currentDate.getMonth() + 3
+      );
 
-    const codeExpires = expires ? expires : threeMonthsLater;
+      const codeExpires = expires ? expires : threeMonthsLater;
 
-    prisma.rooms
-      .findUnique({
-        where: { roomId: roomId },
-        include: { claimCodes: true }
-      })
-      .then((room) => {
-        if (!room) {
-          res.status(404).json({ error: 'Room not found' });
-          return;
-        }
-        // Map over the codes array and create a claim code for each code
-        const createCodes = codes.map((code) => {
-          return prisma.claimCodes.create({
-            data: {
-              claimcode: code.claimcode,
-              expiresAt: codeExpires,
-              usesLeft: usesLeft,
-              rooms: {
-                connect: {
-                  roomId: roomId
+      prisma.rooms
+        .findUnique({
+          where: { roomId: roomId },
+          include: { claimCodes: true }
+        })
+        .then((room) => {
+          if (!room) {
+            res.status(404).json({ error: 'Room not found' });
+            return;
+          }
+          // Map over the codes array and create a claim code for each code
+          const createCodes = codes.map((code) => {
+            return prisma.claimCodes.create({
+              data: {
+                claimcode: code.claimcode,
+                expiresAt: codeExpires,
+                usesLeft: usesLeft,
+                rooms: {
+                  connect: {
+                    roomId: roomId
+                  }
                 }
               }
-            }
+            });
           });
-        });
 
-        return Promise.all(createCodes);
-      })
-      .then(() => {
-        res.status(200).json({ message: 'Claim codes added successfully', codes });
-      })
-      .catch((err) => {
-        console.error(err);
-        res.status(500).json({ error: 'Internal Server Error' });
-      });
-  });
+          return Promise.all(createCodes);
+        })
+        .then(() => {
+          res
+            .status(200)
+            .json({ message: 'Claim codes added successfully', codes });
+        })
+        .catch((err) => {
+          console.error(err);
+          res.status(500).json({ error: 'Internal Server Error' });
+        });
+    }
+  );
 
   // This fetches the claim/invite codes from the database and returns them as JSON
   app.get(['/logclaimcodes', '/api/logclaimcodes'], adminAuth, (req, res) => {
@@ -516,63 +615,25 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
-  app.post('/api/discord/add', adminAuth, (req, res) => {
-    const { discordUserId, roomId } = req.body as { discordUserId: string; roomId: string };
-    if (!discordUserId) {
-      res.status(400).json({ error: 'Bad Request' });
-      return;
-    }
-    prisma.rooms
-      .updateMany({
+  app.post(['/change-identity', '/api/change-identity'], limiter, asyncHandler(async (req: Request, res: Response) => {
+    const { generatedProof } = req.body as { generatedProof: SNARKProof };
+
+    const isValid = await verifyIdentityProof(generatedProof);
+
+    if (isValid) {
+      const updatedIdentity = await prisma.gateWayIdentity.update({
         where: {
-          roomId: roomId
+          semaphoreIdentity: String(generatedProof.publicSignals.identityCommitment)
         },
         data: {
-          discordIds: {
-            push: discordUserId
-          }
+          semaphoreIdentity: String(generatedProof.publicSignals.externalNullifier)
         }
       })
-      .then(() => {
-        res.status(200).json({ message: 'Discord user added successfully' });
-        return true;
-      })
-      .catch((err) => {
-        console.error(err);
-        res.status(500).json({ error: 'Internal Server Error' });
-        return false;
-      });
-  });
-
-  app.post('/api/discord/users', adminAuth, (req, res) => {
-    const { roomId } = req.body as { roomId: string };
-    console.log(roomId);
-    if (!roomId) {
-      res.status(400).json({ error: 'Bad Request' });
-      return;
+      res.status(200).json({ message: 'Identity updated successfully', updatedIdentity });
+    } else {
+      res.status(500).json({ error: 'Internal Server Error' });
     }
-    prisma.rooms
-      .findUnique({
-        where: {
-          roomId: roomId
-        },
-        select: {
-          discordIds: true
-        }
-      })
-      .then((room) => {
-        if (!room) {
-          res.status(404).json({ error: 'Room not found' });
-          return;
-        }
-        res.status(200).json(room.discordIds);
-        return room.discordIds;
-      })
-      .catch((err) => {
-        console.error(err);
-        res.status(500).json({ error: 'Internal Server Error' });
-      });
-  });
+  }))
 
   /**
    * Sends system messages to the specified room, or all rooms if no room is specified
@@ -611,7 +672,20 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     })
   );
 
-  app.post(
+  /**
+  * This code adds an admin to a room. The admin must be logged in and authorized to add an admin to the room.
+  *  The admin must provide the room ID and the identity of the admin to be added.
+  *  The code will then add the admin to the room's list of admin identities.
+  *  @param {string} roomId - The id of the room to add the admin to
+  *  @param {string} idc - The id of the admin to be added
+  * @returns {void}
+  * @example {
+  *         "roomId": "string",
+  *        "idc": "string"
+  * }
+  */
+
+app.post(
     '/room/:roomId/addAdmin',
     adminAuth,
     asyncHandler(async (req: Request, res: Response) => {
@@ -634,4 +708,511 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       }
     })
   );
+
+ // This endpoint returns a list of all Ethereum groups in the database.
+
+ app.get(['/eth/groups/all', '/api/eth/groups/all'], adminAuth, (req, res) => {
+    prisma.ethereumGroup
+      .findMany({
+        select: {
+          name: true
+        }
+      })
+      .then((groups) => {
+        res.status(200).json(groups);
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      });
+  });
+
+  /**
+   * This code gets the Ethereum group with the given address.
+   * @param {string} address - The address of the Ethereum group to get
+   * @returns {void}
+   * @example {
+   *         "address": "string"
+   * }
+*/
+app.get(['/eth/group/:address', '/api/eth/group/:address'], limiter, (req, res) => {
+    const { address } = req.params as { address: string };
+    prisma.ethereumGroup
+      .findMany({
+        where: {
+          ethereumAddresses: {
+            has: address
+          }
+        },
+        select: {
+          name: true
+        }
+      })
+      .then((groups) => {
+        res.status(200).json(groups);
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      });
+  });
+
+/**
+ * This code creates a new Ethereum group with the given name, and
+ * connects the group to the given rooms. It then sends back a JSON
+ * response with the newly created Ethereum group.
+  * @param {string} name - The name of the Ethereum group to create
+  * @param {string[]} roomIds - The ids of the rooms to connect to the group
+  * @returns {void}
+  * @example {
+  *        "name": "string",
+  *       "roomIds": string[]
+  * }
+ */
+
+app.post(
+    ['/eth/group/create', '/api/eth/group/create'],
+    adminAuth,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { name, roomIds } = req.body as {
+        name: string;
+        roomIds: string[];
+      };
+      const ethereumGroup = await prisma.ethereumGroup.create({
+        data: {
+          name: name,
+          rooms: {
+            connect: roomIds.map((roomId) => ({ roomId }))
+          }
+        }
+      });
+      res.json({ success: true, ethereumGroup });
+    })
+  );
+
+
+  /**  Add a new ethereum address to a group
+   * @param {string[]} names - The names of the Ethereum groups to add the address to
+   * @param {string[]} ethAddresses - The addresses to add to the Ethereum groups
+  */
+app.post(
+    ['/eth/group/add', '/api/eth/group/add'],
+    adminAuth,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { names, ethAddresses } = req.body as {
+        names: string[];
+        ethAddresses: string[];
+      };
+      if (!names) return;
+      const groups = await prisma.ethereumGroup.updateMany({
+        where: {
+          name: {
+            in: names
+          }
+        },
+        data: {
+          ethereumAddresses: {
+            push: ethAddresses
+          }
+        }
+      });
+      res.json({ success: true, groups });
+    })
+  );
+
+
+
+/** This code creates a new Ethereum group by adding a new entry to the EthereumGroup table in the database.
+ *  The body of the request contains the name of the group, the ethereum addresses to associate with the group,
+ *  and the room IDs to associate with the group. The code uses Prisma to create a new entry in the EthereumGroup table,
+ *  and then returns the newly created group.
+ * @param {string} name - The name of the Ethereum group to create
+ * @param {string[]} ethAddresses - The addresses to add to the Ethereum groups
+ * @param {string[]} roomIds - The ids of the rooms to connect to the group
+ * @returns {void}
+ * @example {
+ *       "name": "string",
+ *      "ethAddresses": string[],
+ *     "roomIds": string[]
+ * }
+*/
+app.post(
+    ['/eth/group/edit', '/api/eth/group/edit'],
+    adminAuth,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { name, ethAddresses, roomIds } = req.body as {
+        name: string;
+        ethAddresses: string[];
+        roomIds: [];
+      };
+      try {
+        const foundGroup = await prisma.ethereumGroup.findUnique({
+          where: {
+            name: name
+          },
+          select: {
+            ethereumAddresses: true
+          }
+        });
+        let addresses: string[] = [];
+        if (foundGroup?.ethereumAddresses) {
+          addresses = ethAddresses.filter((address) => {
+            return !(foundGroup.ethereumAddresses).includes(
+              address
+            );
+          });
+        }
+        const updatedGroup = await prisma.ethereumGroup.update({
+          where: {
+            name: name
+          },
+          data: {
+            ethereumAddresses: {
+              push: addresses
+            },
+            rooms: {
+              connect: roomIds.map((roomId) => ({ roomId }))
+            }
+          }
+        });
+        res.json({ success: true, updatedGroup });
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
+    })
+  );
+
+  /** This code deletes an ethereum group from the database.
+   * @param {string} name - The name of the Ethereum group to delete
+   * @returns {void}
+   * @example {
+   *      "name": "string"
+   * }
+    */
+app.post(
+    ['/eth/group/delete', '/api/eth/group/delete'],
+    adminAuth,
+    (req, res) => {
+      const { name } = req.body as { name: string };
+      prisma.ethereumGroup
+        .delete({
+          where: {
+            name: name
+          }
+        })
+        .then((group) => {
+          res.status(200).json(group);
+        })
+        .catch((err) => {
+          console.error(err);
+          res.status(500).json({ error: 'Internal Server Error' });
+        });
+    }
+  );
+
+  /**
+  * This code validates the signature in the request body and if it is valid,
+  * it will store the semaphore identity and ethereum address in the database.
+  * It will also return an array of roomIds that the user should join.
+  * @param {string} message - The message to be signed in this case their semaphore identity
+  * @param {string} signature - The signature of the message in this case their private key
+  * @returns {void}
+  * @example {
+  *        "message": "string",
+  *      "signature": "string"
+  * }
+  */
+app.post(
+    ['/eth/message/sign', '/api/eth/message/sign'],
+    limiter,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { message, signature } = req.body as {
+        message: string;
+        signature: string;
+      };
+
+      try {
+        const msgHex = bufferToHex(Buffer.from(message));
+        const msgBuffer = toBuffer(msgHex);
+        const msgHash = hashPersonalMessage(msgBuffer);
+
+        const { v, r, s } = fromRpcSig(signature);
+        const publicKey = ecrecover(msgHash, v, r, s);
+        const address = pubToAddress(publicKey);
+
+        const recoveredAddress = bufferToHex(address);
+        const gatewayIdentity = await prisma.gateWayIdentity.upsert({
+          where: { semaphoreIdentity: message },
+          update: {},
+          create: {
+            semaphoreIdentity: message
+          }
+        });
+
+        await prisma.ethereumAddress.upsert({
+          where: { ethereumAddress: recoveredAddress },
+          update: {},
+          create: {
+            ethereumAddress: recoveredAddress,
+            gatewayId: gatewayIdentity.id
+          }
+        });
+
+        const roomsToJoin = await prisma.ethereumGroup.findMany({
+          where: {
+            ethereumAddresses: {
+              has: recoveredAddress
+            }
+          },
+          select: {
+            roomIds: true
+          }
+        });
+
+        const roomIdsSet = new Set(roomsToJoin.map((room) => room.roomIds).flat());
+        const roomIds = Array.from(roomIdsSet);
+
+        await prisma.gateWayIdentity.update({
+          where: { id: gatewayIdentity.id },
+          data: { roomIds: { set: roomIds } }
+        });
+
+        res.json({ status: 'valid', roomIds: roomIds });
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
+    })
+  );
+
+  /*---------------------DISCORD BOT APIS ---------------------*/
+
+  /**
+   * Creates a new guild in the database when the bot is added to a discord server.
+   * @param {string} guildId - The id of the guild to be added
+   * @returns {void}
+   */
+  app.post('/api/discord/addguild', adminAuth, limiter, (req, res) => {
+    const { guildId } = req.body as {
+      guildId: string;
+    };
+    if (!guildId) {
+      res.status(400).json({ error: 'Bad Request' });
+      return;
+    }
+    prisma.discord
+      .upsert({
+        where: {
+          discordServerId: guildId
+        },
+        update: {},
+        create: {
+          discordServerId: guildId
+        }
+      })
+      .then(() => {
+        res.status(200).json({ message: 'Discord guild added successfully' });
+        return true;
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+        return false;
+      });
+  });
+  /**
+   *  This code creates a new role-room mapping in the database if one does not already exist,
+   *  otherwise it updates the mapping with the new roles.
+   * @param {string[]} roles - The roles to be added to the room
+   * @param {string} roomId - The id of the room to be added
+   * @param {string} guildId - The id of the guild to be added
+   * @returns {void}
+   */
+
+  app.post('/api/discord/addrole', limiter, adminAuth, (req, res) => {
+    const { roles, roomId, guildId } = req.body as {
+      roles: string[];
+      roomId: string;
+      guildId: string;
+    };
+    if (!roles || !roomId || !guildId) {
+      res.status(400).json({ error: 'Bad Request' });
+      return;
+    }
+    prisma.discordRoleRoomMapping
+      .upsert({
+        where: {
+          roomId: roomId
+        },
+        update: {
+          roles: {
+            set: roles
+          }
+        },
+        create: {
+          roomId: roomId,
+          discordServerId: guildId,
+          roles: {
+            set: roles
+          }
+        }
+      })
+      .then(() => {
+        res.status(200).json({ message: 'Discord roles added successfully' });
+        return true;
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+        return false;
+      });
+  });
+
+  /**
+   * This code takes the roleId from the request body and tries to find all the rooms that have that role mapped to it.
+   *  If it finds any, it returns them as a list in the response body.
+   * If it doesn't find any, it returns a 404 error.
+   * If it throws an error, it returns a 500 error.
+   * @param {string} roleId - The id of the role to be added
+   * @returns {string[]} - An array of room ids
+   *  */
+
+  app.post(
+    '/api/discord/getrooms',
+    limiter,
+    adminAuth,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { roles, discordId } = req.body as {
+        roles: string[];
+        discordId: string;
+      };
+      if (roles.length === 0 || !discordId) {
+        res.status(400).json({ error: 'Bad Request' });
+        return;
+      }
+      const rooms = await prisma.gateWayIdentity.findFirst({
+        where: {
+          discordId: discordId
+        },
+        include: {
+          rooms: true
+        }
+      });
+      if (rooms) {
+        const roomIds = rooms.rooms.map((room) => room.roomId);
+        const filteredRooms: string[] = [];
+        const filteredNames: string[] = [];
+        for (const role of roles) {
+          const discordRoleRoomMapping =
+            await prisma.discordRoleRoomMapping.findMany({
+              where: {
+                roles: {
+                  has: role
+                }
+              }
+            });
+          const mappingRoomIds = discordRoleRoomMapping.map(
+            (mapping) => mapping.roomId
+          );
+          const newRooms = mappingRoomIds.filter((roomId) =>
+            roomIds.includes(roomId)
+          );
+          const newRoomNames = newRooms.map((roomId) => {
+            const room = rooms.rooms.find((room) => room.roomId === roomId);
+            return room?.name;
+          });
+          filteredRooms.push(...newRooms);
+          filteredNames.push(...(newRoomNames as string[]));
+        }
+        console.log(filteredRooms);
+        res
+          .status(200)
+          .json({ rooms: filteredRooms, roomNames: filteredNames });
+      } else {
+        const roomIds: string[] = [];
+
+        for (const role of roles) {
+          const discordRoleRoomMapping =
+            await prisma.discordRoleRoomMapping.findMany({
+              where: {
+                roles: {
+                  has: role
+                }
+              }
+            });
+          const mappingRoomIds = discordRoleRoomMapping.map(
+            (mapping) => mapping.roomId
+          );
+          roomIds.push(...mappingRoomIds);
+        }
+        const roomNames = await prisma.rooms.findMany({
+          where: {
+            roomId: {
+              in: roomIds
+            }
+          },
+          select: {
+            name: true
+          }
+        });
+        res.status(200).json({
+          rooms: roomIds,
+          roomNames: roomNames.map((room) => room.name)
+        });
+      }
+    })
+  );
+
+  /**
+   * This endpoint takes a discord user id and returns all rooms that the user is a part of.
+   * @param {string} discordUserId - The id of the discord user to get rooms for
+   * @returns {string[]} - An array of rooms that the user is a part of
+   */
+
+  app.post('/api/discord/rooms', limiter, adminAuth, (req, res) => {
+    const { discordUserId } = req.body as { discordUserId: string };
+    console.log('here');
+    prisma.gateWayIdentity
+      .findFirst({
+        where: {
+          discordId: discordUserId
+        },
+        include: {
+          rooms: true
+        }
+      })
+      .then((identity) => {
+        res.status(200).json(identity);
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      });
+  });
+
+
+  /**
+   * This endpoint gets all the rooms that a user is allowed to access based on their discordId.
+   * @params {string} discordId - The id of the discord user to get rooms for
+   * @returns {string[]} - An array of rooms that the user is a part of
+   */
+
+  app.post('/api/discord/checkrooms', limiter, adminAuth, (req, res) => {
+    const { discordId } = req.body as { discordId: string };
+    prisma.discordRoleRoomMapping
+      .findMany({
+        where: {
+          discordServerId: discordId
+        }
+      })
+      .then((rooms) => {
+        res.status(200).json(rooms);
+        return rooms;
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      });
+  });
 }

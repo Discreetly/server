@@ -1,13 +1,69 @@
-import { createMessageInRoom, findRoomWithMessageId, removeIdentityFromRoom } from './db/';
+import {
+  createMessageInRoom,
+  findRoomWithMessageId,
+  removeIdentityFromRoom
+} from './db/';
 import { MessageI, RoomI } from 'discreetly-interfaces';
-import { shamirRecovery, getIdentityCommitmentFromSecret } from '../crypto/shamirRecovery';
+import {
+  shamirRecovery,
+  getIdentityCommitmentFromSecret
+} from '../crypto/shamirRecovery';
 import { RLNFullProof } from 'rlnjs';
 import { verifyProof } from '../crypto/';
+
+const EPHEMERAL_EPOCH_AGE = 2;
 
 interface CollisionCheckResult {
   collision: boolean;
   secret?: bigint;
   oldMessage?: MessageI;
+}
+
+type roomIdT = string;
+type epochT = string;
+type epoch = Record<epochT, MessageI[]>;
+type EphemeralMessagesI = Record<roomIdT, epoch>;
+
+const ephemeralMessageStore: EphemeralMessagesI = {};
+
+function checkEmphemeralStore(
+  roomId: string,
+  message: MessageI
+): MessageI | null {
+  // Check ephemeralMessages
+  const epoch = message.epoch?.toString();
+  if (ephemeralMessageStore[roomId] && epoch) {
+    if (ephemeralMessageStore[roomId][epoch]) {
+      ephemeralMessageStore[roomId][epoch].forEach((oldMessage) => {
+        if (oldMessage.messageId === message.messageId) {
+          return oldMessage;
+        }
+      });
+    }
+  }
+  return null;
+}
+
+function addMessageToEphemeralStore(roomId: string, message: MessageI) {
+  const currentEpoch = String(message.epoch);
+
+  // Add roomId if it doesn't exist
+  if (!ephemeralMessageStore[roomId]) {
+    ephemeralMessageStore[roomId] = {};
+  }
+
+  // delete old epochs
+  Object.keys(ephemeralMessageStore[roomId]).forEach((epoch) => {
+    if (Number(epoch) < Number(currentEpoch) - EPHEMERAL_EPOCH_AGE) {
+      delete ephemeralMessageStore[roomId][epoch];
+    }
+  });
+
+  // Add epoch if it doesn't exist
+  if (!ephemeralMessageStore[roomId][currentEpoch]) {
+    ephemeralMessageStore[roomId][currentEpoch] = [];
+  }
+  ephemeralMessageStore[roomId][currentEpoch].push(message);
 }
 
 /**
@@ -17,41 +73,81 @@ interface CollisionCheckResult {
  * @param {MessageI} message - The message to check for collisions with
  * @returns {Promise<CollisionCheckResult>} - Returns a promise that resolves to a CollisionCheckResult
  */
+async function checkRLNCollision(
+  room: RoomI,
+  message: MessageI
+): Promise<CollisionCheckResult> {
+  const roomId = room.roomId.toString();
+  let oldMessage: MessageI;
+  const oldDBMessage: MessageI | null = await findRoomWithMessageId(
+    roomId,
+    message
+  );
 
-async function checkRLNCollision(roomId: string, message: MessageI): Promise<CollisionCheckResult> {
-  const oldMessage: MessageI | null = await findRoomWithMessageId(roomId, message);
+  const oldEphemeralMessage: MessageI | null = checkEmphemeralStore(
+    roomId,
+    message
+  );
+  if (room.ephemeral === 'EPHEMERAL') {
+    addMessageToEphemeralStore(roomId, message);
+  }
 
   if (!message.proof) {
     throw new Error('Proof not provided');
   }
 
-  if (!oldMessage?.proof) {
-    console.debug('No collision', oldMessage);
+  if (!oldDBMessage?.proof && !oldEphemeralMessage?.proof) {
+    console.debug('No collision');
     return { collision: false } as CollisionCheckResult;
   } else {
     let oldMessageProof: RLNFullProof;
-    if (typeof oldMessage.proof === 'string') {
-      oldMessageProof = JSON.parse(oldMessage.proof) as RLNFullProof;
+    let oldMessageX2: bigint;
+    let oldMessageY2: bigint;
+    let newMessageProof: RLNFullProof;
+
+    // Collision Found, determine if the collsion is from an ephemeral message or a DB message
+    if (oldEphemeralMessage?.proof) {
+      if (typeof oldEphemeralMessage.proof === 'string') {
+        oldMessageProof = JSON.parse(oldEphemeralMessage.proof) as RLNFullProof;
+      } else {
+        oldMessageProof = oldEphemeralMessage.proof!;
+      }
+      oldMessageX2 = BigInt(oldMessageProof.snarkProof.publicSignals.x);
+      oldMessageY2 = BigInt(oldMessageProof.snarkProof.publicSignals.y);
+      oldMessage = oldEphemeralMessage;
+    } else if (oldDBMessage?.proof) {
+      if (typeof oldDBMessage.proof === 'string') {
+        oldMessageProof = JSON.parse(oldDBMessage.proof) as RLNFullProof;
+      } else {
+        oldMessageProof = oldDBMessage.proof!;
+      }
+      oldMessageX2 = BigInt(oldMessageProof.snarkProof.publicSignals.x);
+      oldMessageY2 = BigInt(oldMessageProof.snarkProof.publicSignals.y);
+      oldMessage = oldDBMessage;
     } else {
-      oldMessageProof = oldMessage.proof;
+      throw new Error(
+        'Collision found but no old message found, something is wrong'
+      );
     }
-    const oldMessagex2 = BigInt(oldMessageProof.snarkProof.publicSignals.x);
-    const oldMessagey2 = BigInt(oldMessageProof.snarkProof.publicSignals.y);
 
-    let proof: RLNFullProof;
-
+    // Recover the secret
     if (typeof message.proof === 'string') {
-      proof = JSON.parse(message.proof) as RLNFullProof;
+      newMessageProof = JSON.parse(message.proof) as RLNFullProof;
     } else {
-      proof = message.proof;
+      newMessageProof = message.proof;
     }
-    const [x1, y1] = [
-      BigInt(proof.snarkProof.publicSignals.x),
-      BigInt(proof.snarkProof.publicSignals.y)
-    ];
-    const [x2, y2] = [oldMessagex2, oldMessagey2];
 
-    const secret = shamirRecovery(x1, x2, y1, y2);
+    const [newMessageX1, newMessageY1] = [
+      BigInt(newMessageProof.snarkProof.publicSignals.x),
+      BigInt(newMessageProof.snarkProof.publicSignals.y)
+    ];
+
+    const secret = shamirRecovery(
+      newMessageX1,
+      oldMessageX2,
+      newMessageY1,
+      oldMessageY2
+    );
 
     return {
       collision: true,
@@ -75,7 +171,7 @@ async function handleCollision(
   const roomId = room.roomId.toString();
   if (!collisionResult.collision) {
     try {
-      if (!room.ephemeral) {
+      if (room.ephemeral != 'EPHEMERAL') {
         await createMessageInRoom(roomId, message);
         console.debug(
           `Message added to room: ${
@@ -84,11 +180,7 @@ async function handleCollision(
               : JSON.stringify(message.message).slice(0, 10)
           }...`
         );
-      } else {
-        // TODO! Need to store roomId/message in a cache to check for collisions, but then drop the messages once the epoch has passed
-        console.debug('Ephemeral room, not adding message to DB');
       }
-
       return { success: true };
     } catch (error) {
       console.error(`Couldn't add message room ${error}`);
@@ -96,7 +188,9 @@ async function handleCollision(
     }
   } else {
     console.warn('Collision found');
-    const identityCommitment = getIdentityCommitmentFromSecret(collisionResult.secret!);
+    const identityCommitment = getIdentityCommitmentFromSecret(
+      collisionResult.secret!
+    );
     try {
       await removeIdentityFromRoom(identityCommitment.toString(), room);
       return { success: false, idc: identityCommitment.toString() };
@@ -117,10 +211,9 @@ export async function validateMessage(
   room: RoomI,
   message: MessageI
 ): Promise<validateMessageResult> {
-  const roomId = room.roomId.toString();
   const validProof: boolean = await verifyProof(room, message);
   if (validProof) {
-    const collisionResult = await checkRLNCollision(roomId, message);
+    const collisionResult = await checkRLNCollision(room, message);
     const result = await handleCollision(room, message, collisionResult);
     return result;
   }

@@ -8,31 +8,33 @@ const prisma = new PrismaClient();
 /**
  * Creates a new room with the given name and optional parameters.
  * @param {string} name - The name of the room.
- * @param {number} [rateLimit=1000] - The length of an epoch in milliseconds
- * @param {number} [userMessageLimit=1] - The message limit per user per epoch
+ * @param {number} [rateLimit=10000] - The length of an epoch in milliseconds
+ * @param {number} [userMessageLimit=12] - The message limit per user per epoch
  * @param {number} [numClaimCodes=0] - The number of claim codes to generate for the room.
- * @param {number} [approxNumMockUsers=20] - The approximate number of mock users to generate for the room.
+ * @param {number} [approxNumMockUsers=5] - The approximate number of mock users to generate for the room.
  * @param {string} [type='IDENTITY_LIST'] - The type of room to create.
+ * @param {string[]} [adminIdentities=[]] - The identities of the admins of the room.
  * @param {string} [bandadaAddress] - The address of the bandada server.
  * @param {string} [bandadaGroupId] - The id of the bandada group.
  * @param {string} [bandadaAPIKey] - The API key for the bandada server.
  * @param {string} [membershipType] - The membership type of the room.
+ * @param {string} [roomId] - The ID of the room to create.
  * @returns {Promise<boolean>} - A promise that resolves to true if the room was created successfully.
  */
 export async function createRoom(
   roomName: string,
-  rateLimit = 1000,
-  userMessageLimit = 1,
+  rateLimit = 100000,
+  userMessageLimit = 12,
   numClaimCodes = 0,
-  approxNumMockUsers = 20,
+  approxNumMockUsers = 5,
   type: string,
+  adminIdentities?: string[],
   bandadaAddress?: string,
   bandadaGroupId?: string,
   bandadaAPIKey?: string,
   membershipType?: string,
-  roomId?: string,
-  discordIds: string[] = []
-): Promise<string | undefined | null> {
+  roomId?: string
+): Promise<{ roomId: string ; claimCodes: { claimcode: string }[] } | undefined | null> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
   const mockUsers: string[] = genMockUsers(approxNumMockUsers);
   const identityCommitments: string[] = mockUsers.map((user) =>
@@ -53,23 +55,28 @@ export async function createRoom(
       name: roomName,
       banRateLimit: rateLimit,
       userMessageLimit: userMessageLimit,
-      semaphoreIdentities: mockUsers,
+      adminIdentities: adminIdentities,
       identities: identityCommitments,
       bandadaAddress,
       bandadaGroupId,
       bandadaAPIKey,
-      membershipType,
       type,
-      discordIds,
+      membershipType,
       claimCodes: {
         create: claimCodes
+      },
+      gateways: {
+        create: mockUsers.map((user) => ({
+          semaphoreIdentity: user,
+        }))
       }
     }
   };
+
   return await prisma.rooms
     .upsert(roomData)
     .then(() => {
-      return _roomId;
+      return {roomId: _roomId, claimCodes};
     })
     .catch((err) => {
       console.error(err);
@@ -141,6 +148,7 @@ export function createMessageInRoom(roomId: string, message: MessageI): Promise<
             create: {
               message: message.message ? String(message.message) : '',
               messageId: message.messageId ? message.messageId.toString() : '',
+              messageType: message.messageType,
               proof: JSON.stringify(message.proof),
               roomId: roomId
             }

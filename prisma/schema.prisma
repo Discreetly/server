@@ -11,49 +11,83 @@ datasource db {
 }
 
 model Rooms {
-  id                  String       @id @default(auto()) @map("_id") @db.ObjectId
-  roomId              String       @unique
-  name                String
-  rateLimit           Int          @default(1000) // epoch length in ms
-  banRateLimit        Int          @default(1000000) // starting number of epochs banned for
-  userMessageLimit    Int          @default(1) // per epoch
-  membershipType      String       @default("IDENTITY_LIST")
-  adminIdentities     String[]     @default([])
-  identities          String[]     @default([])
-  semaphoreIdentities String[]     @default([])
-  contractAddress     String? // RLN_CONTRACT as "chainID:0xADDRESS"
-  bandadaAddress      String? // BANDADA as "url:groupID"
-  bandadaGroupId      String? // Bandada Group ID
-  bandadaAPIKey       String? // Bandada API Key
-  epochs              Epoch[]
-  messages            Messages[]
-  claimCodes          ClaimCodes[] @relation(fields: [claimCodeIds], references: [id])
-  claimCodeIds        String[]     @default([]) @db.ObjectId
-  type                String       @default("PUBLIC")
-  discordIds          String[]     @default([])
-  ephemeral           String       @default("PERSISTENT")
-  encrypted           String       @default("PLAINTEXT")
+  id               String            @id @default(auto()) @map("_id") @db.ObjectId
+  roomId           String            @unique
+  name             String
+  rateLimit        Int               @default(10000) // epoch length in ms
+  banRateLimit     Int               @default(1000000) // starting number of epochs banned for
+  userMessageLimit Int               @default(12) // per epoch
+  membershipType   String            @default("IDENTITY_LIST")
+  adminIdentities  String[]          @default([])
+  identities       String[]          @default([])
+  contractAddress  String? // RLN_CONTRACT as "chainID:0xADDRESS"
+  bandadaAddress   String? // BANDADA as "url:groupID"
+  bandadaGroupId   String? // Bandada Group ID
+  bandadaAPIKey    String? // Bandada API Key
+  epochs           Epoch[]
+  messages         Messages[]
+  claimCodes       ClaimCodes[]      @relation(fields: [claimCodeIds], references: [id])
+  claimCodeIds     String[]          @default([]) @db.ObjectId
+  type             String            @default("PUBLIC")
+  ephemeral        String            @default("PERSISTENT")
+  encrypted        String            @default("PLAINTEXT")
+  gatewayIds       String[]          @default([]) @db.ObjectId
+  gateways         GateWayIdentity[] @relation(fields: [gatewayIds], references: [id])
+  ethereumGroups   EthereumGroup[]   @relation(fields: [ethereumGroupIds], references: [id])
+  ethereumGroupIds String[]          @db.ObjectId
+}
+
+model GateWayIdentity {
+  id                String            @id @default(auto()) @map("_id") @db.ObjectId
+  semaphoreIdentity String            @unique
+  discordId         String?
+  jubmojii          String[]
+  steamId64         String?
+  roomIds           String[]          @default([]) @db.ObjectId
+  rooms             Rooms[]           @relation(fields: [roomIds], references: [id])
+  usedClaimCodes    String[]          @default([]) @db.ObjectId
+  claimCodes        ClaimCodes[]      @relation(fields: [usedClaimCodes], references: [id])
+  ethereumAddress   EthereumAddress[]
+}
+
+model EthereumGroup {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  name              String   @unique
+  roomIds           String[] @default([]) @db.ObjectId
+  rooms             Rooms[]  @relation(fields: [roomIds], references: [id])
+  ethereumAddresses String[] @default([])
+}
+
+model EthereumAddress {
+  id              String          @id @default(auto()) @map("_id") @db.ObjectId
+  ethereumAddress String          @unique
+  gateways        GateWayIdentity @relation(fields: [gatewayId], references: [id])
+  gatewayId       String          @db.ObjectId
 }
 
 model ClaimCodes {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  claimcode String   @unique
-  roomIds   String[] @default([]) @db.ObjectId
-  expiresAt Int      @default(0)
-  usesLeft  Int      @default(-1)
-  rooms     Rooms[]  @relation(fields: [roomIds], references: [id])
+  id         String            @id @default(auto()) @map("_id") @db.ObjectId
+  claimcode  String            @unique
+  roomIds    String[]          @default([]) @db.ObjectId
+  expiresAt  Int               @default(0)
+  usesLeft   Int               @default(-1)
+  rooms      Rooms[]           @relation(fields: [roomIds], references: [id])
+  discordId  String?
+  gatewayIds String[]          @default([]) @db.ObjectId
+  gateways   GateWayIdentity[] @relation(fields: [gatewayIds], references: [id])
 }
 
 model Messages {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  messageId String   // Internal Nullifier
-  message   String
-  timeStamp DateTime @default(now())
-  roomId    String
-  room      Rooms    @relation(fields: [roomId], references: [roomId])
-  proof     String
-  epoch     Epoch?   @relation(fields: [epochId], references: [id])
-  epochId   String?  @db.ObjectId
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  messageId   String // Internal Nullifier
+  message     String
+  timeStamp   DateTime @default(now())
+  roomId      String
+  messageType String?   @default("TEXT")
+  room        Rooms    @relation(fields: [roomId], references: [roomId])
+  proof       String
+  epoch       Epoch?   @relation(fields: [epochId], references: [id])
+  epochId     String?  @db.ObjectId
 }
 
 model Epoch {
@@ -62,4 +96,18 @@ model Epoch {
   messages Messages[]
   rooms    Rooms?     @relation(fields: [roomsId], references: [id])
   roomsId  String?    @db.ObjectId
+}
+
+model Discord {
+  id              String                   @id @default(auto()) @map("_id") @db.ObjectId
+  discordServerId String                   @unique
+  roomsMapping    DiscordRoleRoomMapping[]
+}
+
+model DiscordRoleRoomMapping {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  discordServerId String
+  roomId          String   @unique
+  roles           String[]
+  discord         Discord  @relation(fields: [discordServerId], references: [discordServerId])
 }

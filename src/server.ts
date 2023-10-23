@@ -93,7 +93,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   _app = initAppListeners(PORT);
   io = new SocketIOServer(_app, {
     cors: {
-      origin: ['https://app.discreetly.chat', 'https://admin.socket.io'],
+      origin: '*',
       credentials: true
     }
   });

@@ -17,6 +17,13 @@ export interface ClaimCodeI {
   roomIds: string[];
   expiresAt: number;
   usesLeft: number;
+  discordId: string | null;
+}
+
+export interface GateWayIdentityI {
+  semaphoreIdentity: string | null;
+  roomIds: string[];
+  usedClaimCodes: string[];
 }
 
 export type userCountI = Record<string, number>;
