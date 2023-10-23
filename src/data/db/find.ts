@@ -73,7 +73,7 @@ export async function findRoomsByIdentity(identity: string): Promise<string[]> {
     }
     gateway.rooms.forEach((room) => {
       r.push(room.roomId);
-    })
+    });
     return r;
   } catch (err) {
     console.error(err);
@@ -98,7 +98,7 @@ export async function findGatewayByIdentity(identity: string): Promise<GateWayId
     where: {
       semaphoreIdentity: identity
     }
-    })
+  });
 }
 
 /**
@@ -143,7 +143,7 @@ export async function findRoomWithMessageId(
       return null;
     }
     if (room.epochs[0]) {
-      return room.epochs[0].messages[0];
+      return room.epochs[0].messages[0] as MessageI;
     } else {
       console.debug('Epoch not found');
       return null;
