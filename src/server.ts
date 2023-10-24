@@ -35,7 +35,7 @@ const admin_password = process.env.PASSWORD
   : // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     (generateRandomClaimCode(4) as string);
 
-export const adminAuth = basicAuth({
+const adminAuth = basicAuth({
   users: {
     admin: admin_password
   }

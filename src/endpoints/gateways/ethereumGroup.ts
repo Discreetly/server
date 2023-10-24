@@ -1,7 +1,6 @@
 import asyncHandler from 'express-async-handler';
 import type { Request, Response } from 'express';
 import express from 'express';
-import { adminAuth } from '../../server';
 import { PrismaClient } from '@prisma/client';
 import { limiter } from '../middleware';
 import {
@@ -12,11 +11,21 @@ import {
   toBuffer,
   hashPersonalMessage
 } from 'ethereumjs-util';
+import basicAuth from 'express-basic-auth';
+
+const adminPassword = process.env.ADMIN_PASSWORD ? process.env.ADMIN_PASSWORD : 'password';
+
+const adminAuth = basicAuth({
+  users: {
+    admin: adminPassword
+  }
+});
+
 const router = express.Router();
 const prisma = new PrismaClient();
 
 
-router.get(['/eth/groups/all', '/api/eth/groups/all'], adminAuth, (req: Request, res: Response) => {
+router.get('/groups/all', adminAuth, (req: Request, res: Response) => {
   prisma.ethereumGroup
     .findMany({
       select: {
