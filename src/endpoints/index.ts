@@ -12,7 +12,8 @@ import {
   createRoom,
   createSystemMessages,
   removeRoom,
-  removeMessage
+  removeMessage,
+  addIdentityToIdentityListRooms
 } from '../data/db/';
 import { MessageI, RoomI } from 'discreetly-interfaces';
 import { RLNFullProof } from 'rlnjs';
@@ -24,8 +25,10 @@ import {
   toBuffer,
   hashPersonalMessage
 } from 'ethereumjs-util';
-import { SNARKProof } from 'idc-nullifier/dist/types/types';
+import { SNARKProof as idcProof } from 'idc-nullifier/dist/types/types';
+import { SNARKProof } from '../types';
 import { verifyIdentityProof } from '../crypto/idcVerifier/verifier';
+import { verifyTheWordProof } from '../gateways/theWord/verifier';
 import { rateLimit } from 'express-rate-limit';
 // import expressBasicAuth from 'express-basic-auth';
 
@@ -119,7 +122,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     asyncHandler(async (req: Request, res: Response) => {
       // const { proof } = req.body as { proof: SNARKProof };
       // console.log('PROOF', proof);
-      const isValid = await verifyIdentityProof(req.body as SNARKProof);
+      const isValid = await verifyIdentityProof(req.body as idcProof);
       console.log('VALID?', isValid)
       if (isValid) {
         try {
@@ -151,7 +154,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    *           }
    */
   app.post(
-    ['/join', '/api/join'], limiter,
+    ['/gateway/join', '/api/gateway/join'], limiter,
     asyncHandler(async (req: Request, res: Response) => {
       const parsedBody: JoinData = req.body as JoinData;
 
@@ -618,7 +621,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   });
 
   app.post(['/change-identity', '/api/change-identity'], limiter, asyncHandler(async (req: Request, res: Response) => {
-    const { generatedProof } = req.body as { generatedProof: SNARKProof };
+    const { generatedProof } = req.body as { generatedProof: idcProof };
 
     const isValid = await verifyIdentityProof(generatedProof);
 
@@ -926,7 +929,7 @@ app.post(
   * }
   */
 app.post(
-    ['/eth/message/sign', '/api/eth/message/sign'],
+    ['/gateway/eth/message/sign', '/api/gateway/eth/message/sign'],
     limiter,
     asyncHandler(async (req: Request, res: Response) => {
       const { message, signature } = req.body as {
@@ -988,6 +991,31 @@ app.post(
     })
   );
 
+  app.post(['/gateway/theword', '/api/gateway/theword'], limiter, asyncHandler(async (req: Request, res: Response) => {
+    const { proof, idc } = req.body as { proof: SNARKProof, idc: string };
+
+    const isValid = await verifyTheWordProof(proof);
+    if (isValid) {
+      const room = await prisma.rooms.findUnique({
+        where: {
+          roomId: '007' + process.env.THEWORD_ITERATION
+        }
+      }) as RoomI;
+      const addedRoom = await addIdentityToIdentityListRooms([room], idc);
+      if (addedRoom.length === 0) {
+        res.status(500).json({
+           status: "already-added",
+          message: 'Identity already added to room' })
+      } else {
+        res.status(200).json({
+          status: 'valid',
+          roomId: room.roomId
+        });
+      }
+    } else {
+      res.status(500).json({ error: 'Invalid Proof' });
+    }
+  }));
   /*---------------------DISCORD BOT APIS ---------------------*/
 
   /**

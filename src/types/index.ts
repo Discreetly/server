@@ -1,4 +1,5 @@
 import { RoomI } from 'discreetly-interfaces';
+import { Groth16Proof, PublicSignals } from 'snarkjs';
 
 export interface CodeStatus {
   claimed: boolean;
@@ -24,6 +25,11 @@ export interface GateWayIdentityI {
   semaphoreIdentity: string | null;
   roomIds: string[];
   usedClaimCodes: string[];
+}
+
+export interface SNARKProof {
+  proof: Groth16Proof;
+  publicSignals: PublicSignals;
 }
 
 export type userCountI = Record<string, number>;
