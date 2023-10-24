@@ -46,6 +46,7 @@
     "mongodb": "^5.8.0",
     "poseidon-lite": "^0.2.0",
     "rlnjs": "^3.2.0",
+    "snarkjs": "^0.7.1",
     "socket.io": "^4.6.2"
   },
   "devDependencies": {
@@ -57,6 +58,7 @@
     "@types/express": "^4.17.17",
     "@types/jest": "^29.5.3",
     "@types/node": "^20.4.5",
+    "@types/snarkjs": "^0.7.6",
     "@types/supertest": "^2.0.12",
     "@typescript-eslint/eslint-plugin": "^6.2.1",
     "@typescript-eslint/parser": "^6.2.1",

@@ -1,4 +1,4 @@
-export const vkey = {
+const vkey = {
   "protocol": "groth16",
   "curve": "bn128",
   "nPublic": 2,
@@ -97,3 +97,5 @@ export const vkey = {
     ]
   ]
 }
+
+export default vkey;

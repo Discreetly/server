@@ -1,1 +1,0 @@
-import {groth16 } from 'snarkjs'
