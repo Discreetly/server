@@ -25,7 +25,7 @@ const adminAuth = basicAuth({
  * @param {string} guildId - The id of the guild to be added
  * @returns {void}
  */
-router.post('/api/discord/addguild', adminAuth, limiter, (req, res) => {
+router.post('/addguild', adminAuth, limiter, (req, res) => {
   const { guildId } = req.body as {
     guildId: string;
   };
@@ -62,7 +62,7 @@ router.post('/api/discord/addguild', adminAuth, limiter, (req, res) => {
  * @param {string} guildId - The id of the guild to be added
  * @returns {void}
  */
-router.post('/api/discord/addrole', limiter, adminAuth, (req, res) => {
+router.post('/addrole', limiter, adminAuth, (req, res) => {
   const { roles, roomId, guildId } = req.body as {
     roles: string[];
     roomId: string;

@@ -54,7 +54,7 @@ router.get('/groups/all', adminAuth, (req: Request, res: Response) => {
  *         "address": "string"
  * }
  */
-router.get(['/eth/group/:address', '/api/eth/group/:address'], limiter, (req, res) => {
+router.get('/group/:address', limiter, (req, res) => {
   const { address } = req.params as { address: string };
   prisma.ethereumGroup
     .findMany({
@@ -90,7 +90,7 @@ router.get(['/eth/group/:address', '/api/eth/group/:address'], limiter, (req, re
  */
 
 router.post(
-  ['/eth/group/create', '/api/eth/group/create'],
+  '/group/create',
   adminAuth,
   asyncHandler(async (req: Request, res: Response) => {
     const { name, roomIds } = req.body as {
@@ -114,7 +114,7 @@ router.post(
  * @param {string[]} ethAddresses - The addresses to add to the Ethereum groups
  */
 router.post(
-  ['/eth/group/add', '/api/eth/group/add'],
+  '/group/add',
   adminAuth,
   asyncHandler(async (req: Request, res: Response) => {
     const { names, ethAddresses } = req.body as {
@@ -153,7 +153,7 @@ router.post(
  * }
  */
 router.post(
-  ['/eth/group/edit', '/api/eth/group/edit'],
+  '/group/edit',
   adminAuth,
   asyncHandler(async (req: Request, res: Response) => {
     const { name, ethAddresses, roomIds } = req.body as {
@@ -204,7 +204,7 @@ router.post(
  *      "name": "string"
  * }
  */
-router.post(['/eth/group/delete', '/api/eth/group/delete'], adminAuth, (req, res) => {
+router.post('/group/delete', adminAuth, (req, res) => {
   const { name } = req.body as { name: string };
   prisma.ethereumGroup
     .delete({
@@ -234,7 +234,7 @@ router.post(['/eth/group/delete', '/api/eth/group/delete'], adminAuth, (req, res
  * }
  */
 router.post(
-  ['/gateway/eth/message/sign'],
+  '/message/sign',
   limiter,
   asyncHandler(async (req: Request, res: Response) => {
     const { message, signature } = req.body as {
