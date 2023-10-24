@@ -12,8 +12,8 @@ import { createSystemMessages } from '../../data/db';
 const prisma = new PrismaClient();
 const router = express.Router();
 
-const adminPassword = process.env.ADMIN_PASSWORD
-  ? process.env.ADMIN_PASSWORD
+const adminPassword = process.env.PASSWORD
+  ? process.env.PASSWORD
   : 'password';
 
 const adminAuth = basicAuth({

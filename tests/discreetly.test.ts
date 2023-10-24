@@ -1,10 +1,10 @@
 const request = require('supertest');
 import _app, { intervalIds } from '../src/server';
-import { RoomI, genId } from 'discreetly-interfaces';
+import { RoomI } from 'discreetly-interfaces';
 import { serverConfig } from '../src/config/serverConfig';
 import { PrismaClient } from '@prisma/client';
-import { beforeAll, beforeEach, afterAll, describe, expect, test } from '@jest/globals';
-import { randBigint, randomRoomName } from './utils';
+import { beforeAll, afterAll, describe, expect, test } from '@jest/globals';
+import { randomRoomName } from './utils';
 import { generateIdentityProof } from '../src/crypto/idcVerifier/verifier';
 import { Identity } from '@semaphore-protocol/identity';
 
@@ -13,9 +13,6 @@ process.env.DATABASE_URL = process.env.DATABASE_URL_TEST;
 process.env.PORT = '3001';
 
 const CUSTOM_ID = '444';
-
-
-
 
 const room = {
   roomName: randomRoomName(),
@@ -90,7 +87,7 @@ describe('Endpoints', () => {
   test('It should create claimCode for the new room', async () => {
     const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
     await request(_app)
-      .post(`/api/addcode`)
+      .post(`/admin/addcode`)
       .set('Authorization', `Basic ${base64Credentials}`)
       .send({ numCodes: 1, rooms: [roomByIdTest], all: false, expiresAt: 0, usesLeft: -1 })
       .then((res) => {
@@ -147,7 +144,7 @@ describe('Endpoints', () => {
 
   test('It should return the room with the given id', async () => {
     await request(_app)
-      .get(`/api/room/${roomByIdTest}`)
+      .get(`/room/${roomByIdTest}`)
       .then((res) => {
         try {
           expect(res.status).toEqual(200);
@@ -161,7 +158,7 @@ describe('Endpoints', () => {
 
   test('It should return the room with the given custom id', async () => {
     await request(_app)
-      .get(`/api/room/${CUSTOM_ID}`)
+      .get(`/room/${CUSTOM_ID}`)
       .then((res) => {
         try {
           expect(res.status).toEqual(200);
@@ -176,7 +173,7 @@ describe('Endpoints', () => {
   test('It should return all rooms', async () => {
     const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
     await request(_app)
-      .get('/api/rooms')
+      .get('/admin/rooms')
 
       .set('Authorization', `Basic ${base64Credentials}`)
       .then((res) => {
@@ -194,7 +191,7 @@ describe('Endpoints', () => {
   test("It should return all claim codes and add a user's identity to the rooms the claim code is associated with", async () => {
     const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
     await request(_app)
-      .get('/logclaimcodes')
+      .get('/admin/logclaimcodes')
 
       .set('Authorization', `Basic ${base64Credentials}`)
       .then(async (res) => {
@@ -208,7 +205,7 @@ describe('Endpoints', () => {
           };
 
           await request(_app)
-            .post('/join')
+            .post('/gateway/code/join')
             .send(joinTest)
             .then((res) => {
               console.log(res.body);
@@ -226,9 +223,8 @@ describe('Endpoints', () => {
 
   test('It should return all rooms associated with the given identity', async () => {
     let proof = await generateIdentityProof(testIdentity, BigInt(Date.now()))
-    console.log("PROOF", proof);
     await request(_app)
-      .get(`/api/rooms/${testIdentity.getCommitment().toString()}`)
+      .get(`/room/idc/${testIdentity.getCommitment().toString()}`)
       .send(proof)
       .then((res) => {
         try {
@@ -261,7 +257,7 @@ describe('Endpoints', () => {
 
   test('It should return the messages for a given room', async () => {
     await request(_app)
-      .get(`/api/room/${roomByIdTest}/messages`)
+      .get(`/room/${roomByIdTest}/messages`)
       .then((res) => {
         try {
           expect(res.statusCode).toEqual(200);
@@ -278,7 +274,7 @@ describe('Endpoints', () => {
 
     test('It should send and receive a message', async () => {
       await request(_app)
-        .get(`/api/room/${CUSTOM_ID}`)
+        .get(`/room/${CUSTOM_ID}`)
         .then((res) => {
           try {
             testRoom = res.body as RoomI;

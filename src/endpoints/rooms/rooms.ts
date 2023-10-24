@@ -89,11 +89,11 @@ router.get('/:id', limiter, (req, res) => {
  * @returns {void}
  */
 router.get(
-  '/:idc',
+  '/idc/:idc',
   limiter,
   asyncHandler(async (req: Request, res: Response) => {
     const isValid = await verifyIdentityProof(req.body as IDCProof);
-
+    console.log('VALID', isValid);
     if (isValid) {
       try {
         res.status(200).json(await findRoomsByIdentity(req.params.idc));
@@ -101,6 +101,8 @@ router.get(
         console.error(error);
         res.status(500).json({ error: 'Internal Server Error' });
       }
+    } else {
+      res.status(400).json({ error: 'Invalid Proof' });
     }
   })
 );
