@@ -20,6 +20,7 @@ const adminAuth = basicAuth({
     admin: discordPassword
   }
 });
+
 /**
  * Creates a new guild in the database when the bot is added to a discord server.
  * @param {string} guildId - The id of the guild to be added
@@ -107,6 +108,7 @@ router.post('/addrole', limiter, adminAuth, (req, res) => {
  * If it doesn't find any, it returns a 404 error.
  * If it throws an error, it returns a 500 error.
  * @param {string} roleId - The id of the role to be added
+ * @param {string} discordId - The id of the discord user
  * @returns {string[]} - An array of room ids
  *  */
 router.post(
@@ -210,8 +212,8 @@ router.post('/rooms', limiter, adminAuth, (req, res) => {
         rooms: true
       }
     })
-    .then((identity) => {
-      res.status(200).json(identity);
+    .then((rooms) => {
+      res.status(200).json(rooms);
     })
     .catch((err) => {
       console.error(err);

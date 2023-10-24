@@ -30,6 +30,7 @@ const router = express.Router();
 const prisma = new PrismaClient();
 
 
+// Fetches all ethereum groups that exist in the database
 router.get('/groups/all', adminAuth, (req: Request, res: Response) => {
   prisma.ethereumGroup
     .findMany({
@@ -88,7 +89,6 @@ router.get('/group/:address', limiter, (req, res) => {
  *       "roomIds": string[]
  * }
  */
-
 router.post(
   '/group/create',
   adminAuth,
@@ -109,7 +109,7 @@ router.post(
   })
 );
 
-/**  Add a new ethereum address to a group
+/**  Adds a list of ethereum addresses to a list of groups in the database.
  * @param {string[]} names - The names of the Ethereum groups to add the address to
  * @param {string[]} ethAddresses - The addresses to add to the Ethereum groups
  */
@@ -138,12 +138,11 @@ router.post(
   })
 );
 
-/** This code creates a new Ethereum group by adding a new entry to the EthereumGroup table in the database.
+/** This code edits an ethereum group in the database.
  *  The body of the request contains the name of the group, the ethereum addresses to associate with the group,
- *  and the room IDs to associate with the group. The code uses Prisma to create a new entry in the EthereumGroup table,
- *  and then returns the newly created group.
- * @param {string} name - The name of the Ethereum group to create
- * @param {string[]} ethAddresses - The addresses to add to the Ethereum groups
+ *  and the room IDs to associate with the group.
+ * @param {string} name - The name of the Ethereum group to edit
+ * @param {string[]} ethAddresses - The addresses to add to the Ethereum group
  * @param {string[]} roomIds - The ids of the rooms to connect to the group
  * @returns {void}
  * @example {

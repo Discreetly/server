@@ -50,3 +50,20 @@ export interface GatewaySignatureDataI {
 export interface GatewayProofDataI extends GatewayDataI {
   proof: SNARKProof;
 }
+
+export interface addRoomData {
+  roomName: string;
+  rateLimit: number;
+  userMessageLimit: number;
+  numClaimCodes?: number;
+  approxNumMockUsers?: number;
+  adminIdentities?: string[];
+  roomType?: string;
+  bandadaAddress?: string;
+  bandadaAPIKey?: string;
+  bandadaGroupId?: string;
+  membershipType?: string;
+  roomId?: string;
+  admin?: boolean;
+  discordIds?: string[];
+}

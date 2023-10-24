@@ -16,6 +16,18 @@ const router = express.Router();
 const prisma = new PrismaClient();
 
 
+/** This code takes a request from the gateway and joins a user to a room
+ * It takes in the claim code and the identity commitment of the user
+ * It checks if the claim code is valid and not expired
+ * It then adds the identity commitment to the room
+ * @param {string} code - The claim code to be used
+ * @param {string} idc - The identity commitment of the user
+ * @returns {void}
+ * @example {
+ *     "code": "string",
+ *    "idc": "string"
+ * }
+*/
 router.post(
   '/join',
   limiter,

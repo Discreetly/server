@@ -6,6 +6,7 @@ import { PrismaClient } from '@prisma/client';
 import { verifyIdentityProof } from '../../crypto/idcVerifier/verifier';
 import { pp } from '../../utils';
 import { SNARKProof as idcProof } from 'idc-nullifier/dist/types/types';
+import { addRoomData } from '../../types';
 import {
   findRoomById,
   findRoomsByIdentity,
@@ -31,9 +32,9 @@ const adminAuth = basicAuth({
   }
 });
 
-  // This code gets a room by its ID, and then checks if room is null.
-  // If room is null, it returns a 500 error.
-  // Otherwise, it returns a 200 status code and the room object.
+// This code gets a room by its ID, and then checks if room is null.
+// If room is null, it returns a 500 error.
+// Otherwise, it returns a 200 status code and the room object.
 router.get('/:id', limiter, (req, res) => {
   if (!req.params.id) {
     res.status(400).json({ error: 'Bad Request' });
@@ -82,18 +83,17 @@ router.get('/:id', limiter, (req, res) => {
 });
 
 /** This function gets the rooms that a user is a member of.
+ * It takes in the identity commitment of the user, and passes it to the findRoomsByIdentity function.
  * @param {string} idc - The id of the identity to get rooms for.
- * @returns {Array} - An array of room objects.
+ * @param {idcProof} proof - The proof of the identity to get rooms for.
+ * @returns {void}
  */
 router.get(
   '/:idc',
   limiter,
   asyncHandler(async (req: Request, res: Response) => {
-    // const { proof } = req.body as { proof: SNARKProof };
-    // console.log('PROOF', proof);
-
     const isValid = await verifyIdentityProof(req.body as idcProof);
-    console.log('VALID?', isValid);
+
     if (isValid) {
       try {
         res.status(200).json(await findRoomsByIdentity(req.params.idc));
@@ -104,40 +104,6 @@ router.get(
     }
   })
 );
-
-/**
- * This code is used to update the room identities of the rooms that the user is joining.
- * The code updates the claim code and sets it to be claimed.
- * It then updates the room identities of the user joining.
- * Finally, it finds the rooms that have been updated and returns them.
- *  @param {string} code - The claim code to be updated
- *  @param {string} idc - The id of the identity to be added to the room
- *  @returns {Array} - An array of room objects
- *  @example {
- *            "code": "string",
- *            "idc": "string"
- *           }
- */
-
-
-interface addRoomData {
-  roomName: string;
-  rateLimit: number;
-  userMessageLimit: number;
-  numClaimCodes?: number;
-  approxNumMockUsers?: number;
-  adminIdentities?: string[];
-  roomType?: string;
-  bandadaAddress?: string;
-  bandadaAPIKey?: string;
-  bandadaGroupId?: string;
-  membershipType?: string;
-  roomId?: string;
-  admin?: boolean;
-  discordIds?: string[];
-}
-
-/* ~~~~ ADMIN ENDPOINTS ~~~~ */
 
 /** createRoom is used to create a new room in the database
  * @param {string} roomName - The name of the room
@@ -228,7 +194,6 @@ router.post('/add', adminAuth, (req, res) => {
  * @param {string} roomId - The id of the room to be deleted
  * @returns {void}
  *  */
-
 router.post(
   '/:roomId/delete',
   adminAuth,
@@ -259,7 +224,6 @@ router.post(
  * @param {string} messageId - The id of the message to be deleted
  * @returns {void}
  * */
-
 router.post(
   '/:roomId/message/delete',
   adminAuth,

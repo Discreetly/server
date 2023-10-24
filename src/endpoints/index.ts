@@ -25,6 +25,4 @@ export function initEndpoints(app: Express) {
     pp('Express: fetching server info');
     res.status(200).json(serverConfig);
   });
-
-
   }
