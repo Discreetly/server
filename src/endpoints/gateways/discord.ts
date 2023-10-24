@@ -2,7 +2,7 @@ import express from 'express';
 import type { Request, Response } from 'express';
 import {  limiter } from '../middleware';
 import { PrismaClient } from '@prisma/client';
-
+import { generateRandomClaimCode } from 'discreetly-claimcodes';
 import asyncHandler from 'express-async-handler';
 import basicAuth from 'express-basic-auth';
 
@@ -10,13 +10,16 @@ import basicAuth from 'express-basic-auth';
 const router = express.Router();
 const prisma = new PrismaClient();
 
-const discordPassword = process.env.DISCORD_PASSWORD ? process.env.DISCORD_PASSWORD : 'password';
+const discordPassword = process.env.DISCORD_PASSWORD
+  ? process.env.DISCORD_PASSWORD
+  : // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    (generateRandomClaimCode(4) as string);
 
 const adminAuth = basicAuth({
   users: {
     admin: discordPassword
   }
-})
+});
 /**
  * Creates a new guild in the database when the bot is added to a discord server.
  * @param {string} guildId - The id of the guild to be added

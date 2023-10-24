@@ -16,11 +16,14 @@ import {
 import { MessageI, RoomI } from 'discreetly-interfaces';
 import { RLNFullProof } from 'rlnjs';
 import basicAuth from 'express-basic-auth';
-
+import { generateRandomClaimCode } from 'discreetly-claimcodes';
 const router = express.Router();
 const prisma = new PrismaClient();
 
-const adminPassword = process.env.ADMIN_PASSWORD ? process.env.ADMIN_PASSWORD : 'password';
+const adminPassword = process.env.PASSWORD
+  ? process.env.PASSWORD
+  : // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    (generateRandomClaimCode(4) as string);
 
 const adminAuth = basicAuth({
   users: {

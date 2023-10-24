@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { limiter } from '../middleware';
+import { generateRandomClaimCode } from 'discreetly-claimcodes';
 import {
   ecrecover,
   pubToAddress,
@@ -13,13 +14,17 @@ import {
 } from 'ethereumjs-util';
 import basicAuth from 'express-basic-auth';
 
-const adminPassword = process.env.ADMIN_PASSWORD ? process.env.ADMIN_PASSWORD : 'password';
+const adminPassword = process.env.PASSWORD
+  ? process.env.PASSWORD
+  : // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    (generateRandomClaimCode(4) as string);
 
 const adminAuth = basicAuth({
   users: {
     admin: adminPassword
   }
 });
+
 
 const router = express.Router();
 const prisma = new PrismaClient();
