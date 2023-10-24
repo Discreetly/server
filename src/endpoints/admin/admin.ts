@@ -45,7 +45,7 @@ const adminAuth = basicAuth({
    *          }
    */
 router.post(
-  ['/addcode', '/api/addcode'],
+  '/addcode',
   adminAuth,
   asyncHandler(async (req: Request, res: Response) => {
     const { numCodes, rooms, all, expiresAt, usesLeft, discordId } = req.body as {
@@ -122,7 +122,7 @@ router.post(
  *          "numCodes": number
  *          }
  */
-router.post(['/room/:roomId/addcode', '/api/room/:roomId/addcode'], adminAuth, (req, res) => {
+router.post('/:roomId/addcode', adminAuth, (req, res) => {
   const { roomId } = req.params;
   const { numCodes, expires, usesLeft } = req.body as {
     numCodes: number;
@@ -174,7 +174,7 @@ router.post(['/room/:roomId/addcode', '/api/room/:roomId/addcode'], adminAuth, (
 });
 
 // This fetches the claim/invite codes from the database and returns them as JSON
-router.get(['/logclaimcodes', '/api/logclaimcodes'], adminAuth, (req, res) => {
+router.get('/logclaimcodes', adminAuth, (req, res) => {
   pp('Express: fetching claim codes');
   prisma.claimCodes
     .findMany()
@@ -188,7 +188,7 @@ router.get(['/logclaimcodes', '/api/logclaimcodes'], adminAuth, (req, res) => {
 });
 
 // GET all rooms from the database and return them as JSON
-router.get(['/rooms', '/api/rooms'], adminAuth, (req, res) => {
+router.get('/rooms', adminAuth, (req, res) => {
   pp(String('Express: fetching all rooms'));
   prisma.rooms
     .findMany()
@@ -202,7 +202,7 @@ router.get(['/rooms', '/api/rooms'], adminAuth, (req, res) => {
 });
 
 router.post(
-  ['/change-identity', '/api/change-identity'],
+  '/change-identity',
   limiter,
   asyncHandler(async (req: Request, res: Response) => {
     const { generatedProof } = req.body as { generatedProof: idcProof };
@@ -236,7 +236,7 @@ router.post(
  *          }
  */
 router.post(
-  '/admin/message',
+  '/message',
   adminAuth,
   asyncHandler(async (req: Request, res: Response) => {
     const { message, roomId } = req.body as {
@@ -276,7 +276,7 @@ router.post(
  */
 
 router.post(
-  '/room/:roomId/addAdmin',
+  '/:roomId/addAdmin',
   adminAuth,
   asyncHandler(async (req: Request, res: Response) => {
     const { roomId } = req.params;
