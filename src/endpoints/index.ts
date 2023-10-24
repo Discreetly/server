@@ -5,28 +5,21 @@ import { genClaimCodeArray, pp } from '../utils';
 import {
   findRoomById,
   findRoomsByIdentity,
-  findClaimCode,
-  updateClaimCode,
-  updateRoomIdentities,
-  findUpdatedRooms,
   createRoom,
   createSystemMessages,
   removeRoom,
   removeMessage,
-  addIdentityToIdentityListRooms
 } from '../data/db/';
 import { MessageI, RoomI } from 'discreetly-interfaces';
 import { RLNFullProof } from 'rlnjs';
 import { SNARKProof as idcProof } from 'idc-nullifier/dist/types/types';
-import { SNARKProof } from '../types';
 import { verifyIdentityProof } from '../crypto/idcVerifier/verifier';
 import { limiter } from './middleware';
-import { verifyTheWordProof } from '../gateways/theWord/verifier';
-
+import asyncHandler from 'express-async-handler';
 import discordRouter from './gateways/discord';
 import ethRouter from './gateways/ethereumGroup';
 import theWordRouter from './gateways/theWord';
-
+import codeRouter from './gateways/inviteCode'
 // import expressBasicAuth from 'express-basic-auth';
 
 const prisma = new PrismaClient();
@@ -34,9 +27,11 @@ const prisma = new PrismaClient();
 export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   // This code is used to fetch the server info from the api
   // This is used to display the server info on the client side
-  app.use('/discord', discordRouter)
-  app.use('/eth', ethRouter)
-  app.use('/theword', theWordRouter)
+  app.use('/gateway/discord', discordRouter)
+  app.use('/gateway/eth', ethRouter)
+  app.use('/gateway/theword', theWordRouter)
+  app.use('/gateway/code', codeRouter)
+
 
   app.get(['/'], (req, res) => {
     pp('Express: fetching server info');
@@ -131,66 +126,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    *            "idc": "string"
    *           }
    */
-  app.post(
-    ['/gateway/join', '/api/gateway/join'],
-    limiter,
-    asyncHandler(async (req: Request, res: Response) => {
-      const parsedBody: JoinData = req.body as JoinData;
 
-      if (!parsedBody.code || !parsedBody.idc) {
-        res.status(400).json({ message: '{code: string, idc: string} expected' });
-      }
-      const { code, idc } = parsedBody;
-      console.debug('Invite Code:', code);
-
-      const foundCode = await findClaimCode(code);
-      if (foundCode && foundCode.expiresAt < Date.now()) {
-        await prisma.claimCodes.delete({
-          where: {
-            claimcode: code
-          }
-        });
-        res.status(400).json({ message: 'Claim Code Expired' });
-        return;
-      }
-      if (foundCode && (foundCode.usesLeft >= 0 || foundCode.usesLeft === -1)) {
-        const updatedCode = await updateClaimCode(code, idc);
-        if (updatedCode && updatedCode.usesLeft === 0) {
-          await prisma.claimCodes.delete({
-            where: {
-              claimcode: code
-            }
-          });
-        }
-      } else {
-        res.status(400).json({ message: 'Invalid Claim Code' });
-        return;
-      }
-      const roomIds = foundCode.roomIds;
-      const addedRooms = await updateRoomIdentities(idc, roomIds, foundCode.discordId!);
-      if (addedRooms.length === 0) {
-        res.status(400).json({
-          status: 'already-added',
-          message: `Identity already exists in ${String(roomIds)}`
-        });
-      } else {
-        const updatedRooms = await findUpdatedRooms(addedRooms);
-
-        // Return the room ids of the updated rooms
-        if (updatedRooms.length > 0) {
-          res.status(200).json({
-            status: 'valid',
-            roomIds: updatedRooms.map((room: RoomI) => room.roomId)
-          });
-        } else {
-          res.status(400).json({
-            status: 'already-added',
-            message: `No rooms found for ${String(roomIds)}`
-          });
-        }
-      }
-    })
-  );
 
   interface addRoomData {
     roomName: string;
@@ -673,3 +609,4 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       }
     })
   );
+  }
