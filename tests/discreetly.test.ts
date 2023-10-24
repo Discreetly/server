@@ -5,11 +5,17 @@ import { serverConfig } from '../src/config/serverConfig';
 import { PrismaClient } from '@prisma/client';
 import { beforeAll, beforeEach, afterAll, describe, expect, test } from '@jest/globals';
 import { randBigint, randomRoomName } from './utils';
+import { generateIdentityProof } from '../src/crypto/idcVerifier/verifier';
+import { Identity } from '@semaphore-protocol/identity';
+
 
 process.env.DATABASE_URL = process.env.DATABASE_URL_TEST;
 process.env.PORT = '3001';
 
 const CUSTOM_ID = '444';
+
+
+
 
 const room = {
   roomName: randomRoomName(),
@@ -32,9 +38,10 @@ const messageTestRoom = {
 
 let roomByIdTest: string;
 let testCode: string;
-const testIdentity = randBigint();
+const testIdentity = new Identity();
 const username = 'admin';
 const password = process.env.PASSWORD;
+
 
 beforeAll(async () => {
   const prismaTest = new PrismaClient();
@@ -197,7 +204,7 @@ describe('Endpoints', () => {
 
           const joinTest = {
             code: testCode,
-            idc: testIdentity
+            idc: testIdentity.getCommitment().toString(),
           };
 
           await request(_app)
@@ -218,8 +225,11 @@ describe('Endpoints', () => {
   });
 
   test('It should return all rooms associated with the given identity', async () => {
+    let proof = await generateIdentityProof(testIdentity, BigInt(Date.now()))
+    console.log("PROOF", proof);
     await request(_app)
-      .get(`/api/rooms/${testIdentity}`)
+      .get(`/api/rooms/${testIdentity.getCommitment().toString()}`)
+      .send(proof)
       .then((res) => {
         try {
           expect(res.statusCode).toEqual(200);
