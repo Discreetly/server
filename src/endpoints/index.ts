@@ -26,32 +26,15 @@ import {
 } from 'ethereumjs-util';
 import { SNARKProof } from 'idc-nullifier/dist/types/types';
 import { verifyIdentityProof } from '../crypto/idcVerifier/verifier';
-import { rateLimit } from 'express-rate-limit';
+import { limiter, asyncHandler } from './middleware';
 // import expressBasicAuth from 'express-basic-auth';
 
 const prisma = new PrismaClient();
 
-function asyncHandler(fn: {
-  (req: Request, res: Response): Promise<void>;
-  (arg0: unknown, arg1: unknown): unknown;
-}) {
-  return (req, res) => {
-    void Promise.resolve(fn(req, res)).catch((err) => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      throw new Error(err);
-    });
-  };
-}
-
-const limiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 60 // 60 requests per minute
-})
-
 export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   // This code is used to fetch the server info from the api
   // This is used to display the server info on the client side
-  app.get(['/', '/api'], (req, res) => {
+  app.get(['/'], (req, res) => {
     pp('Express: fetching server info');
     res.status(200).json(serverConfig);
   });
@@ -60,7 +43,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   // If room is null, it returns a 500 error.
   // Otherwise, it returns a 200 status code and the room object.
 
-  app.get(['/room/:id', '/api/room/:id'], limiter, (req, res) => {
+  app.get(['/room/:id'], limiter, (req, res) => {
     if (!req.params.id) {
       res.status(400).json({ error: 'Bad Request' });
     } else {
@@ -70,10 +53,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         .then((room: RoomI) => {
           if (!room) {
             // This is set as a timeout to prevent someone from trying to brute force room ids
-            setTimeout(
-              () => res.status(500).json({ error: 'Internal Server Error' }),
-              1000
-            );
+            setTimeout(() => res.status(500).json({ error: 'Internal Server Error' }), 1000);
           } else {
             const {
               roomId,
@@ -115,12 +95,13 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    * @returns {Array} - An array of room objects.
    */
   app.get(
-    ['/rooms/:idc', '/api/rooms/:idc'], limiter,
+    ['/rooms/:idc'],
+    limiter,
     asyncHandler(async (req: Request, res: Response) => {
       // const { proof } = req.body as { proof: SNARKProof };
       // console.log('PROOF', proof);
       const isValid = await verifyIdentityProof(req.body as SNARKProof);
-      console.log('VALID?', isValid)
+      console.log('VALID?', isValid);
       if (isValid) {
         try {
           res.status(200).json(await findRoomsByIdentity(req.params.idc));
@@ -131,11 +112,6 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       }
     })
   );
-
-  interface JoinData {
-    code: string;
-    idc: string;
-  }
 
   /**
    * This code is used to update the room identities of the rooms that the user is joining.
@@ -151,14 +127,13 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    *           }
    */
   app.post(
-    ['/join', '/api/join'], limiter,
+    ['/join', '/api/join'],
+    limiter,
     asyncHandler(async (req: Request, res: Response) => {
       const parsedBody: JoinData = req.body as JoinData;
 
       if (!parsedBody.code || !parsedBody.idc) {
-        res
-          .status(400)
-          .json({ message: '{code: string, idc: string} expected' });
+        res.status(400).json({ message: '{code: string, idc: string} expected' });
       }
       const { code, idc } = parsedBody;
       console.debug('Invite Code:', code);
@@ -187,17 +162,11 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         return;
       }
       const roomIds = foundCode.roomIds;
-      const addedRooms = await updateRoomIdentities(
-        idc,
-        roomIds,
-        foundCode.discordId!
-      );
+      const addedRooms = await updateRoomIdentities(idc, roomIds, foundCode.discordId!);
       if (addedRooms.length === 0) {
         res.status(400).json({
           status: 'already-added',
-          message: `Identity already exists in ${String(
-            roomIds
-          )}`
+          message: `Identity already exists in ${String(roomIds)}`
         });
       } else {
         const updatedRooms = await findUpdatedRooms(addedRooms);
@@ -211,9 +180,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
         } else {
           res.status(400).json({
             status: 'already-added',
-            message: `No rooms found for ${String(
-              roomIds
-            )}`
+            message: `No rooms found for ${String(roomIds)}`
           });
         }
       }
@@ -451,20 +418,17 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
     ['/addcode', '/api/addcode'],
     adminAuth,
     asyncHandler(async (req: Request, res: Response) => {
-      const { numCodes, rooms, all, expiresAt, usesLeft, discordId } =
-        req.body as {
-          numCodes: number;
-          rooms: string[];
-          all: boolean;
-          expiresAt: number;
-          usesLeft: number;
-          discordId: string;
-        };
+      const { numCodes, rooms, all, expiresAt, usesLeft, discordId } = req.body as {
+        numCodes: number;
+        rooms: string[];
+        all: boolean;
+        expiresAt: number;
+        usesLeft: number;
+        discordId: string;
+      };
 
       const currentDate = new Date();
-      const threeMonthsLater = new Date(currentDate).setMonth(
-        currentDate.getMonth() + 3
-      );
+      const threeMonthsLater = new Date(currentDate).setMonth(currentDate.getMonth() + 3);
 
       const codeExpires = expiresAt ? expiresAt : threeMonthsLater;
       const query = all ? undefined : { where: { roomId: { in: rooms } } };
@@ -506,9 +470,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
 
         return Promise.all(createCodes)
           .then(() => {
-            res
-              .status(200)
-              .json({ message: 'Claim codes added successfully', codes });
+            res.status(200).json({ message: 'Claim codes added successfully', codes });
           })
           .catch((err) => {
             console.error(err);
@@ -530,64 +492,56 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    *          "numCodes": number
    *          }
    */
-  app.post(
-    ['/room/:roomId/addcode', '/api/room/:roomId/addcode'],
-    adminAuth,
-    (req, res) => {
-      const { roomId } = req.params;
-      const { numCodes, expires, usesLeft } = req.body as {
-        numCodes: number;
-        expires: number;
-        usesLeft: number;
-      };
-      const codes = genClaimCodeArray(numCodes);
+  app.post(['/room/:roomId/addcode', '/api/room/:roomId/addcode'], adminAuth, (req, res) => {
+    const { roomId } = req.params;
+    const { numCodes, expires, usesLeft } = req.body as {
+      numCodes: number;
+      expires: number;
+      usesLeft: number;
+    };
+    const codes = genClaimCodeArray(numCodes);
 
-      const currentDate = new Date();
-      const threeMonthsLater = new Date(currentDate).setMonth(
-        currentDate.getMonth() + 3
-      );
+    const currentDate = new Date();
+    const threeMonthsLater = new Date(currentDate).setMonth(currentDate.getMonth() + 3);
 
-      const codeExpires = expires ? expires : threeMonthsLater;
+    const codeExpires = expires ? expires : threeMonthsLater;
 
-      prisma.rooms
-        .findUnique({
-          where: { roomId: roomId },
-          include: { claimCodes: true }
-        })
-        .then((room) => {
-          if (!room) {
-            res.status(404).json({ error: 'Room not found' });
-            return;
-          }
-          // Map over the codes array and create a claim code for each code
-          const createCodes = codes.map((code) => {
-            return prisma.claimCodes.create({
-              data: {
-                claimcode: code.claimcode,
-                expiresAt: codeExpires,
-                usesLeft: usesLeft,
-                rooms: {
-                  connect: {
-                    roomId: roomId
-                  }
+    prisma.rooms
+      .findUnique({
+        where: { roomId: roomId },
+        include: { claimCodes: true }
+      })
+      .then((room) => {
+        if (!room) {
+          res.status(404).json({ error: 'Room not found' });
+          return;
+        }
+        // Map over the codes array and create a claim code for each code
+        const createCodes = codes.map((code) => {
+          return prisma.claimCodes.create({
+            data: {
+              claimcode: code.claimcode,
+              expiresAt: codeExpires,
+              usesLeft: usesLeft,
+              rooms: {
+                connect: {
+                  roomId: roomId
                 }
               }
-            });
+            }
           });
-
-          return Promise.all(createCodes);
-        })
-        .then(() => {
-          res
-            .status(200)
-            .json({ message: 'Claim codes added successfully', codes });
-        })
-        .catch((err) => {
-          console.error(err);
-          res.status(500).json({ error: 'Internal Server Error' });
         });
-    }
-  );
+
+        return Promise.all(createCodes);
+      })
+      .then(() => {
+        res.status(200).json({ message: 'Claim codes added successfully', codes });
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      });
+  });
 
   // This fetches the claim/invite codes from the database and returns them as JSON
   app.get(['/logclaimcodes', '/api/logclaimcodes'], adminAuth, (req, res) => {
@@ -617,25 +571,29 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
-  app.post(['/change-identity', '/api/change-identity'], limiter, asyncHandler(async (req: Request, res: Response) => {
-    const { generatedProof } = req.body as { generatedProof: SNARKProof };
+  app.post(
+    ['/change-identity', '/api/change-identity'],
+    limiter,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { generatedProof } = req.body as { generatedProof: SNARKProof };
 
-    const isValid = await verifyIdentityProof(generatedProof);
+      const isValid = await verifyIdentityProof(generatedProof);
 
-    if (isValid) {
-      const updatedIdentity = await prisma.gateWayIdentity.update({
-        where: {
-          semaphoreIdentity: String(generatedProof.publicSignals.identityCommitment)
-        },
-        data: {
-          semaphoreIdentity: String(generatedProof.publicSignals.externalNullifier)
-        }
-      })
-      res.status(200).json({ message: 'Identity updated successfully', updatedIdentity });
-    } else {
-      res.status(500).json({ error: 'Internal Server Error' });
-    }
-  }))
+      if (isValid) {
+        const updatedIdentity = await prisma.gateWayIdentity.update({
+          where: {
+            semaphoreIdentity: String(generatedProof.publicSignals.identityCommitment)
+          },
+          data: {
+            semaphoreIdentity: String(generatedProof.publicSignals.externalNullifier)
+          }
+        });
+        res.status(200).json({ message: 'Identity updated successfully', updatedIdentity });
+      } else {
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
+    })
+  );
 
   /**
    * Sends system messages to the specified room, or all rooms if no room is specified
@@ -675,19 +633,19 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   );
 
   /**
-  * This code adds an admin to a room. The admin must be logged in and authorized to add an admin to the room.
-  *  The admin must provide the room ID and the identity of the admin to be added.
-  *  The code will then add the admin to the room's list of admin identities.
-  *  @param {string} roomId - The id of the room to add the admin to
-  *  @param {string} idc - The id of the admin to be added
-  * @returns {void}
-  * @example {
-  *         "roomId": "string",
-  *        "idc": "string"
-  * }
-  */
+   * This code adds an admin to a room. The admin must be logged in and authorized to add an admin to the room.
+   *  The admin must provide the room ID and the identity of the admin to be added.
+   *  The code will then add the admin to the room's list of admin identities.
+   *  @param {string} roomId - The id of the room to add the admin to
+   *  @param {string} idc - The id of the admin to be added
+   * @returns {void}
+   * @example {
+   *         "roomId": "string",
+   *        "idc": "string"
+   * }
+   */
 
-app.post(
+  app.post(
     '/room/:roomId/addAdmin',
     adminAuth,
     asyncHandler(async (req: Request, res: Response) => {
@@ -711,9 +669,9 @@ app.post(
     })
   );
 
- // This endpoint returns a list of all Ethereum groups in the database.
+  // This endpoint returns a list of all Ethereum groups in the database.
 
- app.get(['/eth/groups/all', '/api/eth/groups/all'], adminAuth, (req, res) => {
+  app.get(['/eth/groups/all', '/api/eth/groups/all'], adminAuth, (req, res) => {
     prisma.ethereumGroup
       .findMany({
         select: {
@@ -736,8 +694,8 @@ app.post(
    * @example {
    *         "address": "string"
    * }
-*/
-app.get(['/eth/group/:address', '/api/eth/group/:address'], limiter, (req, res) => {
+   */
+  app.get(['/eth/group/:address', '/api/eth/group/:address'], limiter, (req, res) => {
     const { address } = req.params as { address: string };
     prisma.ethereumGroup
       .findMany({
@@ -759,20 +717,20 @@ app.get(['/eth/group/:address', '/api/eth/group/:address'], limiter, (req, res) 
       });
   });
 
-/**
- * This code creates a new Ethereum group with the given name, and
- * connects the group to the given rooms. It then sends back a JSON
- * response with the newly created Ethereum group.
-  * @param {string} name - The name of the Ethereum group to create
-  * @param {string[]} roomIds - The ids of the rooms to connect to the group
-  * @returns {void}
-  * @example {
-  *        "name": "string",
-  *       "roomIds": string[]
-  * }
- */
+  /**
+   * This code creates a new Ethereum group with the given name, and
+   * connects the group to the given rooms. It then sends back a JSON
+   * response with the newly created Ethereum group.
+   * @param {string} name - The name of the Ethereum group to create
+   * @param {string[]} roomIds - The ids of the rooms to connect to the group
+   * @returns {void}
+   * @example {
+   *        "name": "string",
+   *       "roomIds": string[]
+   * }
+   */
 
-app.post(
+  app.post(
     ['/eth/group/create', '/api/eth/group/create'],
     adminAuth,
     asyncHandler(async (req: Request, res: Response) => {
@@ -792,12 +750,11 @@ app.post(
     })
   );
 
-
   /**  Add a new ethereum address to a group
    * @param {string[]} names - The names of the Ethereum groups to add the address to
    * @param {string[]} ethAddresses - The addresses to add to the Ethereum groups
-  */
-app.post(
+   */
+  app.post(
     ['/eth/group/add', '/api/eth/group/add'],
     adminAuth,
     asyncHandler(async (req: Request, res: Response) => {
@@ -822,23 +779,21 @@ app.post(
     })
   );
 
-
-
-/** This code creates a new Ethereum group by adding a new entry to the EthereumGroup table in the database.
- *  The body of the request contains the name of the group, the ethereum addresses to associate with the group,
- *  and the room IDs to associate with the group. The code uses Prisma to create a new entry in the EthereumGroup table,
- *  and then returns the newly created group.
- * @param {string} name - The name of the Ethereum group to create
- * @param {string[]} ethAddresses - The addresses to add to the Ethereum groups
- * @param {string[]} roomIds - The ids of the rooms to connect to the group
- * @returns {void}
- * @example {
- *       "name": "string",
- *      "ethAddresses": string[],
- *     "roomIds": string[]
- * }
-*/
-app.post(
+  /** This code creates a new Ethereum group by adding a new entry to the EthereumGroup table in the database.
+   *  The body of the request contains the name of the group, the ethereum addresses to associate with the group,
+   *  and the room IDs to associate with the group. The code uses Prisma to create a new entry in the EthereumGroup table,
+   *  and then returns the newly created group.
+   * @param {string} name - The name of the Ethereum group to create
+   * @param {string[]} ethAddresses - The addresses to add to the Ethereum groups
+   * @param {string[]} roomIds - The ids of the rooms to connect to the group
+   * @returns {void}
+   * @example {
+   *       "name": "string",
+   *      "ethAddresses": string[],
+   *     "roomIds": string[]
+   * }
+   */
+  app.post(
     ['/eth/group/edit', '/api/eth/group/edit'],
     adminAuth,
     asyncHandler(async (req: Request, res: Response) => {
@@ -859,9 +814,7 @@ app.post(
         let addresses: string[] = [];
         if (foundGroup?.ethereumAddresses) {
           addresses = ethAddresses.filter((address) => {
-            return !(foundGroup.ethereumAddresses).includes(
-              address
-            );
+            return !foundGroup.ethereumAddresses.includes(address);
           });
         }
         const updatedGroup = await prisma.ethereumGroup.update({
@@ -891,41 +844,37 @@ app.post(
    * @example {
    *      "name": "string"
    * }
-    */
-app.post(
-    ['/eth/group/delete', '/api/eth/group/delete'],
-    adminAuth,
-    (req, res) => {
-      const { name } = req.body as { name: string };
-      prisma.ethereumGroup
-        .delete({
-          where: {
-            name: name
-          }
-        })
-        .then((group) => {
-          res.status(200).json(group);
-        })
-        .catch((err) => {
-          console.error(err);
-          res.status(500).json({ error: 'Internal Server Error' });
-        });
-    }
-  );
+   */
+  app.post(['/eth/group/delete', '/api/eth/group/delete'], adminAuth, (req, res) => {
+    const { name } = req.body as { name: string };
+    prisma.ethereumGroup
+      .delete({
+        where: {
+          name: name
+        }
+      })
+      .then((group) => {
+        res.status(200).json(group);
+      })
+      .catch((err) => {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+      });
+  });
 
   /**
-  * This code validates the signature in the request body and if it is valid,
-  * it will store the semaphore identity and ethereum address in the database.
-  * It will also return an array of roomIds that the user should join.
-  * @param {string} message - The message to be signed in this case their semaphore identity
-  * @param {string} signature - The signature of the message in this case their private key
-  * @returns {void}
-  * @example {
-  *        "message": "string",
-  *      "signature": "string"
-  * }
-  */
-app.post(
+   * This code validates the signature in the request body and if it is valid,
+   * it will store the semaphore identity and ethereum address in the database.
+   * It will also return an array of roomIds that the user should join.
+   * @param {string} message - The message to be signed in this case their semaphore identity
+   * @param {string} signature - The signature of the message in this case their private key
+   * @returns {void}
+   * @example {
+   *        "message": "string",
+   *      "signature": "string"
+   * }
+   */
+  app.post(
     ['/eth/message/sign', '/api/eth/message/sign'],
     limiter,
     asyncHandler(async (req: Request, res: Response) => {
@@ -1106,20 +1055,15 @@ app.post(
         const filteredRooms: string[] = [];
         const filteredNames: string[] = [];
         for (const role of roles) {
-          const discordRoleRoomMapping =
-            await prisma.discordRoleRoomMapping.findMany({
-              where: {
-                roles: {
-                  has: role
-                }
+          const discordRoleRoomMapping = await prisma.discordRoleRoomMapping.findMany({
+            where: {
+              roles: {
+                has: role
               }
-            });
-          const mappingRoomIds = discordRoleRoomMapping.map(
-            (mapping) => mapping.roomId
-          );
-          const newRooms = mappingRoomIds.filter((roomId) =>
-            roomIds.includes(roomId)
-          );
+            }
+          });
+          const mappingRoomIds = discordRoleRoomMapping.map((mapping) => mapping.roomId);
+          const newRooms = mappingRoomIds.filter((roomId) => roomIds.includes(roomId));
           const newRoomNames = newRooms.map((roomId) => {
             const room = rooms.rooms.find((room) => room.roomId === roomId);
             return room?.name;
@@ -1128,24 +1072,19 @@ app.post(
           filteredNames.push(...(newRoomNames as string[]));
         }
         console.log(filteredRooms);
-        res
-          .status(200)
-          .json({ rooms: filteredRooms, roomNames: filteredNames });
+        res.status(200).json({ rooms: filteredRooms, roomNames: filteredNames });
       } else {
         const roomIds: string[] = [];
 
         for (const role of roles) {
-          const discordRoleRoomMapping =
-            await prisma.discordRoleRoomMapping.findMany({
-              where: {
-                roles: {
-                  has: role
-                }
+          const discordRoleRoomMapping = await prisma.discordRoleRoomMapping.findMany({
+            where: {
+              roles: {
+                has: role
               }
-            });
-          const mappingRoomIds = discordRoleRoomMapping.map(
-            (mapping) => mapping.roomId
-          );
+            }
+          });
+          const mappingRoomIds = discordRoleRoomMapping.map((mapping) => mapping.roomId);
           roomIds.push(...mappingRoomIds);
         }
         const roomNames = await prisma.rooms.findMany({
@@ -1192,7 +1131,6 @@ app.post(
         res.status(500).json({ error: 'Internal Server Error' });
       });
   });
-
 
   /**
    * This endpoint gets all the rooms that a user is allowed to access based on their discordId.
