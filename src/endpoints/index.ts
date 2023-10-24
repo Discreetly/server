@@ -25,6 +25,8 @@ import { verifyTheWordProof } from '../gateways/theWord/verifier';
 
 import discordRouter from './gateways/discord';
 import ethRouter from './gateways/ethereumGroup';
+import theWordRouter from './gateways/theWord';
+
 // import expressBasicAuth from 'express-basic-auth';
 
 const prisma = new PrismaClient();
@@ -34,8 +36,8 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   // This is used to display the server info on the client side
   app.use('/discord', discordRouter)
   app.use('/eth', ethRouter)
+  app.use('/theword', theWordRouter)
 
-  
   app.get(['/'], (req, res) => {
     pp('Express: fetching server info');
     res.status(200).json(serverConfig);
@@ -671,37 +673,3 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       }
     })
   );
-
-
-
-  app.post(
-    ['/gateway/theword'],
-    limiter,
-    asyncHandler(async (req: Request, res: Response) => {
-      const { proof, idc } = req.body as { proof: SNARKProof; idc: string };
-
-      const isValid = await verifyTheWordProof(proof);
-      if (isValid) {
-        const room = (await prisma.rooms.findUnique({
-          where: {
-            roomId: '007' + process.env.THEWORD_ITERATION
-          }
-        })) as RoomI;
-        const addedRoom = await addIdentityToIdentityListRooms([room], idc);
-        if (addedRoom.length === 0) {
-          res.status(500).json({
-            status: 'already-added',
-            message: 'Identity already added to room'
-          });
-        } else {
-          res.status(200).json({
-            status: 'valid',
-            roomId: room.roomId
-          });
-        }
-      } else {
-        res.status(500).json({ error: 'Invalid Proof' });
-      }
-    })
-  );
-  }
