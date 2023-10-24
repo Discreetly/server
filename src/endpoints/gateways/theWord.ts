@@ -12,7 +12,7 @@ const router = express.Router();
 const prisma = new PrismaClient();
 
 router.post(
-  ['/gateway/theword'],
+  '/',
   limiter,
   asyncHandler(async (req: Request, res: Response) => {
     const { proof, idc } = req.body as { proof: SNARKProof; idc: string };

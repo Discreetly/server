@@ -34,7 +34,7 @@ const adminAuth = basicAuth({
   // This code gets a room by its ID, and then checks if room is null.
   // If room is null, it returns a 500 error.
   // Otherwise, it returns a 200 status code and the room object.
-router.get('/room/:id', limiter, (req, res) => {
+router.get('/:id', limiter, (req, res) => {
   if (!req.params.id) {
     res.status(400).json({ error: 'Bad Request' });
   } else {
@@ -86,7 +86,7 @@ router.get('/room/:id', limiter, (req, res) => {
  * @returns {Array} - An array of room objects.
  */
 router.get(
-  '/room/:idc',
+  '/:idc',
   limiter,
   asyncHandler(async (req: Request, res: Response) => {
     // const { proof } = req.body as { proof: SNARKProof };
@@ -289,7 +289,7 @@ router.post(
  * @param {string} id - The id of the room to get messages for
  * @returns {void}
  */
-router.get('/room/:id/messages', limiter, (req, res) => {
+router.get('/:id/messages', limiter, (req, res) => {
   const { id } = req.params;
   prisma.messages
     .findMany({

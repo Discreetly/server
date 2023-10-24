@@ -17,7 +17,7 @@ const prisma = new PrismaClient();
 
 
 router.post(
-  ['/gateway/join', '/api/gateway/join'],
+  '/join',
   limiter,
   asyncHandler(async (req: Request, res: Response) => {
     const parsedBody: GatewayInviteDataI = req.body as GatewayInviteDataI;
