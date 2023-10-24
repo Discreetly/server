@@ -77,7 +77,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   io = new SocketIOServer(_app, {
     cors: {
       origin: ['*', 'https://admin.socket.io'],
-      credentials: true
+      credentials: true,
     }
   });
   intervalIds.push(initWebsockets(io));

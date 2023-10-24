@@ -117,8 +117,10 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   app.get(
     ['/rooms/:idc', '/api/rooms/:idc'], limiter,
     asyncHandler(async (req: Request, res: Response) => {
-      const { proof } = req.body as { proof: SNARKProof };
-      const isValid = await verifyIdentityProof(proof);
+      // const { proof } = req.body as { proof: SNARKProof };
+      // console.log('PROOF', proof);
+      const isValid = await verifyIdentityProof(req.body as SNARKProof);
+      console.log('VALID?', isValid)
       if (isValid) {
         try {
           res.status(200).json(await findRoomsByIdentity(req.params.idc));
