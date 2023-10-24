@@ -5,7 +5,7 @@ import asyncHandler from 'express-async-handler';
 import { PrismaClient } from '@prisma/client';
 import { verifyIdentityProof } from '../../crypto/idcVerifier/verifier';
 import { pp } from '../../utils';
-import { SNARKProof as idcProof } from 'idc-nullifier/dist/types/types';
+import { IDCProof } from 'idc-nullifier/dist/types/types';
 import { addRoomData } from '../../types';
 import {
   findRoomById,
@@ -92,7 +92,7 @@ router.get(
   '/:idc',
   limiter,
   asyncHandler(async (req: Request, res: Response) => {
-    const isValid = await verifyIdentityProof(req.body as idcProof);
+    const isValid = await verifyIdentityProof(req.body as IDCProof);
 
     if (isValid) {
       try {

@@ -4,16 +4,17 @@ import asyncHandler from 'express-async-handler';
 import basicAuth from 'express-basic-auth';
 import { PrismaClient } from '@prisma/client';
 import { genClaimCodeArray, pp } from '../../utils';
-import { SNARKProof as idcProof } from 'idc-nullifier/dist/types/types';
+import { IDCProof } from 'idc-nullifier/dist/types/types';
 import { verifyIdentityProof } from '../../crypto/idcVerifier/verifier';
 import { limiter } from '../middleware';
 import { createSystemMessages } from '../../data/db';
 
-
 const prisma = new PrismaClient();
 const router = express.Router();
 
-const adminPassword = process.env.ADMIN_PASSWORD ? process.env.ADMIN_PASSWORD : 'password';
+const adminPassword = process.env.ADMIN_PASSWORD
+  ? process.env.ADMIN_PASSWORD
+  : 'password';
 
 const adminAuth = basicAuth({
   users: {
@@ -22,44 +23,47 @@ const adminAuth = basicAuth({
 });
 
 /**
-   * Endpoint to add claim codes to all rooms or a subset of rooms
-   * This code adds claim codes to the database.
-   * It is used by the admin panel to create claim codes.
-   * It takes in the number of codes to create, the rooms to add them to,
-   * and whether to add them to all rooms or just the selected ones.
-   * It generates the codes, then creates the ClaimCode objects in the database.
-   * The codes are added to the specified rooms, and are not claimed.
-   * @param {number} numCodes - The number of codes to add to the room
-   * @param {string[]} rooms - The ids of the rooms to add codes to
-   * @param {boolean} all - Whether to add codes to all rooms or just the selected ones
-   * @param {number} expiresAt - The date the codes expire - if not specified, defaults to 3 months from now
-   * @param {number} usesLeft - The number of uses left for the codes - if not specified, defaults to -1 (unlimited)
-   * @param {string} discordId - The discord id of the user who created the codes
-   * @returns {void}
-   * @example {
-   *          "numCodes": number,
-   *          "rooms": string[],
-   *          "all": boolean,
-   *          "expiresAt": number, // optional
-   *          "usesLeft": number   // optional
-   *          "discordId": string // optional
-   *          }
-   */
+ * Endpoint to add claim codes to all rooms or a subset of rooms
+ * This code adds claim codes to the database.
+ * It is used by the admin panel to create claim codes.
+ * It takes in the number of codes to create, the rooms to add them to,
+ * and whether to add them to all rooms or just the selected ones.
+ * It generates the codes, then creates the ClaimCode objects in the database.
+ * The codes are added to the specified rooms, and are not claimed.
+ * @param {number} numCodes - The number of codes to add to the room
+ * @param {string[]} rooms - The ids of the rooms to add codes to
+ * @param {boolean} all - Whether to add codes to all rooms or just the selected ones
+ * @param {number} expiresAt - The date the codes expire - if not specified, defaults to 3 months from now
+ * @param {number} usesLeft - The number of uses left for the codes - if not specified, defaults to -1 (unlimited)
+ * @param {string} discordId - The discord id of the user who created the codes
+ * @returns {void}
+ * @example {
+ *          "numCodes": number,
+ *          "rooms": string[],
+ *          "all": boolean,
+ *          "expiresAt": number, // optional
+ *          "usesLeft": number   // optional
+ *          "discordId": string // optional
+ *          }
+ */
 router.post(
   '/addcode',
   adminAuth,
   asyncHandler(async (req: Request, res: Response) => {
-    const { numCodes, rooms, all, expiresAt, usesLeft, discordId } = req.body as {
-      numCodes: number;
-      rooms: string[];
-      all: boolean;
-      expiresAt: number;
-      usesLeft: number;
-      discordId: string;
-    };
+    const { numCodes, rooms, all, expiresAt, usesLeft, discordId } =
+      req.body as {
+        numCodes: number;
+        rooms: string[];
+        all: boolean;
+        expiresAt: number;
+        usesLeft: number;
+        discordId: string;
+      };
 
     const currentDate = new Date();
-    const threeMonthsLater = new Date(currentDate).setMonth(currentDate.getMonth() + 3);
+    const threeMonthsLater = new Date(currentDate).setMonth(
+      currentDate.getMonth() + 3
+    );
 
     const codeExpires = expiresAt ? expiresAt : threeMonthsLater;
     const query = all ? undefined : { where: { roomId: { in: rooms } } };
@@ -101,7 +105,9 @@ router.post(
 
       return Promise.all(createCodes)
         .then(() => {
-          res.status(200).json({ message: 'Claim codes added successfully', codes });
+          res
+            .status(200)
+            .json({ message: 'Claim codes added successfully', codes });
         })
         .catch((err) => {
           console.error(err);
@@ -133,7 +139,9 @@ router.post('/:roomId/addcode', adminAuth, (req, res) => {
   const codes = genClaimCodeArray(numCodes);
 
   const currentDate = new Date();
-  const threeMonthsLater = new Date(currentDate).setMonth(currentDate.getMonth() + 3);
+  const threeMonthsLater = new Date(currentDate).setMonth(
+    currentDate.getMonth() + 3
+  );
 
   const codeExpires = expires ? expires : threeMonthsLater;
 
@@ -166,7 +174,9 @@ router.post('/:roomId/addcode', adminAuth, (req, res) => {
       return Promise.all(createCodes);
     })
     .then(() => {
-      res.status(200).json({ message: 'Claim codes added successfully', codes });
+      res
+        .status(200)
+        .json({ message: 'Claim codes added successfully', codes });
     })
     .catch((err) => {
       console.error(err);
@@ -211,20 +221,26 @@ router.post(
   '/change-identity',
   limiter,
   asyncHandler(async (req: Request, res: Response) => {
-    const { generatedProof } = req.body as { generatedProof: idcProof };
+    const { generatedProof } = req.body as { generatedProof: IDCProof };
 
     const isValid = await verifyIdentityProof(generatedProof);
 
     if (isValid) {
       const updatedIdentity = await prisma.gateWayIdentity.update({
         where: {
-          semaphoreIdentity: String(generatedProof.publicSignals.identityCommitment)
+          semaphoreIdentity: String(
+            generatedProof.publicSignals.identityCommitment
+          )
         },
         data: {
-          semaphoreIdentity: String(generatedProof.publicSignals.externalNullifier)
+          semaphoreIdentity: String(
+            generatedProof.publicSignals.externalNullifier
+          )
         }
       });
-      res.status(200).json({ message: 'Identity updated successfully', updatedIdentity });
+      res
+        .status(200)
+        .json({ message: 'Identity updated successfully', updatedIdentity });
     } else {
       res.status(500).json({ error: 'Internal Server Error' });
     }
@@ -232,15 +248,15 @@ router.post(
 );
 
 /**
-* Sends system messages to the specified room, or all rooms if no room is specified
-* @params {string} message - The message to send
-* @params {string} roomId - The id of the room to send the message to
-* @returns {void}
-* @example {
-*          "message": "string",
-*          "roomId": "string"    // optional
-*          }
-*/
+ * Sends system messages to the specified room, or all rooms if no room is specified
+ * @params {string} message - The message to send
+ * @params {string} roomId - The id of the room to send the message to
+ * @returns {void}
+ * @example {
+ *          "message": "string",
+ *          "roomId": "string"    // optional
+ *          }
+ */
 router.post(
   '/message',
   adminAuth,
@@ -269,17 +285,17 @@ router.post(
 );
 
 /**
-* This code adds an admin to a room. The admin must be logged in and authorized to add an admin to the room.
-*  The admin must provide the room ID and the identity of the admin to be added.
-*  The code will then add the admin to the room's list of admin identities.
-*  @param {string} roomId - The id of the room to add the admin to
-*  @param {string} idc - The id of the admin to be added
-* @returns {void}
-* @example {
-*         "roomId": "string",
-*        "idc": "string"
-* }
-*/
+ * This code adds an admin to a room. The admin must be logged in and authorized to add an admin to the room.
+ *  The admin must provide the room ID and the identity of the admin to be added.
+ *  The code will then add the admin to the room's list of admin identities.
+ *  @param {string} roomId - The id of the room to add the admin to
+ *  @param {string} idc - The id of the admin to be added
+ * @returns {void}
+ * @example {
+ *         "roomId": "string",
+ *        "idc": "string"
+ * }
+ */
 router.post(
   '/:roomId/addAdmin',
   adminAuth,
