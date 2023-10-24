@@ -106,7 +106,7 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       // console.log('PROOF', proof);
 
       const isValid = await verifyIdentityProof(req.body as idcProof);
-      console.log('VALID?', isValid)
+      console.log('VALID?', isValid);
       if (isValid) {
         try {
           res.status(200).json(await findRoomsByIdentity(req.params.idc));
@@ -132,7 +132,8 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
    *           }
    */
   app.post(
-    ['/gateway/join', '/api/gateway/join'], limiter,
+    ['/gateway/join', '/api/gateway/join'],
+    limiter,
     asyncHandler(async (req: Request, res: Response) => {
       const parsedBody: JoinData = req.body as JoinData;
 
@@ -575,9 +576,11 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
       });
   });
 
-
-  app.post(['/change-identity', '/api/change-identity'], limiter, asyncHandler(async (req: Request, res: Response) => {
-    const { generatedProof } = req.body as { generatedProof: idcProof };
+  app.post(
+    ['/change-identity', '/api/change-identity'],
+    limiter,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { generatedProof } = req.body as { generatedProof: idcProof };
 
       const isValid = await verifyIdentityProof(generatedProof);
 
@@ -865,19 +868,19 @@ export function initEndpoints(app: Express, adminAuth: RequestHandler) {
   });
 
   /**
-  * This code validates the signature in the request body and if it is valid,
-  * it will store the semaphore identity and ethereum address in the database.
-  * It will also return an array of roomIds that the user should join.
-  * @param {string} message - The message to be signed in this case their semaphore identity
-  * @param {string} signature - The signature of the message in this case their private key
-  * @returns {void}
-  * @example {
-  *        "message": "string",
-  *      "signature": "string"
-  * }
-  */
-app.post(
-    ['/gateway/eth/message/sign', '/api/gateway/eth/message/sign'],
+   * This code validates the signature in the request body and if it is valid,
+   * it will store the semaphore identity and ethereum address in the database.
+   * It will also return an array of roomIds that the user should join.
+   * @param {string} message - The message to be signed in this case their semaphore identity
+   * @param {string} signature - The signature of the message in this case their private key
+   * @returns {void}
+   * @example {
+   *        "message": "string",
+   *      "signature": "string"
+   * }
+   */
+  app.post(
+    ['/gateway/eth/message/sign'],
     limiter,
     asyncHandler(async (req: Request, res: Response) => {
       const { message, signature } = req.body as {
@@ -939,32 +942,37 @@ app.post(
     })
   );
 
-  app.post(['/gateway/theword', '/api/gateway/theword'], limiter, asyncHandler(async (req: Request, res: Response) => {
-    const { proof, idc } = req.body as { proof: SNARKProof, idc: string };
+  app.post(
+    ['/gateway/theword'],
+    limiter,
+    asyncHandler(async (req: Request, res: Response) => {
+      const { proof, idc } = req.body as { proof: SNARKProof; idc: string };
 
-    const isValid = await verifyTheWordProof(proof);
-    if (isValid) {
-      const room = await prisma.rooms.findUnique({
-        where: {
-          roomId: '007' + process.env.THEWORD_ITERATION
+      const isValid = await verifyTheWordProof(proof);
+      if (isValid) {
+        const room = (await prisma.rooms.findUnique({
+          where: {
+            roomId: '007' + process.env.THEWORD_ITERATION
+          }
+        })) as RoomI;
+        const addedRoom = await addIdentityToIdentityListRooms([room], idc);
+        if (addedRoom.length === 0) {
+          res.status(500).json({
+            status: 'already-added',
+            message: 'Identity already added to room'
+          });
+        } else {
+          res.status(200).json({
+            status: 'valid',
+            roomId: room.roomId
+          });
         }
-      }) as RoomI;
-      const addedRoom = await addIdentityToIdentityListRooms([room], idc);
-      if (addedRoom.length === 0) {
-        res.status(500).json({
-           status: "already-added",
-          message: 'Identity already added to room' })
       } else {
-        res.status(200).json({
-          status: 'valid',
-          roomId: room.roomId
-        });
+        res.status(500).json({ error: 'Invalid Proof' });
       }
-    } else {
-      res.status(500).json({ error: 'Invalid Proof' });
-    }
-  }));
-  
+    })
+  );
+
   /*---------------------DISCORD BOT APIS ---------------------*/
 
   /**
@@ -1000,6 +1008,7 @@ app.post(
         return false;
       });
   });
+
   /**
    *  This code creates a new role-room mapping in the database if one does not already exist,
    *  otherwise it updates the mapping with the new roles.
@@ -1008,7 +1017,6 @@ app.post(
    * @param {string} guildId - The id of the guild to be added
    * @returns {void}
    */
-
   app.post('/api/discord/addrole', limiter, adminAuth, (req, res) => {
     const { roles, roomId, guildId } = req.body as {
       roles: string[];

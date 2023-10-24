@@ -42,7 +42,7 @@ export interface GatewayInviteDataI extends GatewayDataI {
   code: string;
 }
 
-export interface GatewaySignatureDataI extends GatewayDataI {
+export interface GatewaySignatureDataI {
   message: string;
   signature: string;
 }
