@@ -73,7 +73,7 @@ export async function findRoomsByIdentity(identity: string): Promise<string[]> {
     }
     gateway.rooms.forEach((room) => {
       r.push(room.roomId);
-    })
+    });
     return r;
   } catch (err) {
     console.error(err);
@@ -88,17 +88,17 @@ export async function findRoomsByIdentity(identity: string): Promise<string[]> {
  * @returns {Promise<ClaimCodeI | null>} - The claim code, if found.
  */
 export async function findClaimCode(code: string): Promise<ClaimCodeI | null> {
-  return prisma.claimCodes.findUnique({
+  return await prisma.claimCodes.findUnique({
     where: { claimcode: code }
   });
 }
 
 export async function findGatewayByIdentity(identity: string): Promise<GateWayIdentityI | null> {
-  return prisma.gateWayIdentity.findFirst({
+  return await prisma.gateWayIdentity.findFirst({
     where: {
       semaphoreIdentity: identity
     }
-    })
+  });
 }
 
 /**
@@ -143,7 +143,7 @@ export async function findRoomWithMessageId(
       return null;
     }
     if (room.epochs[0]) {
-      return room.epochs[0].messages[0];
+      return room.epochs[0].messages[0] as MessageI;
     } else {
       console.debug('Epoch not found');
       return null;
