@@ -25,8 +25,10 @@ const adminAuth = basicAuth({
   }
 });
 
+
 const router = express.Router();
 const prisma = new PrismaClient();
+
 
 // Fetches all ethereum groups that exist in the database
 router.get('/groups/all', adminAuth, (req: Request, res: Response) => {
@@ -67,7 +69,7 @@ router.get('/group/:address', limiter, (req, res) => {
       }
     })
     .then((groups) => {
-      res.status(200).json(groups);
+      res.status(200).json({status: 'valid', groups: groups});
     })
     .catch((err) => {
       console.error(err);
@@ -95,15 +97,21 @@ router.post(
       name: string;
       roomIds: string[];
     };
-    const ethereumGroup = await prisma.ethereumGroup.create({
-      data: {
-        name: name,
-        rooms: {
-          connect: roomIds.map((roomId) => ({ roomId }))
+    if (!name) res.status(400).json({ success: false, message: 'Missing name' });
+    try {
+      const ethereumGroup = await prisma.ethereumGroup.create({
+        data: {
+          name: name,
+          rooms: {
+            connect: roomIds.map((roomId) => ({ roomId }))
+          }
         }
-      }
-    });
-    res.json({ success: true, ethereumGroup });
+      });
+      res.status(200).json({ success: true, message: 'Ethereum group created', ethereumGroup });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ success: false, error: 'Internal Server Error' });
+    }
   })
 );
 
@@ -119,7 +127,7 @@ router.post(
       names: string[];
       ethAddresses: string[];
     };
-    if (!names) return;
+    if (!names) res.status(400).json({ success: false, message: 'Missing group names' });
     const groups = await prisma.ethereumGroup.updateMany({
       where: {
         name: {
@@ -132,7 +140,7 @@ router.post(
         }
       }
     });
-    res.json({ success: true, groups });
+    res.status(200).json({ success: true, groups });
   })
 );
 
@@ -210,7 +218,7 @@ router.post('/group/delete', adminAuth, (req, res) => {
       }
     })
     .then((group) => {
-      res.status(200).json(group);
+      res.status(200).json({ success: true, group });
     })
     .catch((err) => {
       console.error(err);
@@ -231,7 +239,7 @@ router.post('/group/delete', adminAuth, (req, res) => {
  * }
  */
 router.post(
-  '/join',
+  '/message/sign',
   limiter,
   asyncHandler(async (req: Request, res: Response) => {
     const { message, signature } = req.body as {

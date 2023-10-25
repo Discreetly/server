@@ -7,7 +7,6 @@ import { beforeAll, afterAll, describe, expect, test } from '@jest/globals';
 import { randomRoomName } from './utils';
 import { generateIdentityProof } from '../src/crypto/idcVerifier/verifier';
 import { Identity } from '@semaphore-protocol/identity';
-import { doesNotReject } from 'assert';
 
 process.env.DATABASE_URL = process.env.DATABASE_URL_TEST;
 process.env.PORT = '3001';
@@ -33,6 +32,8 @@ const messageTestRoom = {
   roomId: CUSTOM_ID
 };
 
+let testEthAddress = '0x123123123';
+
 let roomByIdTest: string;
 let testCode: string;
 const testIdentity = new Identity();
@@ -44,6 +45,8 @@ beforeAll(async () => {
   await prismaTest.messages.deleteMany();
   await prismaTest.rooms.deleteMany();
   await prismaTest.claimCodes.deleteMany();
+  await prismaTest.ethereumGroup.deleteMany();
+
 });
 
 afterAll(async () => {
@@ -57,14 +60,18 @@ describe('Endpoints', () => {
       .get('/')
       .then((res) => {
         expect(res.status).toBe(200);
-        expect(res.header['content-type']).toBe('application/json; charset=utf-8');
+        expect(res.header['content-type']).toBe(
+          'application/json; charset=utf-8'
+        );
         expect(res.body.id).toBe(serverConfig.id);
       })
       .catch((error) => console.error("GET '/' - " + error));
   });
 
   test('It should add a new room to the database', async () => {
-    const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString(
+      'base64'
+    );
     await request(_app)
       .post('/room/add')
       .set('Authorization', `Basic ${base64Credentials}`)
@@ -84,11 +91,19 @@ describe('Endpoints', () => {
       .catch((error) => console.warn('POST /room/add - ' + error));
   });
   test('It should create claimCode for the new room', async () => {
-    const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString(
+      'base64'
+    );
     await request(_app)
       .post(`/admin/addcode`)
       .set('Authorization', `Basic ${base64Credentials}`)
-      .send({ numCodes: 1, rooms: [roomByIdTest], all: false, expiresAt: 0, usesLeft: -1 })
+      .send({
+        numCodes: 1,
+        rooms: [roomByIdTest],
+        all: false,
+        expiresAt: 0,
+        usesLeft: -1
+      })
       .then((res) => {
         try {
           console.log(res.body);
@@ -102,7 +117,9 @@ describe('Endpoints', () => {
   });
 
   test('It should add a new room with a custom id to the database', async () => {
-    const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString(
+      'base64'
+    );
     await request(_app)
       .post('/room/add')
       .set('Authorization', `Basic ${base64Credentials}`)
@@ -122,7 +139,9 @@ describe('Endpoints', () => {
   });
 
   test('It shouldnt add a new room with the same ID', async () => {
-    const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString(
+      'base64'
+    );
     await request(_app)
       .post('/room/add')
       .set('Authorization', `Basic ${base64Credentials}`)
@@ -130,10 +149,8 @@ describe('Endpoints', () => {
 
       .then((res) => {
         try {
-          console.log(res.status);
           expect(res.status).toEqual(400);
           const result = res.body;
-          console.warn(result);
         } catch (error) {
           console.warn('POST /room/add - ' + error);
         }
@@ -170,7 +187,9 @@ describe('Endpoints', () => {
   });
 
   test('It should return all rooms', async () => {
-    const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString(
+      'base64'
+    );
     await request(_app)
       .get('/admin/rooms')
 
@@ -188,7 +207,9 @@ describe('Endpoints', () => {
   });
 
   test("It should return all claim codes and add a user's identity to the rooms the claim code is associated with", async () => {
-    const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString(
+      'base64'
+    );
     await request(_app)
       .get('/admin/logclaimcodes')
 
@@ -240,7 +261,9 @@ describe('Endpoints', () => {
     const message = {
       message: 'Test message'
     };
-    const base64Credentials = Buffer.from(`${username}:${password}`).toString('base64');
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString(
+      'base64'
+    );
     await request(_app)
       .post('/admin/message')
       .set('Authorization', `Basic ${base64Credentials}`)
@@ -268,6 +291,107 @@ describe('Endpoints', () => {
       })
       .catch((error) => console.error('GET /api/messages/:roomId - ' + error));
   });
+
+  test('It should create a new Ethereum group', async () => {
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString(
+      'base64'
+    );
+    await request(_app)
+      .post('/gateway/eth/group/create')
+      .set('Authorization', `Basic ${base64Credentials}`)
+      .send({ name: 'EthGroup-Test', roomIds: [roomByIdTest] })
+      .then((res) => {
+        try {
+          expect(res.statusCode).toEqual(200);
+          expect(res.body.message).toEqual('Ethereum group created');
+        } catch (error) {
+          console.error('POST /gateway/eth/group/create - ' + error);
+        }
+      });
+  });
+
+  test('It should return all of the Ethereum Groups', async () => {
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString(
+      'base64'
+    );
+    await request(_app)
+      .get(`/gateway/eth/groups/all`)
+      .set('Authorization', `Basic ${base64Credentials}`)
+      .then((res) => {
+        try {
+          expect(res.statusCode).toEqual(200);
+          expect(res.body.length).toBeGreaterThan(0);
+        } catch (error) {
+          console.error('GET /gateway/eth/groups/all - ' + error);
+        }
+      });
+  });
+
+  test('It should add Eth addresses to a group', async () => {
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString(
+      'base64'
+    );
+    await request(_app)
+      .post(`/gateway/eth/group/add`)
+      .set('Authorization', `Basic ${base64Credentials}`)
+      .send({ names: ['EthGroup-Test'], ethAddresses: [testEthAddress] })
+      .then((res) => {
+        try {
+          expect(res.statusCode).toEqual(200);
+          expect(res.body.success).toEqual(true)
+        } catch (err) {
+          console.error('POST /gateway/eth/group/add - ' + err);
+        }
+      });
+  });
+  test('It should return return the Groups the Ethereum Address is in', async () => {
+    await request(_app)
+      .get(`/gateway/eth/group/${testEthAddress}`)
+      .then((res) => {
+        try {
+          expect(res.statusCode).toEqual(200);
+          expect(res.body.status).toEqual('valid');
+        } catch (err) {
+          console.error('GET /gateway/eth/group/:address -' + err)
+        }
+      })
+  })
+  test('It should edit an Ethereum Group to add Eth addresses and roomIds', async () => {
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString(
+      'base64'
+    );
+    await request(_app)
+      .post('/gateway/eth/group/edit')
+      .set('Authorization', `Basic ${base64Credentials}`)
+      .send({name: 'EthGroup-Test', ethAddresses: ['0x321321321'], roomIds: []})
+      .then((res) => {
+        try {
+          expect(res.statusCode).toEqual(200)
+          expect(res.body.success).toEqual(true)
+          expect(res.body.updatedGroup.ethereumAddresses.length).toBeGreaterThan(1)
+        } catch (err) {
+          console.error('POST /gateway/eth/group/edit - ' + err)
+        }
+      })
+  })
+
+  test('It should delete an Ethereum Group', async () => {
+    const base64Credentials = Buffer.from(`${username}:${password}`).toString(
+      'base64'
+    );
+    await request(_app)
+      .post('/gateway/eth/group/delete')
+      .set('Authorization', `Basic ${base64Credentials}`)
+      .send({ name: 'EthGroup-Test' })
+      .then((res) => {
+        try {
+          expect(res.statusCode).toEqual(200)
+          expect(res.body.success).toEqual(true)
+        } catch (err) {
+          console.error('DELETE /gateway/eth/group/delete - ' + err)
+        }
+      })
+  })
 
   describe('Messages', () => {
     let testRoom: RoomI;
