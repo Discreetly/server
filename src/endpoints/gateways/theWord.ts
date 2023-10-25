@@ -12,15 +12,15 @@ const router = express.Router();
 const prisma = new PrismaClient();
 
 /**
-* This code is the API route used to verify the proof submitted by the user.
-* It uses the SNARKProof type and idc from the request body to verify the proof. If it is valid,
-* it adds the identity to the room and returns the roomId. If it is invalid, it returns an error.
-* @param {SNARKProof} proof - The SNARKProof object from the user
-* @param {string} idc - The identity commitment of the user
-* @returns {void}
-*/
+ * This code is the API route used to verify the proof submitted by the user.
+ * It uses the SNARKProof type and idc from the request body to verify the proof. If it is valid,
+ * it adds the identity to the room and returns the roomId. If it is invalid, it returns an error.
+ * @param {SNARKProof} proof - The SNARKProof object from the user
+ * @param {string} idc - The identity commitment of the user
+ * @returns {void}
+ */
 router.post(
-  '/',
+  '/join',
   limiter,
   asyncHandler(async (req: Request, res: Response) => {
     const { proof, idc } = req.body as { proof: SNARKProof; idc: string };

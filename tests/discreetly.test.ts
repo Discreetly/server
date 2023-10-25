@@ -9,7 +9,6 @@ import { generateIdentityProof } from '../src/crypto/idcVerifier/verifier';
 import { Identity } from '@semaphore-protocol/identity';
 import { doesNotReject } from 'assert';
 
-
 process.env.DATABASE_URL = process.env.DATABASE_URL_TEST;
 process.env.PORT = '3001';
 
@@ -39,7 +38,6 @@ let testCode: string;
 const testIdentity = new Identity();
 const username = 'admin';
 const password = process.env.PASSWORD;
-
 
 beforeAll(async () => {
   const prismaTest = new PrismaClient();
@@ -202,7 +200,7 @@ describe('Endpoints', () => {
 
           const joinTest = {
             code: testCode,
-            idc: testIdentity.getCommitment().toString(),
+            idc: testIdentity.getCommitment().toString()
           };
 
           await request(_app)
@@ -223,17 +221,16 @@ describe('Endpoints', () => {
   });
 
   test('It should return all rooms associated with the given identity', async () => {
-    let proof = await generateIdentityProof(testIdentity, BigInt(Date.now()))
+    let proof = await generateIdentityProof(testIdentity, BigInt(Date.now()));
 
     await request(_app)
-      .get(`/room/idc/${testIdentity.getCommitment().toString()}`)
+      .get(`/identity/${testIdentity.getCommitment().toString()}`)
       .send(proof)
       .then((res) => {
         try {
           expect(res.statusCode).toEqual(200);
         } catch (error) {
           console.error('GET /api/rooms/:idc - ' + error);
-
         }
       })
       .catch((error) => console.error('GET /api/rooms/:idc - ' + error));

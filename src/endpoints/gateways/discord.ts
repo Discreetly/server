@@ -1,11 +1,10 @@
 import express from 'express';
 import type { Request, Response } from 'express';
-import {  limiter } from '../middleware';
+import { limiter } from '../middleware';
 import { PrismaClient } from '@prisma/client';
 import { generateRandomClaimCode } from 'discreetly-claimcodes';
 import asyncHandler from 'express-async-handler';
 import basicAuth from 'express-basic-auth';
-
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -17,7 +16,7 @@ const discordPassword = process.env.DISCORD_PASSWORD
 
 const adminAuth = basicAuth({
   users: {
-    admin: discordPassword
+    discordAdmin: discordPassword
   }
 });
 
@@ -137,20 +136,15 @@ router.post(
       const filteredRooms: string[] = [];
       const filteredNames: string[] = [];
       for (const role of roles) {
-        const discordRoleRoomMapping =
-          await prisma.discordRoleRoomMapping.findMany({
-            where: {
-              roles: {
-                has: role
-              }
+        const discordRoleRoomMapping = await prisma.discordRoleRoomMapping.findMany({
+          where: {
+            roles: {
+              has: role
             }
-          });
-        const mappingRoomIds = discordRoleRoomMapping.map(
-          (mapping) => mapping.roomId
-        );
-        const newRooms = mappingRoomIds.filter((roomId) =>
-          roomIds.includes(roomId)
-        );
+          }
+        });
+        const mappingRoomIds = discordRoleRoomMapping.map((mapping) => mapping.roomId);
+        const newRooms = mappingRoomIds.filter((roomId) => roomIds.includes(roomId));
         const newRoomNames = newRooms.map((roomId) => {
           const room = rooms.rooms.find((room) => room.roomId === roomId);
           return room?.name;
@@ -164,17 +158,14 @@ router.post(
       const roomIds: string[] = [];
 
       for (const role of roles) {
-        const discordRoleRoomMapping =
-          await prisma.discordRoleRoomMapping.findMany({
-            where: {
-              roles: {
-                has: role
-              }
+        const discordRoleRoomMapping = await prisma.discordRoleRoomMapping.findMany({
+          where: {
+            roles: {
+              has: role
             }
-          });
-        const mappingRoomIds = discordRoleRoomMapping.map(
-          (mapping) => mapping.roomId
-        );
+          }
+        });
+        const mappingRoomIds = discordRoleRoomMapping.map((mapping) => mapping.roomId);
         roomIds.push(...mappingRoomIds);
       }
       const roomNames = await prisma.rooms.findMany({

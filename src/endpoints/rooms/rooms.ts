@@ -12,7 +12,7 @@ import {
   findRoomsByIdentity,
   createRoom,
   removeRoom,
-  removeMessage,
+  removeMessage
 } from '../../data/db/';
 import { MessageI, RoomI } from 'discreetly-interfaces';
 import { RLNFullProof } from 'rlnjs';
@@ -81,32 +81,6 @@ router.get('/:id', limiter, (req, res) => {
       .catch((err) => console.error(err));
   }
 });
-
-/** This function gets the rooms that a user is a member of.
- * It takes in the identity commitment of the user, and passes it to the findRoomsByIdentity function.
- * @param {string} idc - The id of the identity to get rooms for.
- * @param {idcProof} proof - The proof of the identity to get rooms for.
- * @returns {void}
- */
-router.get(
-  '/idc/:idc',
-  limiter,
-  asyncHandler(async (req: Request, res: Response) => {
-    console.log(req.body);
-    const isValid = await verifyIdentityProof(req.body as IDCProof);
-    console.log('VALID', isValid);
-    if (isValid) {
-      try {
-        res.status(200).json(await findRoomsByIdentity(req.params.idc));
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Internal Server Error' });
-      }
-    } else {
-      res.status(400).json({ error: 'Invalid Proof' });
-    }
-  })
-);
 
 /** createRoom is used to create a new room in the database
  * @param {string} roomName - The name of the room
@@ -197,25 +171,21 @@ router.post('/add', adminAuth, (req, res) => {
  * @param {string} roomId - The id of the room to be deleted
  * @returns {void}
  *  */
-router.post(
-  '/:roomId/delete',
-  adminAuth,
-  (req: Request, res: Response) => {
-    const { roomId } = req.body as { roomId: string };
-    removeRoom(roomId)
-      .then((result) => {
-        if (result) {
-          res.status(200).json({ message: 'Room deleted successfully' });
-        } else {
-          res.status(500).json({ error: 'Internal Server Error' });
-        }
-      })
-      .catch((err) => {
-        console.error(err);
-        res.status(500).json({ error: String(err) });
-      });
-  }
-);
+router.post('/:roomId/delete', adminAuth, (req: Request, res: Response) => {
+  const { roomId } = req.body as { roomId: string };
+  removeRoom(roomId)
+    .then((result) => {
+      if (result) {
+        res.status(200).json({ message: 'Room deleted successfully' });
+      } else {
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
+    })
+    .catch((err) => {
+      console.error(err);
+      res.status(500).json({ error: String(err) });
+    });
+});
 
 /**
  * This code deletes a message from a room
@@ -227,27 +197,23 @@ router.post(
  * @param {string} messageId - The id of the message to be deleted
  * @returns {void}
  * */
-router.post(
-  '/:roomId/message/delete',
-  adminAuth,
-  (req, res) => {
-    const { roomId } = req.params;
-    const { messageId } = req.body as { messageId: string };
+router.post('/:roomId/message/delete', adminAuth, (req, res) => {
+  const { roomId } = req.params;
+  const { messageId } = req.body as { messageId: string };
 
-    removeMessage(roomId, messageId)
-      .then((result) => {
-        if (result) {
-          res.status(200).json({ message: 'Message deleted successfully' });
-        } else {
-          res.status(500).json({ error: 'Internal Server Error' });
-        }
-      })
-      .catch((err) => {
-        console.error(err);
-        res.status(500).json({ error: String(err) });
-      });
-  }
-);
+  removeMessage(roomId, messageId)
+    .then((result) => {
+      if (result) {
+        res.status(200).json({ message: 'Message deleted successfully' });
+      } else {
+        res.status(500).json({ error: 'Internal Server Error' });
+      }
+    })
+    .catch((err) => {
+      console.error(err);
+      res.status(500).json({ error: String(err) });
+    });
+});
 
 /**
  * This code handles the get request to get a list of messages for a particular room.

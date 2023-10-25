@@ -25,10 +25,8 @@ const adminAuth = basicAuth({
   }
 });
 
-
 const router = express.Router();
 const prisma = new PrismaClient();
-
 
 // Fetches all ethereum groups that exist in the database
 router.get('/groups/all', adminAuth, (req: Request, res: Response) => {
@@ -233,7 +231,7 @@ router.post('/group/delete', adminAuth, (req, res) => {
  * }
  */
 router.post(
-  '/message/sign',
+  '/join',
   limiter,
   asyncHandler(async (req: Request, res: Response) => {
     const { message, signature } = req.body as {

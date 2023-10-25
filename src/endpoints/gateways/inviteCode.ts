@@ -1,20 +1,19 @@
 import express from 'express';
 import type { Request, Response } from 'express';
-import {  limiter } from '../middleware';
+import { limiter } from '../middleware';
 import { PrismaClient } from '@prisma/client';
 import asyncHandler from 'express-async-handler';
 import {
   findClaimCode,
   updateClaimCode,
   updateRoomIdentities,
-  findUpdatedRooms,
+  findUpdatedRooms
 } from '../../data/db/';
 import { GatewayInviteDataI } from '../../types';
 import { RoomI } from 'discreetly-interfaces';
 
 const router = express.Router();
 const prisma = new PrismaClient();
-
 
 /** This code takes a request from the gateway and joins a user to a room
  * It takes in the claim code and the identity commitment of the user
@@ -27,7 +26,7 @@ const prisma = new PrismaClient();
  *     "code": "string",
  *    "idc": "string"
  * }
-*/
+ */
 router.post(
   '/join',
   limiter,
@@ -88,7 +87,5 @@ router.post(
     }
   })
 );
-
-
 
 export default router;
