@@ -92,6 +92,7 @@ router.get(
   '/idc/:idc',
   limiter,
   asyncHandler(async (req: Request, res: Response) => {
+    console.log(req.body);
     const isValid = await verifyIdentityProof(req.body as IDCProof);
     console.log('VALID', isValid);
     if (isValid) {

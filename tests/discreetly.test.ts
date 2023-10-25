@@ -7,6 +7,7 @@ import { beforeAll, afterAll, describe, expect, test } from '@jest/globals';
 import { randomRoomName } from './utils';
 import { generateIdentityProof } from '../src/crypto/idcVerifier/verifier';
 import { Identity } from '@semaphore-protocol/identity';
+import { doesNotReject } from 'assert';
 
 
 process.env.DATABASE_URL = process.env.DATABASE_URL_TEST;
@@ -223,6 +224,7 @@ describe('Endpoints', () => {
 
   test('It should return all rooms associated with the given identity', async () => {
     let proof = await generateIdentityProof(testIdentity, BigInt(Date.now()))
+
     await request(_app)
       .get(`/room/idc/${testIdentity.getCommitment().toString()}`)
       .send(proof)
@@ -231,6 +233,7 @@ describe('Endpoints', () => {
           expect(res.statusCode).toEqual(200);
         } catch (error) {
           console.error('GET /api/rooms/:idc - ' + error);
+
         }
       })
       .catch((error) => console.error('GET /api/rooms/:idc - ' + error));
