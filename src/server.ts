@@ -2,16 +2,15 @@ import express from 'express';
 import http from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
-import basicAuth from 'express-basic-auth';
 import type { Server } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import type { Server as SocketIOServerT } from 'socket.io';
 import { serverConfig } from './config/serverConfig';
 import { pp, shim } from './utils';
 import mock from './data/mock';
+import { generateRandomClaimCode } from 'discreetly-claimcodes';
 import { websocketSetup as initWebsockets } from './websockets/index';
 import { initEndpoints } from './endpoints/index';
-import { generateRandomClaimCode } from 'discreetly-claimcodes';
 import { listEndpoints } from './endpoints/utils';
 import { instrument } from '@socket.io/admin-ui';
 import bcrypt from 'bcryptjs';
@@ -35,11 +34,6 @@ const admin_password = process.env.PASSWORD
   : // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     (generateRandomClaimCode(4) as string);
 
-const adminAuth = basicAuth({
-  users: {
-    admin: admin_password
-  }
-});
 
 const intervalIds: NodeJS.Timer[] = [];
 
@@ -71,7 +65,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
   const PORT = 3001;
   serverConfigStartup.port = PORT;
   serverConfigStartup.admin_password = admin_password;
-  initEndpoints(app, adminAuth);
+  initEndpoints(app);
   _app = initAppListeners(PORT);
   listEndpoints(app);
   io = new SocketIOServer(_app, {
@@ -89,7 +83,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
 } else {
   const PORT = process.env.PORT;
   serverConfigStartup.port = PORT;
-  initEndpoints(app, adminAuth);
+  initEndpoints(app);
   _app = initAppListeners(PORT);
   io = new SocketIOServer(_app, {
     cors: {
