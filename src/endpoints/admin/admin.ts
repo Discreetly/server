@@ -12,9 +12,7 @@ import { createSystemMessages } from '../../data/db';
 const prisma = new PrismaClient();
 const router = express.Router();
 
-const adminPassword = process.env.PASSWORD
-  ? process.env.PASSWORD
-  : 'password';
+const adminPassword = process.env.PASSWORD ? process.env.PASSWORD : 'password';
 
 const adminAuth = basicAuth({
   users: {
@@ -50,20 +48,17 @@ router.post(
   '/addcode',
   adminAuth,
   asyncHandler(async (req: Request, res: Response) => {
-    const { numCodes, rooms, all, expiresAt, usesLeft, discordId } =
-      req.body as {
-        numCodes: number;
-        rooms: string[];
-        all: boolean;
-        expiresAt: number;
-        usesLeft: number;
-        discordId: string;
-      };
+    const { numCodes, rooms, all, expiresAt, usesLeft, discordId } = req.body as {
+      numCodes: number;
+      rooms: string[];
+      all: boolean;
+      expiresAt: number;
+      usesLeft: number;
+      discordId: string;
+    };
 
     const currentDate = new Date();
-    const threeMonthsLater = new Date(currentDate).setMonth(
-      currentDate.getMonth() + 3
-    );
+    const threeMonthsLater = new Date(currentDate).setMonth(currentDate.getMonth() + 3);
 
     const codeExpires = expiresAt ? expiresAt : threeMonthsLater;
     const query = all ? undefined : { where: { roomId: { in: rooms } } };
@@ -105,9 +100,7 @@ router.post(
 
       return Promise.all(createCodes)
         .then(() => {
-          res
-            .status(200)
-            .json({ message: 'Claim codes added successfully', codes });
+          res.status(200).json({ message: 'Claim codes added successfully', codes });
         })
         .catch((err) => {
           console.error(err);
@@ -139,9 +132,7 @@ router.post('/:roomId/addcode', adminAuth, (req, res) => {
   const codes = genClaimCodeArray(numCodes);
 
   const currentDate = new Date();
-  const threeMonthsLater = new Date(currentDate).setMonth(
-    currentDate.getMonth() + 3
-  );
+  const threeMonthsLater = new Date(currentDate).setMonth(currentDate.getMonth() + 3);
 
   const codeExpires = expires ? expires : threeMonthsLater;
 
@@ -174,9 +165,7 @@ router.post('/:roomId/addcode', adminAuth, (req, res) => {
       return Promise.all(createCodes);
     })
     .then(() => {
-      res
-        .status(200)
-        .json({ message: 'Claim codes added successfully', codes });
+      res.status(200).json({ message: 'Claim codes added successfully', codes });
     })
     .catch((err) => {
       console.error(err);
@@ -228,19 +217,13 @@ router.post(
     if (isValid) {
       const updatedIdentity = await prisma.gateWayIdentity.update({
         where: {
-          semaphoreIdentity: String(
-            generatedProof.publicSignals.identityCommitment
-          )
+          semaphoreIdentity: String(generatedProof.publicSignals.identityCommitment)
         },
         data: {
-          semaphoreIdentity: String(
-            generatedProof.publicSignals.externalNullifier
-          )
+          semaphoreIdentity: String(generatedProof.publicSignals.externalNullifier)
         }
       });
-      res
-        .status(200)
-        .json({ message: 'Identity updated successfully', updatedIdentity });
+      res.status(200).json({ message: 'Identity updated successfully', updatedIdentity });
     } else {
       res.status(500).json({ error: 'Internal Server Error' });
     }
