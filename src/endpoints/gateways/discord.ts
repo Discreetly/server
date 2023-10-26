@@ -193,7 +193,6 @@ router.post(
  */
 router.post('/rooms', limiter, adminAuth, (req, res) => {
   const { discordUserId } = req.body as { discordUserId: string };
-  console.log('here');
   prisma.gateWayIdentity
     .findFirst({
       where: {
