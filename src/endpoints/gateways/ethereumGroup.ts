@@ -95,6 +95,7 @@ router.post(
       name: string;
       roomIds: string[];
     };
+    if (!name) res.status(500).json({ error: 'No name provided' })
     const ethereumGroup = await prisma.ethereumGroup.create({
       data: {
         name: name,
