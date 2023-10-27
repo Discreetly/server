@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import { limiter } from '../middleware';
 import { generateRandomClaimCode } from 'discreetly-claimcodes';
 import basicAuth from 'express-basic-auth';
+import { findManyGroups } from '../../data/db';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -21,12 +22,7 @@ const adminAuth = basicAuth({
 
 // Fetches all jubmoji groups that exist in the database
 router.get('/groups/all', adminAuth, (req: Request, res: Response) => {
-  prisma.jubmojiGroup
-    .findMany({
-      select: {
-        name: true
-      }
-    })
+  findManyGroups('jubmoji')
     .then((groups) => {
       res.status(200).json(groups);
     })
@@ -46,17 +42,7 @@ router.get('/groups/all', adminAuth, (req: Request, res: Response) => {
  */
 router.get('/group/:address', limiter, (req: Request, res: Response) => {
   const { address } = req.params as { address: string };
-  prisma.jubmojiGroup
-    .findMany({
-      where: {
-        jubmojiAddresses: {
-          has: address
-        }
-      },
-      select: {
-        name: true
-      }
-    })
+    findManyGroups('jubmoji', address)
     .then((groups) => {
       res.status(200).json(groups);
     })
@@ -87,7 +73,7 @@ router.post('/group/create', adminAuth, (req: Request, res: Response) => {
       data: {
         name,
         rooms: {
-          connect: roomIds.map((id) => ({ id }))
+          connect: roomIds.map((roomId) => ({ roomId }))
         }
       }
     })
@@ -175,3 +161,5 @@ router.post('/group/delete', adminAuth, (req: Request, res: Response) => {
     res.status(500).json({ error: 'Internal Server Error' });
   })
 })
+
+export default router;

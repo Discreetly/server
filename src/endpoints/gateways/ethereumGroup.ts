@@ -4,7 +4,7 @@ import express from 'express';
 import { limiter } from '../middleware';
 import { generateRandomClaimCode } from 'discreetly-claimcodes';
 import basicAuth from 'express-basic-auth';
-import { addAddressesToEthGroup, updateEthGroup, createEthGroup, findManyEthGroups, findUniqueEthGroup, removeEthGroup, joinRoomsFromEthAddress } from '../../data/db';
+import { addAddressesToEthGroup, updateEthGroup, createEthGroup, findManyGroups, findUniqueEthGroup, removeEthGroup, joinRoomsFromEthAddress } from '../../data/db';
 import { recoverPublicKey } from '../../data/utils';
 
 const adminPassword = process.env.PASSWORD
@@ -22,7 +22,7 @@ const router = express.Router();
 
 // Fetches all ethereum groups that exist in the database
 router.get('/groups/all', adminAuth, (req: Request, res: Response) => {
-    findManyEthGroups()
+    findManyGroups('ethereum')
     .then((groups) => {
       res.status(200).json(groups);
     })
@@ -42,7 +42,7 @@ router.get('/groups/all', adminAuth, (req: Request, res: Response) => {
  */
 router.get('/group/:address', limiter, (req, res) => {
   const { address } = req.params as { address: string };
-  findManyEthGroups(address)
+  findManyGroups('ethereum', address)
     .then((groups) => {
       res.status(200).json(groups);
     })

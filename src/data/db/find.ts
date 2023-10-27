@@ -93,7 +93,9 @@ export async function findClaimCode(code: string): Promise<ClaimCodeI | null> {
   });
 }
 
-export async function findGatewayByIdentity(identity: string): Promise<GateWayIdentityI | null> {
+export async function findGatewayByIdentity(
+  identity: string
+): Promise<GateWayIdentityI | null> {
   return await prisma.gateWayIdentity.findFirst({
     where: {
       semaphoreIdentity: identity
@@ -154,28 +156,57 @@ export async function findRoomWithMessageId(
   }
 }
 
-export function findManyEthGroups(address?: string): Promise<{ name: string }[]> {
-  if (address) {
-    return prisma.ethereumGroup.findMany({
-      where: {
-        ethereumAddresses: {
-          has: address
-        }
-      },
-      select: {
-        name: true
+export function findManyGroups(
+  group: string,
+  address?: string
+) {
+  switch (group) {
+    case 'ethereum':
+      if (address) {
+        return prisma.ethereumGroup.findMany({
+          where: {
+            ethereumAddresses: {
+              has: address
+            }
+          },
+          select: {
+            name: true
+          }
+        });
+      } else {
+        return prisma.ethereumGroup.findMany({
+          select: {
+            name: true
+          }
+        });
       }
-    })
-  } else {
-    return prisma.ethereumGroup.findMany({
-      select: {
-        name: true
+    case 'jubmoji':
+      if (address) {
+        return prisma.jubmojiGroup.findMany({
+          where: {
+            jubmojiAddresses: {
+              has: address
+            }
+          },
+          select: {
+            name: true
+          }
+        });
+      } else {
+        return prisma.jubmojiGroup.findMany({
+          select: {
+            name: true
+          }
+        });
       }
-    })
+      default:
+        throw new Error('Invalid group');
   }
 }
 
-export function findUniqueEthGroup(name: string): Promise<{ ethereumAddresses: string[] } | null> {
+export function findUniqueEthGroup(
+  name: string
+): Promise<{ ethereumAddresses: string[] } | null> {
   return prisma.ethereumGroup.findUnique({
     where: {
       name: name
@@ -183,5 +214,5 @@ export function findUniqueEthGroup(name: string): Promise<{ ethereumAddresses: s
     select: {
       ethereumAddresses: true
     }
-  })
+  });
 }
