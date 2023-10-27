@@ -1,18 +1,11 @@
 import asyncHandler from 'express-async-handler';
 import type { Request, Response } from 'express';
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
 import { limiter } from '../middleware';
 import { generateRandomClaimCode } from 'discreetly-claimcodes';
-import {
-  ecrecover,
-  pubToAddress,
-  bufferToHex,
-  fromRpcSig,
-  toBuffer,
-  hashPersonalMessage
-} from 'ethereumjs-util';
 import basicAuth from 'express-basic-auth';
+import { addAddressesToEthGroup, updateEthGroup, createEthGroup, findManyEthGroups, findUniqueEthGroup, removeEthGroup, joinRoomsFromEthAddress } from '../../data/db';
+import { recoverPublicKey } from '../../data/utils';
 
 const adminPassword = process.env.PASSWORD
   ? process.env.PASSWORD
@@ -26,16 +19,10 @@ const adminAuth = basicAuth({
 });
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // Fetches all ethereum groups that exist in the database
 router.get('/groups/all', adminAuth, (req: Request, res: Response) => {
-  prisma.ethereumGroup
-    .findMany({
-      select: {
-        name: true
-      }
-    })
+    findManyEthGroups()
     .then((groups) => {
       res.status(200).json(groups);
     })
@@ -55,17 +42,7 @@ router.get('/groups/all', adminAuth, (req: Request, res: Response) => {
  */
 router.get('/group/:address', limiter, (req, res) => {
   const { address } = req.params as { address: string };
-  prisma.ethereumGroup
-    .findMany({
-      where: {
-        ethereumAddresses: {
-          has: address
-        }
-      },
-      select: {
-        name: true
-      }
-    })
+  findManyEthGroups(address)
     .then((groups) => {
       res.status(200).json(groups);
     })
@@ -96,14 +73,7 @@ router.post(
       roomIds: string[];
     };
     if (!name) res.status(500).json({ error: 'No name provided' })
-    const ethereumGroup = await prisma.ethereumGroup.create({
-      data: {
-        name: name,
-        rooms: {
-          connect: roomIds.map((roomId) => ({ roomId }))
-        }
-      }
-    });
+    const ethereumGroup = await createEthGroup(name, roomIds)
     res.json({ success: true, ethereumGroup });
   })
 );
@@ -120,20 +90,17 @@ router.post(
       names: string[];
       ethAddresses: string[];
     };
-    if (!names) return;
-    const groups = await prisma.ethereumGroup.updateMany({
-      where: {
-        name: {
-          in: names
-        }
-      },
-      data: {
-        ethereumAddresses: {
-          push: ethAddresses
-        }
+    if (!names) res.status(500).json({ error: 'No names provided' });
+    try {
+      const groups = await addAddressesToEthGroup(names, ethAddresses);
+      if (groups.count === 0) {
+        res.status(500).json({ error: 'No groups found' });
+        return;
       }
-    });
-    res.json({ success: true, groups });
+      res.json({ success: true, groups });
+    } catch (err) {
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
   })
 );
 
@@ -160,33 +127,16 @@ router.post(
       roomIds: [];
     };
     try {
-      const foundGroup = await prisma.ethereumGroup.findUnique({
-        where: {
-          name: name
-        },
-        select: {
-          ethereumAddresses: true
-        }
-      });
+      const foundGroup = await findUniqueEthGroup(name)
       let addresses: string[] = [];
+
       if (foundGroup?.ethereumAddresses) {
         addresses = ethAddresses.filter((address) => {
           return !foundGroup.ethereumAddresses.includes(address);
         });
       }
-      const updatedGroup = await prisma.ethereumGroup.update({
-        where: {
-          name: name
-        },
-        data: {
-          ethereumAddresses: {
-            push: addresses
-          },
-          rooms: {
-            connect: roomIds.map((roomId) => ({ roomId }))
-          }
-        }
-      });
+
+      const updatedGroup = await updateEthGroup(name, addresses, roomIds);
       res.json({ success: true, updatedGroup });
     } catch (err) {
       console.error(err);
@@ -204,12 +154,7 @@ router.post(
  */
 router.post('/group/delete', adminAuth, (req, res) => {
   const { name } = req.body as { name: string };
-  prisma.ethereumGroup
-    .delete({
-      where: {
-        name: name
-      }
-    })
+  removeEthGroup(name)
     .then((group) => {
       res.status(200).json(group);
     })
@@ -241,51 +186,9 @@ router.post(
     };
 
     try {
-      const msgHex = bufferToHex(Buffer.from(message));
-      const msgBuffer = toBuffer(msgHex);
-      const msgHash = hashPersonalMessage(msgBuffer);
+      const recoveredAddress = recoverPublicKey(message, signature);
 
-      const { v, r, s } = fromRpcSig(signature);
-      const publicKey = ecrecover(msgHash, v, r, s);
-      const address = pubToAddress(publicKey);
-
-      const recoveredAddress = bufferToHex(address);
-      const gatewayIdentity = await prisma.gateWayIdentity.upsert({
-        where: { semaphoreIdentity: message },
-        update: {},
-        create: {
-          semaphoreIdentity: message
-        }
-      });
-
-      await prisma.ethereumAddress.upsert({
-        where: { ethereumAddress: recoveredAddress },
-        update: {},
-        create: {
-          ethereumAddress: recoveredAddress,
-          gatewayId: gatewayIdentity.id
-        }
-      });
-
-      const roomsToJoin = await prisma.ethereumGroup.findMany({
-        where: {
-          ethereumAddresses: {
-            has: recoveredAddress
-          }
-        },
-        select: {
-          roomIds: true
-        }
-      });
-
-      const roomIdsSet = new Set(roomsToJoin.map((room) => room.roomIds).flat());
-      const roomIds = Array.from(roomIdsSet);
-
-      await prisma.gateWayIdentity.update({
-        where: { id: gatewayIdentity.id },
-        data: { roomIds: { set: roomIds } }
-      });
-
+      const roomIds = await joinRoomsFromEthAddress(recoveredAddress, message);
       res.json({ status: 'valid', roomIds: roomIds });
     } catch (err) {
       console.error(err);

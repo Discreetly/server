@@ -1,7 +1,12 @@
 import { PrismaClient } from '@prisma/client';
-import { getRateCommitmentHash, MessageI, randomBigInt } from 'discreetly-interfaces';
+import {
+  getRateCommitmentHash,
+  MessageI,
+  randomBigInt
+} from 'discreetly-interfaces';
 import { genClaimCodeArray, genMockUsers } from '../../utils';
 import type { Server as SocketIOServer } from 'socket.io';
+import { EthGroupI } from '../../types';
 
 const prisma = new PrismaClient();
 
@@ -34,7 +39,9 @@ export async function createRoom(
   bandadaAPIKey?: string,
   membershipType?: string,
   roomId?: string
-): Promise<{ roomId: string ; claimCodes: { claimcode: string }[] } | undefined | null> {
+): Promise<
+  { roomId: string; claimCodes: { claimcode: string }[] } | undefined | null
+> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
   const mockUsers: string[] = genMockUsers(approxNumMockUsers);
   const identityCommitments: string[] = mockUsers.map((user) =>
@@ -42,7 +49,7 @@ export async function createRoom(
   );
   const _roomId = roomId ? roomId : randomBigInt().toString();
 
-  const room = await prisma.rooms.findUnique({where: {roomId: _roomId}})
+  const room = await prisma.rooms.findUnique({ where: { roomId: _roomId } });
   if (room) return null;
 
   const roomData = {
@@ -67,7 +74,7 @@ export async function createRoom(
       },
       gateways: {
         create: mockUsers.map((user) => ({
-          semaphoreIdentity: user,
+          semaphoreIdentity: user
         }))
       }
     }
@@ -76,7 +83,7 @@ export async function createRoom(
   return await prisma.rooms
     .upsert(roomData)
     .then(() => {
-      return {roomId: _roomId, claimCodes};
+      return { roomId: _roomId, claimCodes };
     })
     .catch((err) => {
       console.error(err);
@@ -132,7 +139,10 @@ export function createSystemMessages(
  * @param {MessageI} message - The message to add to the room.
  * @returns {Promise<unknown>} - A promise that resolves when the message has been added to the room.
  */
-export function createMessageInRoom(roomId: string, message: MessageI): Promise<unknown> {
+export function createMessageInRoom(
+  roomId: string,
+  message: MessageI
+): Promise<unknown> {
   if (!message.epoch) {
     throw new Error('Epoch not provided');
   }
@@ -157,4 +167,58 @@ export function createMessageInRoom(roomId: string, message: MessageI): Promise<
       }
     }
   });
+}
+
+export function createEthGroup(
+  name: string,
+  roomIds: string[]
+): Promise<EthGroupI> {
+  return prisma.ethereumGroup.create({
+    data: {
+      name: name,
+      rooms: {
+        connect: roomIds.map((roomId) => ({ roomId }))
+      }
+    }
+  });
+}
+
+export async function joinRoomsFromEthAddress(
+  recoveredAddress: string,
+  message: string
+) {
+  const gatewayIdentity = await prisma.gateWayIdentity.upsert({
+    where: { semaphoreIdentity: message },
+    update: {},
+    create: {
+      semaphoreIdentity: message
+    }
+  });
+  await prisma.ethereumAddress.upsert({
+    where: { ethereumAddress: recoveredAddress },
+    update: {},
+    create: {
+      ethereumAddress: recoveredAddress,
+      gatewayId: gatewayIdentity.id
+    }
+  });
+  const roomsToJoin = await prisma.ethereumGroup.findMany({
+    where: {
+      ethereumAddresses: {
+        has: recoveredAddress
+      }
+    },
+    select: {
+      roomIds: true
+    }
+  });
+  const roomIdsSet = new Set(roomsToJoin.map((room) => room.roomIds).flat());
+  const roomIds = Array.from(roomIdsSet);
+
+  await prisma.gateWayIdentity.update({
+    where: { id: gatewayIdentity.id },
+    data: { roomIds: { set: roomIds } }
+  });
+
+  return roomIds;
 }

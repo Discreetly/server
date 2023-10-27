@@ -1,5 +1,5 @@
 import { createRoom } from '../src/data/db';
-import { createEthGroup } from '../src/data/db';
+import { createEthGroupForRoom } from '../src/data/db';
 import addresses from './addresses';
 async function main() {
   //   @param name — The name of the room.
@@ -17,8 +17,8 @@ async function main() {
   await createRoom('The Word', 10000, 12, 0, 0, 'PUBLIC', [], '007001');
   const bcgd = await createRoom('Beacon Chain Genesis Depositors', 10000, 12, 0 ,20, 'PUBLIC');
   const sgf = await createRoom('Stateful Genesis Funders', 10000, 12, 0, 20, 'PUBLIC');
-  await createEthGroup('Beacon Chain Genesis Depositors', bcgd!.roomId, addresses.bcgd);
-  await createEthGroup('Stateful Genesis Funders', sgf!.roomId, addresses.sgf);
+  await createEthGroupForRoom('Beacon Chain Genesis Depositors', bcgd!.roomId, addresses.bcgd);
+  await createEthGroupForRoom('Stateful Genesis Funders', sgf!.roomId, addresses.sgf);
 }
 
 await main();

@@ -97,3 +97,13 @@ export function removeMessage(roomId: string, messageId: string) {
       return false;
     });
 }
+
+
+export function removeEthGroup(name: string) {
+  return prisma.ethereumGroup
+    .delete({
+      where: {
+        name: name
+      }
+    })
+}

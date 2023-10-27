@@ -1,3 +1,12 @@
+import {
+  ecrecover,
+  pubToAddress,
+  bufferToHex,
+  fromRpcSig,
+  toBuffer,
+  hashPersonalMessage
+} from 'ethereumjs-util';
+
 /**
  * The sanitizeIDC function takes a string and returns a string.
  * The string is converted to a BigInt and then back to a string.
@@ -20,4 +29,18 @@ export function sanitizeIDC(idc: string): string {
   } catch (error) {
     throw new Error('Invalid IDC provided.');
   }
+}
+
+export function recoverPublicKey(message: string, signature: string): string {
+      const msgHex = bufferToHex(Buffer.from(message));
+      const msgBuffer = toBuffer(msgHex);
+      const msgHash = hashPersonalMessage(msgBuffer);
+
+      const { v, r, s } = fromRpcSig(signature);
+      const publicKey = ecrecover(msgHash, v, r, s);
+      const address = pubToAddress(publicKey);
+
+      const recoveredAddress = bufferToHex(address);
+
+      return recoveredAddress
 }

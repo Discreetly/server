@@ -67,3 +67,9 @@ export interface addRoomData {
   admin?: boolean;
   discordIds?: string[];
 }
+
+export interface EthGroupI {
+  name: string;
+  roomIds: string[];
+  ethereumAddresses: string[];
+}

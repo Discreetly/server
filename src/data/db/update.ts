@@ -299,7 +299,7 @@ export async function addIdentityToBandadaRooms(
  * @param {string} roomId - The ID of the room
  * @param {string[]} ethAddresses - The list of Ethereum addresses to add to the group
 */
-export async function createEthGroup(
+export async function createEthGroupForRoom(
   name: string,
   roomId: string,
   ethAddresses: string[]
@@ -316,6 +316,38 @@ export async function createEthGroup(
             set: ethAddresses
           }
         }
+      }
+    }
+  });
+}
+
+export function addAddressesToEthGroup(names: string[], ethAddresses: string[]) {
+  return prisma.ethereumGroup.updateMany({
+    where: {
+      name: {
+        in: names
+      }
+    },
+    data: {
+      ethereumAddresses: {
+        push: ethAddresses
+      }
+    }
+  });
+}
+
+
+export function updateEthGroup(name: string, ethAddresses: string[], roomIds: string[]) {
+  return prisma.ethereumGroup.update({
+    where: {
+      name: name
+    },
+    data: {
+      ethereumAddresses: {
+        push: ethAddresses
+      },
+      rooms: {
+        connect: roomIds.map((roomId) => ({ roomId }))
       }
     }
   });

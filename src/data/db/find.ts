@@ -153,3 +153,35 @@ export async function findRoomWithMessageId(
     throw err;
   }
 }
+
+export function findManyEthGroups(address?: string): Promise<{ name: string }[]> {
+  if (address) {
+    return prisma.ethereumGroup.findMany({
+      where: {
+        ethereumAddresses: {
+          has: address
+        }
+      },
+      select: {
+        name: true
+      }
+    })
+  } else {
+    return prisma.ethereumGroup.findMany({
+      select: {
+        name: true
+      }
+    })
+  }
+}
+
+export function findUniqueEthGroup(name: string): Promise<{ ethereumAddresses: string[] } | null> {
+  return prisma.ethereumGroup.findUnique({
+    where: {
+      name: name
+    },
+    select: {
+      ethereumAddresses: true
+    }
+  })
+}
