@@ -7,7 +7,8 @@ import {
   findClaimCode,
   updateClaimCode,
   updateRoomIdentities,
-  findUpdatedRooms
+  findUpdatedRooms,
+  removeClaimCode
 } from '../../data/db/';
 import { GatewayInviteDataI } from '../../types';
 import { RoomI } from 'discreetly-interfaces';
@@ -52,11 +53,7 @@ router.post(
     if (foundCode && (foundCode.usesLeft >= 0 || foundCode.usesLeft === -1)) {
       const updatedCode = await updateClaimCode(code, idc);
       if (updatedCode && updatedCode.usesLeft === 0) {
-        await prisma.claimCodes.delete({
-          where: {
-            claimcode: code
-          }
-        });
+        await removeClaimCode(code);
       }
     } else {
       res.status(400).json({ message: 'Invalid Claim Code' });

@@ -216,3 +216,24 @@ export function findUniqueEthGroup(
     }
   });
 }
+
+export function findMessages(roomId : string) {
+  return prisma.messages
+    .findMany({
+      take: 500,
+      orderBy: {
+        timeStamp: 'desc'
+      },
+      where: {
+        roomId: roomId
+      },
+      select: {
+        id: false,
+        message: true,
+        messageId: true,
+        proof: true,
+        roomId: true,
+        timeStamp: true
+      }
+    })
+}

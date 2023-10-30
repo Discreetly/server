@@ -154,7 +154,7 @@ router.post(
  */
 router.post('/group/delete', adminAuth, (req, res) => {
   const { name } = req.body as { name: string };
-  removeEthGroup(name)
+  removeEthGroup('ethereum', name)
     .then((group) => {
       res.status(200).json(group);
     })

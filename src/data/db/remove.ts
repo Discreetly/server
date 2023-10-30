@@ -98,12 +98,42 @@ export function removeMessage(roomId: string, messageId: string) {
     });
 }
 
+/**
+ * This function deletes an ethereum group from the database.
+ * @param name - The name of the Ethereum group to delete
+ * @returns {void}
+ */
+export function removeEthGroup(group: string, name: string) {
+  switch(group) {
+    case 'ethereum':
+      return prisma.ethereumGroup
+        .delete({
+          where: {
+            name: name
+          }
+        })
+    case 'jubmoji':
+      return prisma.jubmojiGroup
+        .delete({
+          where: {
+            name: name
+          }
+        })
+      default:
+        throw new Error('No group found')
+  }
+}
 
-export function removeEthGroup(name: string) {
-  return prisma.ethereumGroup
+/**
+ * This function removes a claim code from the database.
+ * @param {string} code - The claim code to find
+ * @returns {void}
+ */
+export function removeClaimCode(code: string) {
+  return prisma.claimCodes
     .delete({
       where: {
-        name: name
+        claimcode: code
       }
     })
 }

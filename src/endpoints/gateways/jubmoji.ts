@@ -4,7 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import { limiter } from '../middleware';
 import { generateRandomClaimCode } from 'discreetly-claimcodes';
 import basicAuth from 'express-basic-auth';
-import { findManyGroups } from '../../data/db';
+import { findManyGroups, removeEthGroup } from '../../data/db';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -150,11 +150,8 @@ router.post('/group/edit', adminAuth, (req: Request, res: Response) => {
 
 router.post('/group/delete', adminAuth, (req: Request, res: Response) => {
   const { name } = req.body as { name: string };
-  prisma.jubmojiGroup.delete({
-    where: {
-      name: name
-    }
-  }).then((group) => {
+  removeEthGroup('jubmoji', name)
+  .then((group) => {
     res.status(200).json(group);
   }).catch((err) => {
     console.error(err);
