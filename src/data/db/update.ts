@@ -321,6 +321,13 @@ export async function createEthGroupForRoom(
   });
 }
 
+
+/**
+ *
+ * @param {string[]} names - The names of the ethereum groups to add the addresses to
+ * @param {string[]} ethAddresses - An array of ethereum addresses to add to the groups
+ * @returns
+ */
 export function addAddressesToEthGroup(names: string[], ethAddresses: string[]) {
   return prisma.ethereumGroup.updateMany({
     where: {
@@ -336,7 +343,13 @@ export function addAddressesToEthGroup(names: string[], ethAddresses: string[]) 
   });
 }
 
-
+/**
+ * This function updates an ethereum group in the database.
+ * @param {string} name - The name of the ethereum group to update
+ * @param {string[]} ethAddresses - An array of ethereum addresses to add to the group
+ * @param {string[]} roomIds - The ids of the rooms to connect to the group
+ * @returns
+ */
 export function updateEthGroup(name: string, ethAddresses: string[], roomIds: string[]) {
   return prisma.ethereumGroup.update({
     where: {
@@ -352,5 +365,3 @@ export function updateEthGroup(name: string, ethAddresses: string[], roomIds: st
     }
   });
 }
-
-
