@@ -54,10 +54,17 @@ export function findRoomClaimCodes(roomId: string) {
   })
 }
 
+// Fetches all claim codes from the database
 export function findAllClaimCodes() {
   return prisma.claimCodes.findMany()
 }
 
+/**
+ * This function is used to find all rooms in the database
+ * @param {boolean} all - True or false to query all rooms
+ * @param {string[]} rooms - An array of roomIds to query
+ * @returns
+ */
 export async function findAllRooms(all?: boolean, rooms?: string[] | undefined) {
   const query = all ? undefined : { where: { roomId: { in: rooms } } }
   return await prisma.rooms.findMany(query);
