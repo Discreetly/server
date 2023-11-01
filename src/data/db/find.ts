@@ -46,6 +46,22 @@ export async function findRoomById(id: string): Promise<RoomI | null> {
   });
 }
 
+export function findRoomClaimCodes(roomId: string) {
+  return prisma.rooms
+  .findUnique({
+    where: { roomId: roomId },
+    include: { claimCodes: true }
+  })
+}
+
+export function findAllClaimCodes() {
+  return prisma.claimCodes.findMany()
+}
+
+export async function findAllRooms(all?: boolean, rooms?: string[] | undefined) {
+  const query = all ? undefined : { where: { roomId: { in: rooms } } }
+  return await prisma.rooms.findMany(query);
+}
 /* TODO Need to create a system here where the client needs to provide a
 proof they know the secrets to some Identity Commitment with a unix epoch
 time stamp to prevent replay attacks

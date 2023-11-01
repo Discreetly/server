@@ -5,6 +5,7 @@ import { RoomI } from 'discreetly-interfaces';
 import { getRateCommitmentHash } from '../../crypto';
 import { pp } from '../../utils';
 import { RoomWithSecretsI, ClaimCodeI } from '../../types/';
+import { IDCProof } from 'idc-nullifier';
 
 const prisma = new PrismaClient();
 
@@ -361,6 +362,43 @@ export function updateEthGroup(name: string, ethAddresses: string[], roomIds: st
       },
       rooms: {
         connect: roomIds.map((roomId) => ({ roomId }))
+      }
+    }
+  });
+}
+
+export function updateRoomClaimCodes(roomId: string, claimCodeId: string) {
+  return prisma.rooms.update({
+    where: {
+      roomId: roomId
+    },
+    data: {
+      claimCodeIds: {
+        push: claimCodeId
+      }
+    }
+  });
+}
+
+export async function updateIdentites(generatedProof: IDCProof) {
+  return await prisma.gateWayIdentity.update({
+    where: {
+      semaphoreIdentity: String(generatedProof.publicSignals.identityCommitment)
+    },
+    data: {
+      semaphoreIdentity: String(generatedProof.publicSignals.externalNullifier),
+    }
+  })
+}
+
+export async function addAdminToRoom(roomId: string, idc: string) {
+  return await prisma.rooms.update({
+    where: {
+      roomId: roomId
+    },
+    data: {
+      adminIdentities: {
+        push: idc
       }
     }
   });

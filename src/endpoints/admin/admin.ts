@@ -2,14 +2,12 @@ import express from 'express';
 import type { Request, Response } from 'express';
 import asyncHandler from 'express-async-handler';
 import basicAuth from 'express-basic-auth';
-import { PrismaClient } from '@prisma/client';
 import { genClaimCodeArray, pp } from '../../utils';
 import { IDCProof } from 'idc-nullifier/dist/types/types';
 import { verifyIdentityProof } from '../../crypto/idcVerifier/verifier';
 import { limiter } from '../middleware';
-import { createSystemMessages } from '../../data/db';
+import { addAdminToRoom, createClaimCode, createSystemMessages, findAllClaimCodes, findAllRooms, findRoomClaimCodes, updateIdentites, updateRoomClaimCodes } from '../../data/db';
 
-const prisma = new PrismaClient();
 const router = express.Router();
 
 const adminPassword = process.env.PASSWORD ? process.env.PASSWORD : 'password';
@@ -61,34 +59,17 @@ router.post(
     const threeMonthsLater = new Date(currentDate).setMonth(currentDate.getMonth() + 3);
 
     const codeExpires = expiresAt ? expiresAt : threeMonthsLater;
-    const query = all ? undefined : { where: { roomId: { in: rooms } } };
+    // const query = all ? undefined : { where: { roomId: { in: rooms } } };
 
     const codes = genClaimCodeArray(numCodes);
-    return await prisma.rooms.findMany(query).then((rooms) => {
+    return findAllRooms(all, rooms).then((rooms) => {
+      console.log(rooms);
       const roomIds = rooms.map((room) => room.id);
       const createCodes = codes.map((code) => {
-        return prisma.claimCodes
-          .create({
-            data: {
-              claimcode: code.claimcode,
-              roomIds: roomIds,
-              expiresAt: codeExpires,
-              usesLeft: usesLeft,
-              discordId: discordId
-            }
-          })
+        return createClaimCode(code.claimcode, roomIds, codeExpires, usesLeft, discordId)
           .then((newCode) => {
             const updatePromises = rooms.map((room) => {
-              return prisma.rooms.update({
-                where: {
-                  roomId: room.roomId
-                },
-                data: {
-                  claimCodeIds: {
-                    push: newCode.id
-                  }
-                }
-              });
+              return updateRoomClaimCodes(room.roomId, newCode.id)
             });
             return Promise.all(updatePromises);
           })
@@ -136,11 +117,7 @@ router.post('/:roomId/addcode', adminAuth, (req, res) => {
 
   const codeExpires = expires ? expires : threeMonthsLater;
 
-  prisma.rooms
-    .findUnique({
-      where: { roomId: roomId },
-      include: { claimCodes: true }
-    })
+  findRoomClaimCodes(roomId)
     .then((room) => {
       if (!room) {
         res.status(404).json({ error: 'Room not found' });
@@ -148,20 +125,8 @@ router.post('/:roomId/addcode', adminAuth, (req, res) => {
       }
       // Map over the codes array and create a claim code for each code
       const createCodes = codes.map((code) => {
-        return prisma.claimCodes.create({
-          data: {
-            claimcode: code.claimcode,
-            expiresAt: codeExpires,
-            usesLeft: usesLeft,
-            rooms: {
-              connect: {
-                roomId: roomId
-              }
-            }
-          }
-        });
+        return createClaimCode(code.claimcode, [], codeExpires, usesLeft, '', roomId)
       });
-
       return Promise.all(createCodes);
     })
     .then(() => {
@@ -176,8 +141,7 @@ router.post('/:roomId/addcode', adminAuth, (req, res) => {
 // This fetches the claim/invite codes from the database and returns them as JSON
 router.get('/logclaimcodes', adminAuth, (req, res) => {
   pp('Express: fetching claim codes');
-  prisma.claimCodes
-    .findMany()
+  findAllClaimCodes()
     .then((claimCodes) => {
       res.status(401).json(claimCodes);
     })
@@ -190,8 +154,7 @@ router.get('/logclaimcodes', adminAuth, (req, res) => {
 // GET all rooms from the database and return them as JSON
 router.get('/rooms', adminAuth, (req, res) => {
   pp(String('Express: fetching all rooms'));
-  prisma.rooms
-    .findMany()
+  findAllRooms()
     .then((rooms) => {
       res.status(200).json(rooms);
     })
@@ -215,14 +178,7 @@ router.post(
     const isValid = await verifyIdentityProof(generatedProof);
 
     if (isValid) {
-      const updatedIdentity = await prisma.gateWayIdentity.update({
-        where: {
-          semaphoreIdentity: String(generatedProof.publicSignals.identityCommitment)
-        },
-        data: {
-          semaphoreIdentity: String(generatedProof.publicSignals.externalNullifier)
-        }
-      });
+      const updatedIdentity = await updateIdentites(generatedProof)
       res.status(200).json({ message: 'Identity updated successfully', updatedIdentity });
     } else {
       res.status(500).json({ error: 'Internal Server Error' });
@@ -286,16 +242,7 @@ router.post(
     const { roomId } = req.params;
     const { idc } = req.body as { idc: string };
     try {
-      await prisma.rooms.update({
-        where: {
-          roomId: roomId
-        },
-        data: {
-          adminIdentities: {
-            push: idc
-          }
-        }
-      });
+      await addAdminToRoom(roomId, idc);
       res.status(200).json({ message: `Admin added to room ${roomId}` });
     } catch (err) {
       res.status(500).json({ error: 'Internal Server Error' });

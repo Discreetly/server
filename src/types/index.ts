@@ -21,6 +21,7 @@ export interface ClaimCodeI {
   discordId: string | null;
 }
 
+
 export interface GateWayIdentityI {
   semaphoreIdentity: string | null;
   roomIds: string[];

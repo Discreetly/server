@@ -183,6 +183,43 @@ export function createEthGroup(
   });
 }
 
+export function createClaimCode(
+  claimCode: string,
+  roomIds: string[],
+  expiresAt: number,
+  usesLeft: number,
+  discordId: string,
+  roomId?: string
+  ) {
+  if (!roomId) {
+    return prisma.claimCodes.create({
+      data: {
+        claimcode: claimCode,
+        roomIds: roomIds,
+        expiresAt: expiresAt,
+        usesLeft: usesLeft,
+        discordId: discordId
+      }
+    });
+  } else {
+    return prisma.claimCodes.create({
+      data: {
+        claimcode: claimCode,
+        roomIds: roomIds,
+        expiresAt: expiresAt,
+        usesLeft: usesLeft,
+        discordId: discordId,
+        rooms: {
+          connect: {
+            roomId: roomId
+          }
+        }
+      }
+    });
+  }
+}
+
+
 export async function joinRoomsFromEthAddress(
   recoveredAddress: string,
   message: string
