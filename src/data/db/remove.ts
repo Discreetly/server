@@ -49,7 +49,6 @@ export function removeIdentityFromRoom(
  * @param {string} roomId - The id of the room to remove
  * @returns {Promise<boolean>} - A promise that resolves to true if the room was removed and false otherwise
  * */
-
 export function removeRoom(roomId: string): Promise<boolean> {
   return prisma.messages
     .deleteMany({
@@ -82,7 +81,6 @@ export function removeRoom(roomId: string): Promise<boolean> {
  * @param {string} messageId - The id of the message to remove
  * @returns {Promise<boolean>} - A promise that resolves to true if the message was removed and false otherwise
 */
-
 export function removeMessage(roomId: string, messageId: string) {
   return prisma.messages
     .deleteMany({
@@ -98,4 +96,44 @@ export function removeMessage(roomId: string, messageId: string) {
       console.error(err);
       return false;
     });
+}
+
+/**
+ * This function deletes an ethereum group from the database.
+ * @param name - The name of the Ethereum group to delete
+ * @returns {void}
+ */
+export function removeEthGroup(group: string, name: string) {
+  switch(group) {
+    case 'ethereum':
+      return prisma.ethereumGroup
+        .delete({
+          where: {
+            name: name
+          }
+        })
+    case 'jubmoji':
+      return prisma.jubmojiGroup
+        .delete({
+          where: {
+            name: name
+          }
+        })
+      default:
+        throw new Error('No group found')
+  }
+}
+
+/**
+ * This function removes a claim code from the database.
+ * @param {string} code - The claim code to find
+ * @returns {void}
+ */
+export function removeClaimCode(code: string) {
+  return prisma.claimCodes
+    .delete({
+      where: {
+        claimcode: code
+      }
+    })
 }

@@ -10,6 +10,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Room Models
+//-----------------------------------------------------------------------------------------
 model Rooms {
   id               String            @id @default(auto()) @map("_id") @db.ObjectId
   roomId           String            @unique
@@ -31,12 +33,38 @@ model Rooms {
   type             String            @default("PUBLIC")
   ephemeral        String            @default("PERSISTENT")
   encrypted        String            @default("PLAINTEXT")
+  sessionIds       Boolean           @default(true)
   gatewayIds       String[]          @default([]) @db.ObjectId
   gateways         GateWayIdentity[] @relation(fields: [gatewayIds], references: [id])
   ethereumGroups   EthereumGroup[]   @relation(fields: [ethereumGroupIds], references: [id])
   ethereumGroupIds String[]          @db.ObjectId
+  jubmojiGroups    JubmojiGroup[]    @relation(fields: [jubmojiGroupIds], references: [id])
+  jubmojiGroupIds  String[]          @db.ObjectId
 }
 
+model Epoch {
+  id       String     @id @default(auto()) @map("_id") @db.ObjectId
+  epoch    String
+  messages Messages[]
+  rooms    Rooms?     @relation(fields: [roomsId], references: [id])
+  roomsId  String?    @db.ObjectId
+}
+
+model Messages {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  messageId   String // Internal Nullifier
+  message     String
+  timeStamp   DateTime @default(now())
+  roomId      String
+  messageType String?  @default("TEXT")
+  room        Rooms    @relation(fields: [roomId], references: [roomId])
+  proof       String
+  epoch       Epoch?   @relation(fields: [epochId], references: [id])
+  epochId     String?  @db.ObjectId
+}
+
+// Gateway Models
+//-----------------------------------------------------------------------------------------
 model GateWayIdentity {
   id                String            @id @default(auto()) @map("_id") @db.ObjectId
   semaphoreIdentity String            @unique
@@ -48,6 +76,7 @@ model GateWayIdentity {
   usedClaimCodes    String[]          @default([]) @db.ObjectId
   claimCodes        ClaimCodes[]      @relation(fields: [usedClaimCodes], references: [id])
   ethereumAddress   EthereumAddress[]
+  jubmojiAddress    JubmojiAddress[]
 }
 
 model EthereumGroup {
@@ -65,6 +94,21 @@ model EthereumAddress {
   gatewayId       String          @db.ObjectId
 }
 
+model JubmojiGroup {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  name             String   @unique
+  jubmojiAddresses String[] @default([])
+  rooms            Rooms[]  @relation(fields: [roomIds], references: [id])
+  roomIds          String[] @default([]) @db.ObjectId
+}
+
+model JubmojiAddress {
+  id             String          @id @default(auto()) @map("_id") @db.ObjectId
+  jubmojiAddress String          @unique
+  gateways       GateWayIdentity @relation(fields: [gatewayId], references: [id])
+  gatewayId      String          @db.ObjectId
+}
+
 model ClaimCodes {
   id         String            @id @default(auto()) @map("_id") @db.ObjectId
   claimcode  String            @unique
@@ -77,27 +121,8 @@ model ClaimCodes {
   gateways   GateWayIdentity[] @relation(fields: [gatewayIds], references: [id])
 }
 
-model Messages {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  messageId   String // Internal Nullifier
-  message     String
-  timeStamp   DateTime @default(now())
-  roomId      String
-  messageType String?  @default("TEXT")
-  room        Rooms    @relation(fields: [roomId], references: [roomId])
-  proof       String
-  epoch       Epoch?   @relation(fields: [epochId], references: [id])
-  epochId     String?  @db.ObjectId
-}
-
-model Epoch {
-  id       String     @id @default(auto()) @map("_id") @db.ObjectId
-  epoch    String
-  messages Messages[]
-  rooms    Rooms?     @relation(fields: [roomsId], references: [id])
-  roomsId  String?    @db.ObjectId
-}
-
+// Discord Bot Models
+//-----------------------------------------------------------------------------------------
 model Discord {
   id              String                   @id @default(auto()) @map("_id") @db.ObjectId
   discordServerId String                   @unique

@@ -1,25 +1,20 @@
 import express from 'express';
 import type { Request, Response } from 'express';
 import { limiter } from '../middleware';
-import asyncHandler from 'express-async-handler';
-import { PrismaClient } from '@prisma/client';
-import { verifyIdentityProof } from '../../crypto/idcVerifier/verifier';
 import { pp } from '../../utils';
-import { IDCProof } from 'idc-nullifier/dist/types/types';
 import { addRoomData } from '../../types';
 import {
   findRoomById,
-  findRoomsByIdentity,
   createRoom,
   removeRoom,
-  removeMessage
+  removeMessage,
+  findMessages
 } from '../../data/db/';
 import { MessageI, RoomI } from 'discreetly-interfaces';
 import { RLNFullProof } from 'rlnjs';
 import basicAuth from 'express-basic-auth';
 import { generateRandomClaimCode } from 'discreetly-claimcodes';
 const router = express.Router();
-const prisma = new PrismaClient();
 
 const adminPassword = process.env.PASSWORD
   ? process.env.PASSWORD
@@ -224,24 +219,7 @@ router.post('/:roomId/message/delete', adminAuth, (req, res) => {
  */
 router.get('/:id/messages', limiter, (req, res) => {
   const { id } = req.params;
-  prisma.messages
-    .findMany({
-      take: 500,
-      orderBy: {
-        timeStamp: 'desc'
-      },
-      where: {
-        roomId: id
-      },
-      select: {
-        id: false,
-        message: true,
-        messageId: true,
-        proof: true,
-        roomId: true,
-        timeStamp: true
-      }
-    })
+  findMessages(id)
     .then((messages) => {
       messages.map((message: MessageI) => {
         message.timeStamp = new Date(message.timeStamp as Date).getTime();

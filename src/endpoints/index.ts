@@ -6,9 +6,11 @@ import discordRouter from './gateways/discord';
 import ethRouter from './gateways/ethereumGroup';
 import theWordRouter from './gateways/theWord';
 import codeRouter from './gateways/inviteCode';
+import jubmojiRouter from './gateways/jubmoji';
 import roomRouter from './rooms/rooms';
 import identityRouter from './identity/idc';
 import adminRouter from './admin/admin';
+
 
 export function initEndpoints(app: Express) {
   // This code is used to fetch the server info from the api
@@ -17,6 +19,7 @@ export function initEndpoints(app: Express) {
   app.use('/gateway/eth', ethRouter);
   app.use('/gateway/theword', theWordRouter);
   app.use('/gateway/code', codeRouter);
+  app.use('/gateway/jubmoji', jubmojiRouter)
   app.use('/room', roomRouter);
   app.use('/identity', identityRouter);
   app.use('/admin', adminRouter);

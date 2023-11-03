@@ -46,15 +46,39 @@ export async function findRoomById(id: string): Promise<RoomI | null> {
   });
 }
 
+export function findRoomClaimCodes(roomId: string) {
+  return prisma.rooms
+  .findUnique({
+    where: { roomId: roomId },
+    include: { claimCodes: true }
+  })
+}
+
+// Fetches all claim codes from the database
+export function findAllClaimCodes() {
+  return prisma.claimCodes.findMany()
+}
+
+/**
+ * This function is used to find all rooms in the database
+ * @param {boolean} all - True or false to query all rooms
+ * @param {string[]} rooms - An array of roomIds to query
+ * @returns
+ */
+export async function findAllRooms(all?: boolean, rooms?: string[] | undefined) {
+  const query = all ? undefined : { where: { roomId: { in: rooms } } }
+  return await prisma.rooms.findMany(query);
+}
 /* TODO Need to create a system here where the client needs to provide a
 proof they know the secrets to some Identity Commitment with a unix epoch
 time stamp to prevent replay attacks
 
 https://github.com/Discreetly/IdentityCommitmentNullifierCircuit <- Circuit and JS to do this
 */
+
 /**
  * This function takes in an identity and returns the rooms the identity is in.
- * @param identity - the identity of a user
+ * @param {string[]} identity - the identity of a user
  * @returns an array of roomIds
  */
 export async function findRoomsByIdentity(identity: string): Promise<string[]> {
@@ -93,7 +117,14 @@ export async function findClaimCode(code: string): Promise<ClaimCodeI | null> {
   });
 }
 
-export async function findGatewayByIdentity(identity: string): Promise<GateWayIdentityI | null> {
+/**
+ * Finds a gateway identity in the database.
+ * @param {string} identity - The identity to find
+ * @returns
+ */
+export async function findGatewayByIdentity(
+  identity: string
+): Promise<GateWayIdentityI | null> {
   return await prisma.gateWayIdentity.findFirst({
     where: {
       semaphoreIdentity: identity
@@ -120,6 +151,12 @@ export async function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
   });
 }
 
+/**
+ * This function is used to find a room in the database using a message and the roomId and returns the room
+ * @param {string} roomId - The id of the room to find
+ * @param {MessageI} message - The id of message to find
+ * @returns
+ */
 export async function findRoomWithMessageId(
   roomId: string,
   message: MessageI
@@ -152,4 +189,102 @@ export async function findRoomWithMessageId(
     console.error(err);
     throw err;
   }
+}
+
+/**
+ * This function is used to find groups in the database that the ethereum address is in
+ * @param {string} group - The type of the group to find
+ * @param {string} group - The address of the group to find
+ * @returns
+ */
+export function findManyGroups(
+  group: string,
+  address?: string
+) {
+  switch (group) {
+    case 'ethereum':
+      if (address) {
+        return prisma.ethereumGroup.findMany({
+          where: {
+            ethereumAddresses: {
+              has: address
+            }
+          },
+          select: {
+            name: true
+          }
+        });
+      } else {
+        return prisma.ethereumGroup.findMany({
+          select: {
+            name: true
+          }
+        });
+      }
+    case 'jubmoji':
+      if (address) {
+        return prisma.jubmojiGroup.findMany({
+          where: {
+            jubmojiAddresses: {
+              has: address
+            }
+          },
+          select: {
+            name: true
+          }
+        });
+      } else {
+        return prisma.jubmojiGroup.findMany({
+          select: {
+            name: true
+          }
+        });
+      }
+      default:
+        throw new Error('Invalid group');
+  }
+}
+
+/**
+ * This function is used to find a group in the database and returns the groups ethereum addresses
+ * @param {string} name - The name of the group to find
+ * @returns {Promise<{ ethereumAddresses: string[] } | null>} - A promise that resolves to the group
+ */
+export function findUniqueEthGroup(
+  name: string
+): Promise<{ ethereumAddresses: string[] } | null> {
+  return prisma.ethereumGroup.findUnique({
+    where: {
+      name: name
+    },
+    select: {
+      ethereumAddresses: true
+    }
+  });
+}
+
+/**
+ * This function is used to find messages in a room
+ * @param {string} roomId - The id of the room to find messages in
+ * @returns {void}
+ */
+export function findMessages(roomId : string) {
+  return prisma.messages
+    .findMany({
+      take: 500,
+      orderBy: {
+        timeStamp: 'desc'
+      },
+      where: {
+        roomId: roomId
+      },
+      select: {
+        id: false,
+        message: true,
+        messageId: true,
+        proof: true,
+        roomId: true,
+        timeStamp: true
+      }
+    })
 }

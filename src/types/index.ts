@@ -21,6 +21,7 @@ export interface ClaimCodeI {
   discordId: string | null;
 }
 
+
 export interface GateWayIdentityI {
   semaphoreIdentity: string | null;
   roomIds: string[];
@@ -66,4 +67,10 @@ export interface addRoomData {
   roomId?: string;
   admin?: boolean;
   discordIds?: string[];
+}
+
+export interface EthGroupI {
+  name: string;
+  roomIds: string[];
+  ethereumAddresses: string[];
 }
