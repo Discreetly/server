@@ -84,12 +84,14 @@ model Messages {
   message     String
   timeStamp   DateTime @default(now())
   roomId      String
-  messageType String?  @default("TEXT")
+  messageType String   @default("TEXT")
   room        Rooms    @relation(fields: [roomId], references: [roomId])
   proof       String
   epoch       Epoch?   @relation(fields: [epochId], references: [id])
   epochId     String?  @db.ObjectId
   sessionId   String?  @default("")
+  responseTo  String?  @default("")
+  encrypted   String   @default("PLAINTEXT")
 }
 
 model Epoch {

@@ -242,7 +242,9 @@ router.get('/:id/messages', limiter, (req, res) => {
         messageId: true,
         proof: true,
         roomId: true,
-        timeStamp: true
+        timeStamp: true,
+        sessionId: true,
+        messageType: true
       }
     })
     .then((messages) => {
