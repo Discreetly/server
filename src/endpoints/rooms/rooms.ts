@@ -44,8 +44,7 @@ router.get('/:id', limiter, (req, res) => {
     findRoomById(requestRoomId)
       .then((room: RoomI) => {
         if (!room) {
-          // This is set as a timeout to prevent someone from trying to brute force room ids
-          setTimeout(() => res.status(500).json({ error: 'Internal Server Error' }), 1000);
+          res.status(500).json({ error: 'Internal Server Error' });
         } else {
           const {
             roomId,
@@ -55,7 +54,9 @@ router.get('/:id', limiter, (req, res) => {
             membershipType,
             identities,
             bandadaAddress,
-            bandadaGroupId
+            bandadaGroupId,
+            encrypted,
+            ephemeral
           } = room || {};
           const id = String(roomId);
           const roomResult: RoomI = {
@@ -64,7 +65,9 @@ router.get('/:id', limiter, (req, res) => {
             name,
             rateLimit,
             userMessageLimit,
-            membershipType
+            membershipType,
+            encrypted,
+            ephemeral
           };
           // Add null check before accessing properties of room object
           if (membershipType === 'BANDADA_GROUP') {
@@ -114,7 +117,7 @@ router.get('/:id', limiter, (req, res) => {
  *          }
  */
 router.post('/add', adminAuth, (req, res) => {
-  const roomMetadata = req.body as addRoomData;
+  const roomMetadata = req.body as unknown as addRoomData;
   const roomName = roomMetadata.roomName;
   const rateLimit = roomMetadata.rateLimit;
   const userMessageLimit = roomMetadata.userMessageLimit;
