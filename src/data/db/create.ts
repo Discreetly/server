@@ -148,7 +148,7 @@ export function createMessageInRoom(roomId: string, message: MessageI): Promise<
             create: {
               message: message.message ? String(message.message) : '',
               messageId: message.messageId ? message.messageId.toString() : '',
-              messageType: message.messageType,
+              messageType: message.messageType!,
               proof: JSON.stringify(message.proof),
               roomId: roomId
             }

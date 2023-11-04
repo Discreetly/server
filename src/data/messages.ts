@@ -1,6 +1,6 @@
-import { createMessageInRoom, findRoomWithMessageId, removeIdentityFromRoom } from './db/';
+import { createMessageInRoom, findRoomWithMessageId } from './db/';
 import { MessageI, RoomI } from 'discreetly-interfaces';
-import { shamirRecovery, getIdentityCommitmentFromSecret } from '../crypto/shamirRecovery';
+import { shamirRecovery } from '../crypto/shamirRecovery';
 import { RLNFullProof } from 'rlnjs';
 import { verifyProof } from '../crypto/';
 
