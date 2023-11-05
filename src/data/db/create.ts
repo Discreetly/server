@@ -34,7 +34,7 @@ export async function createRoom(
   bandadaAPIKey?: string,
   membershipType?: string,
   roomId?: string
-): Promise<{ roomId: string ; claimCodes: { claimcode: string }[] } | undefined | null> {
+): Promise<{ roomId: string; claimCodes: { claimcode: string }[] } | undefined | null> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
   const mockUsers: string[] = genMockUsers(approxNumMockUsers);
   const identityCommitments: string[] = mockUsers.map((user) =>
@@ -42,7 +42,7 @@ export async function createRoom(
   );
   const _roomId = roomId ? roomId : randomBigInt().toString();
 
-  const room = await prisma.rooms.findUnique({where: {roomId: _roomId}})
+  const room = await prisma.rooms.findUnique({ where: { roomId: _roomId } });
   if (room) return null;
 
   const roomData = {
@@ -53,7 +53,7 @@ export async function createRoom(
     create: {
       roomId: _roomId,
       name: roomName,
-      banRateLimit: rateLimit,
+      rateLimit: rateLimit,
       userMessageLimit: userMessageLimit,
       adminIdentities: adminIdentities,
       identities: identityCommitments,
@@ -67,7 +67,7 @@ export async function createRoom(
       },
       gateways: {
         create: mockUsers.map((user) => ({
-          semaphoreIdentity: user,
+          semaphoreIdentity: user
         }))
       }
     }
@@ -76,7 +76,7 @@ export async function createRoom(
   return await prisma.rooms
     .upsert(roomData)
     .then(() => {
-      return {roomId: _roomId, claimCodes};
+      return { roomId: _roomId, claimCodes };
     })
     .catch((err) => {
       console.error(err);
@@ -148,7 +148,7 @@ export function createMessageInRoom(roomId: string, message: MessageI): Promise<
             create: {
               message: message.message ? String(message.message) : '',
               messageId: message.messageId ? message.messageId.toString() : '',
-              messageType: message.messageType,
+              messageType: message.messageType!,
               proof: JSON.stringify(message.proof),
               roomId: roomId
             }
