@@ -153,3 +153,13 @@ export async function findRoomWithMessageId(
     throw err;
   }
 }
+
+export async function findAllJubmojiNullifiers() {
+  const jubmojiNullifiers = await prisma.gateWayIdentity.findMany({
+    select: {
+      jubmoji: true
+    }
+  })
+
+  return jubmojiNullifiers;
+}
