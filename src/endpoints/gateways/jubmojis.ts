@@ -23,8 +23,8 @@ router.post(
   '/join',
   limiter,
   asyncHandler(async (req: Request, res: Response) => {
-    const { proof, idc } = req.body as { proof: JubmojiRequestI; idc: string };
-    const isValid = await jubmojiVerifier(proof);
+    const { proof, idc } = req.body as { proof: string; idc: string };
+    const isValid = await jubmojiVerifier(JSON.parse(proof) as JubmojiRequestI);
     if (isValid) {
       const room = (await prisma.rooms.findUnique({
         where: {

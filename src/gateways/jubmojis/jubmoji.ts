@@ -24,10 +24,7 @@ import { findAllJubmojiNullifiers } from '../../data/db';
 export async function jubmojiVerifier(
   serializedMembershipProof: JubmojiRequestI
 ): Promise<VerificationResult> {
-  console.log(serializedMembershipProof);
   const merkleRoot = await getMerkleRootFromCache(collectionPubKeys);
-  console.log(serializedMembershipProof.R);
-  console.log(typeof serializedMembershipProof.R);
   const R = EdwardsPoint.deserialize(serializedMembershipProof.R);
   const msgHash = hexToBigInt(serializedMembershipProof.msgHash);
   const zkp = serializedMembershipProof.zkp;
