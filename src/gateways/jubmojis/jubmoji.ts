@@ -9,21 +9,30 @@ import snarkjs from 'snarkjs';
 import { EdwardsPoint, WeierstrassPoint } from './babyJubjub';
 import { computeTUFromR } from './ecdsa';
 import { computeMerkleRoot } from './inputGen';
-import { VerificationResult, VerifyArgs, ZKP, ZKPPublicSignals } from './jubmoji.types';
+import {
+  JubmojiRequestI,
+  VerificationResult,
+  VerifyArgs,
+  ZKP,
+  ZKPPublicSignals
+} from './jubmoji.types';
 import { hexToBigInt } from './utils';
 import vkey from './vkey';
 import { cardPubKeys } from './pubkeys';
 import { findAllJubmojiNullifiers } from '../../data/db';
 
-export async function jubmojiVerifier(serializedMembershipProof): Promise<VerificationResult> {
-  serializedMembershipProof = JSON.parse(serializedMembershipProof);
+export async function jubmojiVerifier(
+  serializedMembershipProof: JubmojiRequestI
+): Promise<VerificationResult> {
   console.log(serializedMembershipProof);
   const merkleRoot = await getMerkleRootFromCache(collectionPubKeys);
+  console.log(serializedMembershipProof.R);
+  console.log(typeof serializedMembershipProof.R);
   const R = EdwardsPoint.deserialize(serializedMembershipProof.R);
   const msgHash = hexToBigInt(serializedMembershipProof.msgHash);
   const zkp = serializedMembershipProof.zkp;
   return await verifyMembership({
-    proof: { R, msgHash, zkp: zkp },
+    proof: { R, msgHash, zkp },
     merkleRoot,
     sigNullifierRandomness: hexToBigInt(
       '6addd8ed78c6fb64157aa768c5a9477db536172929949dc22274e323ccb9'
