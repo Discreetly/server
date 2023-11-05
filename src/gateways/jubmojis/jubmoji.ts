@@ -10,15 +10,17 @@ import { EdwardsPoint, WeierstrassPoint } from './babyJubjub';
 import { computeTUFromR } from './ecdsa';
 import { computeMerkleRoot } from './inputGen';
 import { VerificationResult, VerifyArgs, ZKP, ZKPPublicSignals } from './jubmoji.types';
-import { deserializeMembershipProof, hexToBigInt } from './utils';
+import { hexToBigInt } from './utils';
 import vkey from './vkey';
 import { cardPubKeys } from './pubkeys';
 
 export async function jubmojiVerifier(serializedMembershipProof): Promise<VerificationResult> {
   const merkleRoot = await getMerkleRootFromCache(collectionPubKeys);
-
+  const R = EdwardsPoint.deserialize(serializedMembershipProof.R);
+  const msgHash = hexToBigInt(serializedMembershipProof.msgHash);
+  const zkp = serializedMembershipProof.zkp;
   return await verifyMembership({
-    proof: deserializeMembershipProof(serializedMembershipProof),
+    proof: { R, msgHash, zkp: zkp },
     merkleRoot,
     sigNullifierRandomness: hexToBigInt(
       '6addd8ed78c6fb64157aa768c5a9477db536172929949dc22274e323ccb9'
