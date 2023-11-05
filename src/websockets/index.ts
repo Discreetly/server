@@ -26,7 +26,7 @@ export function websocketSetup(io: SocketIOServer): NodeJS.Timer {
     pp('SocketIO: a user connected', 'debug');
 
     socket.on('validateMessage', async (msg: MessageI) => {
-      msg.sessionID = socket.id;
+      msg.sessionId = socket.id;
       try {
         const room: RoomI | null = await findRoomById(String(msg.roomId));
         if (!room) {
