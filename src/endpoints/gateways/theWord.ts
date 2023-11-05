@@ -44,7 +44,7 @@ router.post(
         });
       }
     } else {
-      res.status(500).json({ error: 'Invalid Proof' });
+      res.status(500).json({ status: 'Invalid Proof' });
     }
   })
 );
