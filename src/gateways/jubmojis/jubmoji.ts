@@ -16,6 +16,7 @@ import { cardPubKeys } from './pubkeys';
 import { findAllJubmojiNullifiers } from '../../data/db';
 
 export async function jubmojiVerifier(serializedMembershipProof): Promise<VerificationResult> {
+  serializedMembershipProof = JSON.parse(serializedMembershipProof);
   console.log(serializedMembershipProof);
   const merkleRoot = await getMerkleRootFromCache(collectionPubKeys);
   const R = EdwardsPoint.deserialize(serializedMembershipProof.R);
