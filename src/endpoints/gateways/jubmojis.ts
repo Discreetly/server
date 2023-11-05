@@ -8,6 +8,7 @@ import { RoomI } from 'discreetly-interfaces';
 import { jubmojiVerifier } from '../../gateways/jubmojis/jubmoji';
 import { JubmojiRequestI } from '../../gateways/jubmojis/jubmoji.types';
 
+
 const router = express.Router();
 const prisma = new PrismaClient();
 

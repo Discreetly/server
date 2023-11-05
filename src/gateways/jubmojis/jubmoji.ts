@@ -13,6 +13,7 @@ import { VerificationResult, VerifyArgs, ZKP, ZKPPublicSignals } from './jubmoji
 import { deserializeMembershipProof, hexToBigInt } from './utils';
 import vkey from './vkey';
 import { cardPubKeys } from './pubkeys';
+import { findAllJubmojiNullifiers } from '../../data/db';
 
 export async function jubmojiVerifier(serializedMembershipProof): Promise<VerificationResult> {
   const merkleRoot = await getMerkleRootFromCache(collectionPubKeys);
@@ -59,9 +60,12 @@ const verifyMembership = async ({
     return { verified: false };
   }
   // TODO! This is where we need to check and make sure someone can't join more than once
-  // if (usedSigNullifiers && usedSigNullifiers.includes(publicSignals.sigNullifier)) {
-  //   return { verified: false };
-  // }
+
+  const usedSigNullifiers: string[] = await findAllJubmojiNullifiers();
+
+  if (usedSigNullifiers && usedSigNullifiers.includes(String(publicSignals.sigNullifier))) {
+    return { verified: false };
+  }
   const verified = await verifyMembershipZKP(vkey, proof.zkp);
   if (!verified) {
     return { verified: false };

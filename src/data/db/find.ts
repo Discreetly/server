@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { MessageI, RoomI } from 'discreetly-interfaces';
-import { ClaimCodeI, GateWayIdentityI } from '../../types/';
+import { ClaimCodeI, GateWayIdentityI, Jubmojis } from '../../types/';
 const prisma = new PrismaClient();
 
 /**
@@ -155,11 +155,15 @@ export async function findRoomWithMessageId(
 }
 
 export async function findAllJubmojiNullifiers() {
-  const jubmojiNullifiers = await prisma.gateWayIdentity.findMany({
+  const jubmojiNullifiers: Jubmojis[] = await prisma.gateWayIdentity.findMany({
     select: {
       jubmoji: true
     }
   })
+  const usedSigNullifiers: string[] = [];
 
-  return jubmojiNullifiers;
+  jubmojiNullifiers.forEach((nullifier) => {
+    usedSigNullifiers.push(...nullifier.jubmoji as string[]);
+  });
+  return usedSigNullifiers
 }
