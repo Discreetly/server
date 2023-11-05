@@ -6,7 +6,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { poseidon2 } from 'poseidon-lite/poseidon2';
 import { EdwardsPoint } from './babyJubjub';
-import { MembershipProof } from './jubmoji.types';
 
 export const hexToBigInt = (hex: string): bigint => {
   return BigInt(`0x${hex}`);
@@ -26,12 +25,4 @@ export const hashEdwardsPublicKey = (pubKey: EdwardsPoint): bigint => {
   const hash = poseidon2([pubKey.x, pubKey.y]);
 
   return hexToBigInt(hash.toString());
-};
-
-export const deserializeMembershipProof = (serializedProof: string): MembershipProof => {
-  const R = EdwardsPoint.deserialize(proof.R);
-  const msgHash = hexToBigInt(proof.msgHash);
-  const zkp = proof.zkp;
-
-  return { R, msgHash, zkp };
 };
