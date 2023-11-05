@@ -89,7 +89,7 @@ model Messages {
   proof       String
   epoch       Epoch?   @relation(fields: [epochId], references: [id])
   epochId     String?  @db.ObjectId
-  sessionId   String?  @default("")
+  sessionId   String   @default("")
   responseTo  String?  @default("")
   encrypted   String   @default("PLAINTEXT")
 }
