@@ -29,7 +29,6 @@ export const hashEdwardsPublicKey = (pubKey: EdwardsPoint): bigint => {
 };
 
 export const deserializeMembershipProof = (serializedProof: string): MembershipProof => {
-  const proof = JSON.parse(serializedProof);
   const R = EdwardsPoint.deserialize(proof.R);
   const msgHash = hexToBigInt(proof.msgHash);
   const zkp = proof.zkp;
