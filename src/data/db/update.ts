@@ -177,6 +177,10 @@ export async function addIdentityToIdentityListRooms(
               }
             }
           });
+          console.debug(
+            `Successfully created and added user to Identity List room ${room.roomId}`
+          );
+          addedRooms.push(roomId);
         }
       } catch (err) {
         console.error(err);
