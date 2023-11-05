@@ -3,9 +3,9 @@ import type { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { limiter } from '../middleware';
 import asyncHandler from 'express-async-handler';
-import { addIdentityToIdentityListRooms } from '../../data/db';
+import { addIdentityToIdentityListRooms, addJubmojiToGateway } from '../../data/db';
 import { RoomI } from 'discreetly-interfaces';
-import { jubmojiVerifier } from '../../gateways/jubmojis/jubmoji';
+import { getPublicSignalsFromMembershipZKP, jubmojiVerifier } from '../../gateways/jubmojis/jubmoji';
 import { JubmojiRequestI } from '../../gateways/jubmojis/jubmoji.types';
 
 
@@ -27,12 +27,14 @@ router.post(
     const { proof, idc } = req.body as { proof: JubmojiRequestI; idc: string };
     const isValid = await jubmojiVerifier(proof);
     if (isValid) {
-      const room = (await prisma.rooms.findUnique({
+      const room = await prisma.rooms.findUnique({
         where: {
           roomId: process.env.JUBMOJI_ROOM_ID ? process.env.JUBMOJI_ROOM_ID : '10212131510919'
         }
-      })) as RoomI;
+      }) as RoomI;
       const addedRoom = await addIdentityToIdentityListRooms([room], idc);
+      const publicSignals = getPublicSignalsFromMembershipZKP(proof.zkp);
+      await addJubmojiToGateway(String(publicSignals.sigNullifier), idc);
       if (addedRoom.length === 0) {
         res.status(500).json({
           status: 'already-added',

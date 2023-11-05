@@ -203,7 +203,7 @@ export async function addIdentityToIdentityListRooms(
 export async function addIdentityToBandadaRooms(
   rooms: RoomWithSecretsI[],
   identityCommitment: string,
-  discordId?: string
+  discordId?: string,
 ): Promise<string[]> {
   const bandadaGroupRooms = rooms
     .filter(
@@ -251,7 +251,8 @@ export async function addIdentityToBandadaRooms(
               },
               gateways: {
                 connect: {
-                  semaphoreIdentity: identityCommitment
+                  semaphoreIdentity: identityCommitment,
+
                 }
               }
             }
@@ -259,7 +260,7 @@ export async function addIdentityToBandadaRooms(
           await prisma.gateWayIdentity.update({
             where: { semaphoreIdentity: identityCommitment },
             data: {
-              discordId: discordId
+              discordId: discordId,
             }
           });
         } else {
@@ -303,7 +304,6 @@ export async function addIdentityToBandadaRooms(
  * @param {string} roomId - The ID of the room
  * @param {string[]} ethAddresses - The list of Ethereum addresses to add to the group
 */
-
 export async function createEthGroup(
   name: string,
   roomId: string,
@@ -321,6 +321,22 @@ export async function createEthGroup(
             set: ethAddresses
           }
         }
+      }
+    }
+  });
+}
+
+export async function addJubmojiToGateway(
+  jubmojiNullifier: string,
+  semaphoreIdentity: string
+): Promise<void> {
+  await prisma.gateWayIdentity.update({
+    where: {
+      semaphoreIdentity: semaphoreIdentity
+    },
+    data: {
+      jubmoji: {
+        push: jubmojiNullifier
       }
     }
   });

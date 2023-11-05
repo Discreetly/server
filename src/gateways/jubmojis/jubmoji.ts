@@ -82,7 +82,7 @@ const verifyMembership = async ({
  * @param zkp - The membership zkp
  * @returns - Public signals of the membership zkp
  */
-const getPublicSignalsFromMembershipZKP = (zkp: ZKP): ZKPPublicSignals => {
+export const getPublicSignalsFromMembershipZKP = (zkp: ZKP): ZKPPublicSignals => {
   const publicSignals = zkp.publicSignals;
 
   return {
