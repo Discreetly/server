@@ -11,6 +11,12 @@ import { JubmojiRequestI } from '../../gateways/jubmojis/jubmoji.types';
 const router = express.Router();
 const prisma = new PrismaClient();
 
+export interface JoinResponseI {
+  status: string;
+  roomIds?: string[];
+  message?: string;
+}
+
 /**
  * This code is the API route used to verify the proof submitted by the user.
  * It uses the SNARKProof type and idc from the request body to verify the proof. If it is valid,
@@ -25,23 +31,29 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const { proof, idc } = req.body as { proof: string; idc: string };
     const isValid = await jubmojiVerifier(JSON.parse(proof) as JubmojiRequestI);
+    const jubmojiRoomId = process.env.JUBMOJI_ROOM_ID
+      ? process.env.JUBMOJI_ROOM_ID
+      : '10212131510919';
     if (isValid) {
       const room = (await prisma.rooms.findUnique({
         where: {
-          roomId: process.env.JUBMOJI_ROOM_ID ? process.env.JUBMOJI_ROOM_ID : '10212131510919'
+          roomId: jubmojiRoomId
         }
       })) as RoomI;
       const addedRoom = await addIdentityToIdentityListRooms([room], idc);
       if (addedRoom.length === 0) {
-        res.status(500).json({
+        const response: JoinResponseI = {
           status: 'already-added',
-          roomIds: []
-        });
+          message: `Identity already exists in ${String(jubmojiRoomId)}`,
+          roomIds: [jubmojiRoomId]
+        };
+        res.status(400).json(response);
       } else {
-        res.status(200).json({
+        const response = {
           status: 'valid',
           roomIds: [room.roomId]
-        });
+        } as JoinResponseI;
+        res.status(200).json(response);
       }
     } else {
       res.status(500).json({ status: 'Invalid Proof' });
