@@ -16,7 +16,7 @@ const discordPassword = process.env.DISCORD_PASSWORD
 
 const adminAuth = basicAuth({
   users: {
-    discordAdmin: discordPassword
+    admin: discordPassword
   }
 });
 
@@ -110,81 +110,44 @@ router.post('/addrole', limiter, adminAuth, (req, res) => {
  * @param {string} discordId - The id of the discord user
  * @returns {string[]} - An array of room ids
  *  */
-router.post(
-  '/getrooms',
-  limiter,
-  adminAuth,
-  asyncHandler(async (req: Request, res: Response) => {
-    const { roles, discordId } = req.body as {
-      roles: string[];
-      discordId: string;
-    };
-    if (roles.length === 0 || !discordId) {
-      res.status(400).json({ error: 'Bad Request' });
-      return;
-    }
-    const rooms = await prisma.gateWayIdentity.findFirst({
+router.post('/getrooms', limiter, adminAuth, asyncHandler(async (req: Request, res: Response) => {
+  const { roles, discordId } = req.body as { roles: string[]; discordId: string; };
+
+  if (roles.length === 0 || !discordId) {
+    res.status(400).json({ error: 'Bad Request' });
+  }
+
+  const filteredMappingRoomIds: string[] = [];
+
+  for (const role of roles) {
+    const discordRoleRoomMapping = await prisma.discordRoleRoomMapping.findMany({
       where: {
-        discordId: discordId
-      },
-      include: {
-        rooms: true
+        roles: { has: role }
       }
     });
-    if (rooms) {
-      const roomIds = rooms.rooms.map((room) => room.roomId);
-      const filteredRooms: string[] = [];
-      const filteredNames: string[] = [];
-      for (const role of roles) {
-        const discordRoleRoomMapping = await prisma.discordRoleRoomMapping.findMany({
-          where: {
-            roles: {
-              has: role
-            }
-          }
-        });
-        const mappingRoomIds = discordRoleRoomMapping.map((mapping) => mapping.roomId);
-        const newRooms = mappingRoomIds.filter((roomId) => roomIds.includes(roomId));
-        const newRoomNames = newRooms.map((roomId) => {
-          const room = rooms.rooms.find((room) => room.roomId === roomId);
-          return room?.name;
-        });
-        filteredRooms.push(...newRooms);
-        filteredNames.push(...(newRoomNames as string[]));
-      }
-      console.log(filteredRooms);
-      res.status(200).json({ rooms: filteredRooms, roomNames: filteredNames });
-    } else {
-      const roomIds: string[] = [];
 
-      for (const role of roles) {
-        const discordRoleRoomMapping = await prisma.discordRoleRoomMapping.findMany({
-          where: {
-            roles: {
-              has: role
-            }
-          }
-        });
-        const mappingRoomIds = discordRoleRoomMapping.map((mapping) => mapping.roomId);
-        roomIds.push(...mappingRoomIds);
-      }
-      const roomNames = await prisma.rooms.findMany({
-        where: {
-          roomId: {
-            in: roomIds
-          }
-        },
-        select: {
-          name: true
-        }
-      });
-      res.status(200).json({
-        rooms: roomIds,
-        roomNames: roomNames.map((room) => room.name)
-      });
-    }
-  })
-);
+    const mappingRoomIds = discordRoleRoomMapping.map(mapping => mapping.roomId);
+    filteredMappingRoomIds.push(...mappingRoomIds);
+  }
+
+  const rooms = await prisma.gateWayIdentity.findFirst({
+    where: { discordId },
+    include: { rooms: true }
+  });
+
+  const roomIds = rooms ? rooms.rooms.map(room => room.roomId) : [];
+
+  const filteredRoomIds = roomIds.filter(roomId => filteredMappingRoomIds.includes(roomId));
+
+  const roomNames = await prisma.rooms.findMany({
+    where: { roomId: { in: filteredRoomIds } },
+    select: { name: true }
+  });
+
+  const filteredRoomNames = roomNames.map(room => room.name);
+
+  res.status(200).json({ rooms: filteredRoomIds, roomNames: filteredRoomNames });
+}));
 
 /**
  * This endpoint takes a discord user id and returns all rooms that the user is a part of.

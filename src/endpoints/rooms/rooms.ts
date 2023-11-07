@@ -1,15 +1,11 @@
 import express from 'express';
 import type { Request, Response } from 'express';
 import { limiter } from '../middleware';
-// import asyncHandler from 'express-async-handler';
 import { PrismaClient } from '@prisma/client';
-// import { verifyIdentityProof } from '../../crypto/idcVerifier/verifier';
 import { pp } from '../../utils';
-// import { IDCProof } from 'idc-nullifier/dist/types/types';
 import { addRoomData } from '../../types';
 import {
   findRoomById,
-  // findRoomsByIdentity,
   createRoom,
   removeRoom,
   removeMessage
