@@ -67,3 +67,7 @@ export interface addRoomData {
   admin?: boolean;
   discordIds?: string[];
 }
+
+export interface Jubmojis {
+  jubmoji: any[];
+}

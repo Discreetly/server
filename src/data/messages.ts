@@ -1,13 +1,6 @@
-import {
-  createMessageInRoom,
-  findRoomWithMessageId,
-  removeIdentityFromRoom
-} from './db/';
+import { createMessageInRoom, findRoomWithMessageId } from './db/';
 import { MessageI, RoomI } from 'discreetly-interfaces';
-import {
-  shamirRecovery,
-  getIdentityCommitmentFromSecret
-} from '../crypto/shamirRecovery';
+import { shamirRecovery } from '../crypto/shamirRecovery';
 import { RLNFullProof } from 'rlnjs';
 import { verifyProof } from '../crypto/';
 
@@ -26,10 +19,7 @@ type EphemeralMessagesI = Record<roomIdT, epoch>;
 
 const ephemeralMessageStore: EphemeralMessagesI = {};
 
-function checkEmphemeralStore(
-  roomId: string,
-  message: MessageI
-): MessageI | null {
+function checkEmphemeralStore(roomId: string, message: MessageI): MessageI | null {
   // Check ephemeralMessages
   const epoch = message.epoch?.toString();
   if (ephemeralMessageStore[roomId] && epoch) {
@@ -73,21 +63,12 @@ function addMessageToEphemeralStore(roomId: string, message: MessageI) {
  * @param {MessageI} message - The message to check for collisions with
  * @returns {Promise<CollisionCheckResult>} - Returns a promise that resolves to a CollisionCheckResult
  */
-async function checkRLNCollision(
-  room: RoomI,
-  message: MessageI
-): Promise<CollisionCheckResult> {
+async function checkRLNCollision(room: RoomI, message: MessageI): Promise<CollisionCheckResult> {
   const roomId = room.roomId.toString();
   let oldMessage: MessageI;
-  const oldDBMessage: MessageI | null = await findRoomWithMessageId(
-    roomId,
-    message
-  );
+  const oldDBMessage: MessageI | null = await findRoomWithMessageId(roomId, message);
 
-  const oldEphemeralMessage: MessageI | null = checkEmphemeralStore(
-    roomId,
-    message
-  );
+  const oldEphemeralMessage: MessageI | null = checkEmphemeralStore(roomId, message);
   if (room.ephemeral === 'EPHEMERAL') {
     addMessageToEphemeralStore(roomId, message);
   }
@@ -125,9 +106,7 @@ async function checkRLNCollision(
       oldMessageY2 = BigInt(oldMessageProof.snarkProof.publicSignals.y);
       oldMessage = oldDBMessage;
     } else {
-      throw new Error(
-        'Collision found but no old message found, something is wrong'
-      );
+      throw new Error('Collision found but no old message found, something is wrong');
     }
 
     // Recover the secret
@@ -142,12 +121,7 @@ async function checkRLNCollision(
       BigInt(newMessageProof.snarkProof.publicSignals.y)
     ];
 
-    const secret = shamirRecovery(
-      newMessageX1,
-      oldMessageX2,
-      newMessageY1,
-      oldMessageY2
-    );
+    const secret = shamirRecovery(newMessageX1, oldMessageX2, newMessageY1, oldMessageY2);
 
     return {
       collision: true,
@@ -188,15 +162,17 @@ async function handleCollision(
     }
   } else {
     console.warn('Collision found');
-    const identityCommitment = getIdentityCommitmentFromSecret(
-      collisionResult.secret!
-    );
-    try {
-      await removeIdentityFromRoom(identityCommitment.toString(), room);
-      return { success: false, idc: identityCommitment.toString() };
-    } catch (error) {
-      console.error(`Couldn't remove identity from room ${error}`);
-    }
+    // TODO! We should make this a bit more nuanced, instead of just banning someone outright. For now, we can just not propagate the message.
+    return { success: false };
+    // const identityCommitment = getIdentityCommitmentFromSecret(
+    //   collisionResult.secret!
+    // );
+    // try {
+    //   await removeIdentityFromRoom(identityCommitment.toString(), room);
+    //   return { success: false, idc: identityCommitment.toString() };
+    // } catch (error) {
+    //   console.error(`Couldn't remove identity from room ${error}`);
+    // }
   }
   return { success: false };
 }

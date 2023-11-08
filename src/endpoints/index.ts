@@ -9,6 +9,7 @@ import codeRouter from './gateways/inviteCode';
 import roomRouter from './rooms/rooms';
 import identityRouter from './identity/idc';
 import adminRouter from './admin/admin';
+import jubmojiRouter from './gateways/jubmojis';
 
 export function initEndpoints(app: Express) {
   // This code is used to fetch the server info from the api
@@ -17,6 +18,7 @@ export function initEndpoints(app: Express) {
   app.use('/gateway/eth', ethRouter);
   app.use('/gateway/theword', theWordRouter);
   app.use('/gateway/code', codeRouter);
+  app.use('/gateway/jubmojis', jubmojiRouter)
   app.use('/room', roomRouter);
   app.use('/identity', identityRouter);
   app.use('/admin', adminRouter);

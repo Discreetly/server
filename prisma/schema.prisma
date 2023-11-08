@@ -31,6 +31,7 @@ model Rooms {
   type             String            @default("PUBLIC")
   ephemeral        String            @default("PERSISTENT")
   encrypted        String            @default("PLAINTEXT")
+  passwordHash     String?
   gatewayIds       String[]          @default([]) @db.ObjectId
   gateways         GateWayIdentity[] @relation(fields: [gatewayIds], references: [id])
   ethereumGroups   EthereumGroup[]   @relation(fields: [ethereumGroupIds], references: [id])
@@ -41,7 +42,7 @@ model GateWayIdentity {
   id                String            @id @default(auto()) @map("_id") @db.ObjectId
   semaphoreIdentity String            @unique
   discordId         String?
-  jubmojii          String[]
+  jubmoji          String[]
   steamId64         String?
   roomIds           String[]          @default([]) @db.ObjectId
   rooms             Rooms[]           @relation(fields: [roomIds], references: [id])
@@ -88,6 +89,9 @@ model Messages {
   proof       String
   epoch       Epoch?   @relation(fields: [epochId], references: [id])
   epochId     String?  @db.ObjectId
+  sessionId   String   @default("")
+  responseTo  String?  @default("")
+  encrypted   String   @default("PLAINTEXT")
 }
 
 model Epoch {

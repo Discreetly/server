@@ -1,15 +1,15 @@
 import express from 'express';
 import type { Request, Response } from 'express';
 import { limiter } from '../middleware';
-import asyncHandler from 'express-async-handler';
+// import asyncHandler from 'express-async-handler';
 import { PrismaClient } from '@prisma/client';
-import { verifyIdentityProof } from '../../crypto/idcVerifier/verifier';
+// import { verifyIdentityProof } from '../../crypto/idcVerifier/verifier';
 import { pp } from '../../utils';
-import { IDCProof } from 'idc-nullifier/dist/types/types';
+// import { IDCProof } from 'idc-nullifier/dist/types/types';
 import { addRoomData } from '../../types';
 import {
   findRoomById,
-  findRoomsByIdentity,
+  // findRoomsByIdentity,
   createRoom,
   removeRoom,
   removeMessage
@@ -44,8 +44,7 @@ router.get('/:id', limiter, (req, res) => {
     findRoomById(requestRoomId)
       .then((room: RoomI) => {
         if (!room) {
-          // This is set as a timeout to prevent someone from trying to brute force room ids
-          setTimeout(() => res.status(500).json({ error: 'Internal Server Error' }), 1000);
+          res.status(500).json({ error: 'Internal Server Error' });
         } else {
           const {
             roomId,
@@ -55,7 +54,9 @@ router.get('/:id', limiter, (req, res) => {
             membershipType,
             identities,
             bandadaAddress,
-            bandadaGroupId
+            bandadaGroupId,
+            encrypted,
+            ephemeral
           } = room || {};
           const id = String(roomId);
           const roomResult: RoomI = {
@@ -64,7 +65,9 @@ router.get('/:id', limiter, (req, res) => {
             name,
             rateLimit,
             userMessageLimit,
-            membershipType
+            membershipType,
+            encrypted,
+            ephemeral
           };
           // Add null check before accessing properties of room object
           if (membershipType === 'BANDADA_GROUP') {
@@ -114,7 +117,7 @@ router.get('/:id', limiter, (req, res) => {
  *          }
  */
 router.post('/add', adminAuth, (req, res) => {
-  const roomMetadata = req.body as addRoomData;
+  const roomMetadata = req.body as unknown as addRoomData;
   const roomName = roomMetadata.roomName;
   const rateLimit = roomMetadata.rateLimit;
   const userMessageLimit = roomMetadata.userMessageLimit;
@@ -239,7 +242,9 @@ router.get('/:id/messages', limiter, (req, res) => {
         messageId: true,
         proof: true,
         roomId: true,
-        timeStamp: true
+        timeStamp: true,
+        sessionId: true,
+        messageType: true
       }
     })
     .then((messages) => {

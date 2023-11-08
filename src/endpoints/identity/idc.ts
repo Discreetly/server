@@ -14,7 +14,7 @@ const router = express.Router();
  * @param {idcProof} proof - The proof of the identity to get rooms for.
  * @returns {void}
  */
-router.get(
+router.post(
   '/:idc',
   limiter,
   asyncHandler(async (req: Request, res: Response) => {
