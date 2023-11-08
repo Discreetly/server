@@ -16,7 +16,7 @@ const discordPassword = process.env.DISCORD_PASSWORD
 
 const adminAuth = basicAuth({
   users: {
-    discordAdmin: discordPassword
+    admin: discordPassword
   }
 });
 
@@ -152,7 +152,6 @@ router.post(
         filteredRooms.push(...newRooms);
         filteredNames.push(...(newRoomNames as string[]));
       }
-      console.log(filteredRooms);
       res.status(200).json({ rooms: filteredRooms, roomNames: filteredNames });
     } else {
       const roomIds: string[] = [];
@@ -193,7 +192,6 @@ router.post(
  */
 router.post('/rooms', limiter, adminAuth, (req, res) => {
   const { discordUserId } = req.body as { discordUserId: string };
-  console.log('here');
   prisma.gateWayIdentity
     .findFirst({
       where: {
