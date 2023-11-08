@@ -8,6 +8,7 @@ import { randomRoomName } from './utils';
 import { generateIdentityProof } from '../src/crypto/idcVerifier/verifier';
 import { Identity } from '@semaphore-protocol/identity';
 
+
 process.env.DATABASE_URL = process.env.DATABASE_URL_TEST;
 process.env.PORT = '3001';
 
@@ -165,6 +166,13 @@ describe('Endpoints', () => {
         try {
           expect(res.status).toEqual(200);
           expect(res.body.name).toEqual(room.roomName);
+          expect(res.body.roomId).toEqual(roomByIdTest);
+          expect(res.body.rateLimit).toEqual(1000);
+          expect(res.body.userMessageLimit).toEqual(1);
+          expect(res.body.membershipType).toEqual('IDENTITY_LIST')
+          expect(res.body.ephemeral).toEqual('PERSISTENT')
+          expect(res.body.encrypted).toEqual('PLAINTEXT');
+          expect(res.body.identities.length).toBeGreaterThan(0);
         } catch (error) {
           console.error(`GET /api/room/:roomId - + ${error}`);
         }
