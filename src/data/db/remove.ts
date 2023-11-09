@@ -49,7 +49,6 @@ export function removeIdentityFromRoom(
  * @param {string} roomId - The id of the room to remove
  * @returns {Promise<boolean>} - A promise that resolves to true if the room was removed and false otherwise
  * */
-
 export function removeRoom(roomId: string): Promise<boolean> {
   return prisma.messages
     .deleteMany({
@@ -82,7 +81,6 @@ export function removeRoom(roomId: string): Promise<boolean> {
  * @param {string} messageId - The id of the message to remove
  * @returns {Promise<boolean>} - A promise that resolves to true if the message was removed and false otherwise
 */
-
 export function removeMessage(roomId: string, messageId: string) {
   return prisma.messages
     .deleteMany({

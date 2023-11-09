@@ -19,6 +19,12 @@ type EphemeralMessagesI = Record<roomIdT, epoch>;
 
 const ephemeralMessageStore: EphemeralMessagesI = {};
 
+/**
+ * This code checks the ephemeral message store for a collision.
+ * @param {string} roomId - The ID of the room to check for collisions in
+ * @param {MessageI} message - The message to be added to the room
+ * @returns {MessageI | null} - Returns the old message if there is a collision, and null otherwise
+ */
 function checkEmphemeralStore(roomId: string, message: MessageI): MessageI | null {
   // Check ephemeralMessages
   const epoch = message.epoch?.toString();
@@ -34,6 +40,11 @@ function checkEmphemeralStore(roomId: string, message: MessageI): MessageI | nul
   return null;
 }
 
+/**
+ * This code adds a message to the ephemeral message store.
+ * @param {string} roomId - The ID of the room to add the message to
+ * @param {MessageI} message - The message to add to the room
+ */
 function addMessageToEphemeralStore(roomId: string, message: MessageI) {
   const currentEpoch = String(message.epoch);
 
@@ -137,6 +148,13 @@ export interface validateMessageResult {
   idc?: string | bigint;
 }
 
+/**
+ * This code handles the collision check result and adds the message to the room if there is no collision.
+ * @param {RoomI} room - The room which the message will be added
+ * @param {MessageI} message - The message to be created
+ * @param {CollisionCheckResult} collisionResult - The result of the collision check
+ * @returns {Promise<validateMessageResult>} - A result object which contains a boolean indicating whether the operation was successful
+ */
 async function handleCollision(
   room: RoomI,
   message: MessageI,
