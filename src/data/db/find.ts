@@ -93,6 +93,12 @@ export async function findClaimCode(code: string): Promise<ClaimCodeI | null> {
   });
 }
 
+
+/**
+ * This function finds a gateway identity in the database
+ * @param {string} identity - The identity of the user to find
+ * @returns {Promise<GateWayIdentityI | null>} - The gateway identity, if found
+ */
 export async function findGatewayByIdentity(identity: string): Promise<GateWayIdentityI | null> {
   return await prisma.gateWayIdentity.findFirst({
     where: {
@@ -120,6 +126,12 @@ export async function findUpdatedRooms(roomIds: string[]): Promise<RoomI[]> {
   });
 }
 
+/**
+ * This function finds a room with a message id
+ * @param {string} roomId - The id of the room to find
+ * @param {MessageI} message - The message id to find
+ * @returns {Promise<MessageI | null>} - A promise that resolves to a message
+ */
 export async function findRoomWithMessageId(
   roomId: string,
   message: MessageI
@@ -154,7 +166,12 @@ export async function findRoomWithMessageId(
   }
 }
 
-export async function findAllJubmojiNullifiers() {
+
+/**
+ * This function finds all the used jubmoji nullifiers in the db
+ * @returns {Promise<string[]>} - A promise that resolves to a list of used sig nullifiers
+ */
+export async function findAllJubmojiNullifiers(): Promise<string[]> {
   const jubmojiNullifiers: Jubmojis[] = await prisma.gateWayIdentity.findMany({
     select: {
       jubmoji: true
