@@ -38,6 +38,7 @@ let testEthAddress = '0x123123123';
 let roomByIdTest: string;
 let testCode: string;
 const testIdentity = new Identity();
+console.log('identity', testIdentity);
 const username = 'admin';
 const password = process.env.PASSWORD;
 const discordPassword = process.env.DISCORD_PASSWORD
@@ -255,7 +256,7 @@ describe('Endpoints', () => {
     let proof = await generateIdentityProof(testIdentity, BigInt(Date.now()));
 
     await request(_app)
-      .get(`/identity/${testIdentity.getCommitment().toString()}`)
+      .post(`/identity/${testIdentity.getCommitment().toString()}`)
       .send(proof)
       .then((res) => {
         try {
@@ -475,7 +476,7 @@ describe('Endpoints', () => {
       await request(_app)
       .post('/gateway/discord/rooms')
       .set('Authorization', `Basic ${base64Credentials}`)
-      .send({discordUserId: '53125497960'})
+      .send({ discordUserId: '53125497960' })
       .then((res) => {
         try {
           expect(res.body.rooms.length).toBeGreaterThan(0)
