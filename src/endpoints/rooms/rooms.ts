@@ -292,7 +292,7 @@ router.post('/checkpasswordhash/:id', limiter, (req: Request, res: Response) => 
 
 router.post('/setpassword/:id', limiter, asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { passwordHash, idc, proof } = req.body as { passwordHash: string, idc: string, proof: IDCProof };
+  const { passwordHash, proof } = req.body as { passwordHash: string, proof: IDCProof };
   const isValid = await verifyIdentityProof(proof);
 
   if (isValid) {
@@ -305,7 +305,7 @@ router.post('/setpassword/:id', limiter, asyncHandler(async (req: Request, res: 
       }
       }).then((room) => {
         if (room) {
-          if (!room.adminIdentities.includes(idc)) {
+          if (!room.adminIdentities.includes(proof.publicSignals.identityCommitment)) {
             res.status(401).json({ success: false, message: 'Identity not authorized' });
             return;
           }
