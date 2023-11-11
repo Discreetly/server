@@ -1,7 +1,7 @@
 import express from 'express';
 import type { Request, Response } from 'express';
 import { limiter } from '../middleware';
-// import asyncHandler from 'express-async-handler';
+import asyncHandler from 'express-async-handler';
 import { PrismaClient } from '@prisma/client';
 // import { verifyIdentityProof } from '../../crypto/idcVerifier/verifier';
 import { pp } from '../../utils';
@@ -18,6 +18,8 @@ import { MessageI, RoomI } from 'discreetly-interfaces';
 import { RLNFullProof } from 'rlnjs';
 import basicAuth from 'express-basic-auth';
 import { generateRandomClaimCode } from 'discreetly-claimcodes';
+import { IDCProof } from 'idc-nullifier';
+import { verifyIdentityProof } from '../../crypto/idcVerifier/verifier';
 const router = express.Router();
 const prisma = new PrismaClient();
 
@@ -52,6 +54,7 @@ router.get('/:id', limiter, (req, res) => {
             rateLimit,
             userMessageLimit,
             membershipType,
+            adminIdentities,
             identities,
             bandadaAddress,
             bandadaGroupId,
@@ -66,6 +69,7 @@ router.get('/:id', limiter, (req, res) => {
             rateLimit,
             userMessageLimit,
             membershipType,
+            adminIdentities,
             encrypted,
             ephemeral
           };
@@ -261,5 +265,82 @@ router.get('/:id/messages', limiter, (req, res) => {
       res.status(500).send('Error fetching messages');
     });
 });
+
+
+router.post('/checkpasswordhash/:id', limiter, (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { passwordHash } = req.body as { passwordHash: string };
+  prisma.rooms
+    .findUnique({
+      where: {
+        roomId: id
+      },
+      select: {
+        passwordHash: true,
+        encrypted: true
+      }
+    })
+    .then((room) => {
+      if (room && !room.passwordHash && room.encrypted === 'AES') {
+        res.status(200).json({ success: false, message: 'Room is not initialized, no password set' });
+        return;
+      }
+
+      if (room && room.passwordHash === passwordHash) {
+        res.status(200).json({ success: true });
+      } else {
+        res.status(500).json({ success: false });
+      }
+    })
+    .catch((error: Error) => {
+      pp(error, 'error');
+      res.status(500).send('Error fetching room');
+    });
+})
+
+router.post('/setpassword/:id', limiter, asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { passwordHash, proof } = req.body as { passwordHash: string, proof: IDCProof };
+  const isValid = await verifyIdentityProof(proof);
+
+  if (isValid) {
+    prisma.rooms.findUnique({
+      where: {
+        roomId: id
+      },
+      select: {
+        adminIdentities: true
+      }
+      }).then((room) => {
+        if (room) {
+          if (!room.adminIdentities.includes(proof.publicSignals.identityCommitment)) {
+            res.status(401).json({ success: false, message: 'Identity not authorized' });
+            return;
+          }
+          prisma.rooms.update({
+            where: {
+              roomId: id
+            },
+            data: {
+              passwordHash
+            }
+          }).then(() => {
+            res.status(200).json({ success: true, message: 'Password set successfully' });
+          }).catch((error: Error) => {
+            pp(error, 'error');
+            res.status(500).json({ success: false, message: 'Error setting password' });
+          })
+        } else {
+          res.status(500).json({ success: false, message: 'Error finding room' });
+        }
+      }).catch((error: Error) => {
+        pp(error, 'error');
+        res.status(500).send('Error finding room');
+    })
+  } else {
+    res.status(401).json({ success: false, message: 'Unauthorized ' });
+  }
+}))
+
 
 export default router;
