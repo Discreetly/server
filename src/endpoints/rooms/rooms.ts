@@ -276,10 +276,16 @@ router.post('/checkpasswordhash/:id', limiter, (req: Request, res: Response) => 
         roomId: id
       },
       select: {
-        passwordHash: true
+        passwordHash: true,
+        encrypted: true
       }
     })
     .then((room) => {
+      if (room && !room.passwordHash && room.encrypted === 'AES') {
+        res.status(200).json({ success: false, message: 'Room is not initialized, no password set' });
+        return;
+      }
+
       if (room && room.passwordHash === passwordHash) {
         res.status(200).json({ success: true });
       } else {
