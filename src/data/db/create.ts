@@ -33,7 +33,8 @@ export async function createRoom(
   bandadaGroupId?: string,
   bandadaAPIKey?: string,
   membershipType?: string,
-  roomId?: string
+  roomId?: string,
+  encrypted?: string
 ): Promise<{ roomId: string; claimCodes: { claimcode: string }[] } | undefined | null> {
   const claimCodes: { claimcode: string }[] = genClaimCodeArray(numClaimCodes);
   const mockUsers: string[] = genMockUsers(approxNumMockUsers);
@@ -62,6 +63,7 @@ export async function createRoom(
       bandadaAPIKey,
       type,
       membershipType,
+      encrypted,
       claimCodes: {
         create: claimCodes
       },

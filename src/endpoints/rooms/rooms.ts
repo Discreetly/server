@@ -134,6 +134,7 @@ router.post('/add', adminAuth, (req, res) => {
   const bandadaAPIKey = roomMetadata.bandadaAPIKey;
   const membershipType = roomMetadata.membershipType;
   const roomId = roomMetadata.roomId;
+  const encrypted = roomMetadata.encrypted as string;
   createRoom(
     roomName,
     rateLimit,
@@ -146,7 +147,8 @@ router.post('/add', adminAuth, (req, res) => {
     bandadaGroupId,
     bandadaAPIKey,
     membershipType,
-    roomId
+    roomId,
+    encrypted
   )
     .then((result) => {
       const response =

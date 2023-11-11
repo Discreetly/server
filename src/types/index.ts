@@ -65,6 +65,7 @@ export interface addRoomData {
   membershipType?: string;
   roomId?: string;
   admin?: boolean;
+  encrypted?: string;
   discordIds?: string[];
 }
 
