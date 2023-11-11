@@ -262,4 +262,56 @@ router.get('/:id/messages', limiter, (req, res) => {
     });
 });
 
+
+router.post('/checkpasswordhash/:id', limiter, (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { passwordHash } = req.body as { passwordHash: string };
+  prisma.rooms
+    .findUnique({
+      where: {
+        roomId: id
+      },
+      select: {
+        passwordHash: true
+      }
+    })
+    .then((room) => {
+      if (room && room.passwordHash === passwordHash) {
+        res.status(200).json({ success: true });
+      } else {
+        res.status(500).json({ success: false });
+      }
+    })
+    .catch((error: Error) => {
+      pp(error, 'error');
+      res.status(500).send('Error fetching room');
+    });
+})
+
+router.post('/setpassword/:id', limiter, (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { passwordHash } = req.body as { passwordHash: string };
+  prisma.rooms
+    .update({
+      where: {
+        roomId: id
+      },
+      data: {
+        passwordHash: passwordHash
+      }
+    })
+    .then((room) => {
+      if (room) {
+        res.status(200).json({ success: true, message: "Password set successfully" });
+      } else {
+        res.status(500).json({ success: false, message: "Error setting password" });
+      }
+    })
+    .catch((error: Error) => {
+      pp(error, 'error');
+      res.status(500).send('Error fetching room');
+    });
+})
+
+
 export default router;
