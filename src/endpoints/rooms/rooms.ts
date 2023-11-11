@@ -54,6 +54,7 @@ router.get('/:id', limiter, (req, res) => {
             rateLimit,
             userMessageLimit,
             membershipType,
+            adminIdentities,
             identities,
             bandadaAddress,
             bandadaGroupId,
@@ -68,6 +69,7 @@ router.get('/:id', limiter, (req, res) => {
             rateLimit,
             userMessageLimit,
             membershipType,
+            adminIdentities,
             encrypted,
             ephemeral
           };
