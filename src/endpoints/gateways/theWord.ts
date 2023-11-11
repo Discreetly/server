@@ -23,14 +23,14 @@ router.post(
   '/join',
   limiter,
   asyncHandler(async (req: Request, res: Response) => {
-    const { proof, idc } = req.body as { proof: SNARKProof, idc: string };
+    const { proof, idc } = req.body as { proof: SNARKProof; idc: string };
     const isValid = await verifyTheWordProof(proof);
     if (isValid) {
-      const room = await prisma.rooms.findUnique({
+      const room = (await prisma.rooms.findUnique({
         where: {
-          roomId: '007' + process.env.THEWORD_ITERATION
+          roomId: '700' + process.env.THEWORD_ITERATION
         }
-      }) as RoomI;
+      })) as RoomI;
       const addedRoom = await addIdentityToIdentityListRooms([room], idc);
       if (addedRoom.length === 0) {
         res.status(500).json({
