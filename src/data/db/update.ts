@@ -13,8 +13,8 @@ const prisma = new PrismaClient();
  * It adds the identity commitment to the identity list of each room,
  * and also adds it to the bandada of each room. The identity commitment is
  * sanitized before being added to the database.
- * @param idc - The identity commitment of the user
- * @param roomIds - The list of roomIds that the user is in
+ * @param {string} idc - The identity commitment of the user
+ * @param {string[]} roomIds - The list of roomIds that the user is in
  * @returns {Promise<void>} - A promise that resolves when the update is complete
  */
 export async function updateRoomIdentities(
@@ -100,7 +100,7 @@ export async function updateClaimCode(
 
 /**
  * Adds a user's identity commitment to the semaphoreIdentities list and adds their rate commitment to the identities list for each of the identity list rooms that they are in.
- * @param {rooms} - The list of rooms that the user is in
+ * @param {RoomI[] | RoomWithSecretsI[]} rooms - The list of rooms that the user is in
  * @param {string} identityCommitment - The user's identity commitment
  * @param {string} discordId - The user's discord ID
  * @return {string[]} addedRooms - The list of rooms that the user was added to
@@ -303,7 +303,6 @@ export async function addIdentityToBandadaRooms(
  * @param {string} roomId - The ID of the room
  * @param {string[]} ethAddresses - The list of Ethereum addresses to add to the group
 */
-
 export async function createEthGroup(
   name: string,
   roomId: string,
