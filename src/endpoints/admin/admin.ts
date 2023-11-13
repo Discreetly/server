@@ -304,5 +304,39 @@ router.post(
     }
   })
 );
-
+router.post('/:roomId/removeAdmin', adminAuth, asyncHandler(async (req: Request, res: Response) => {
+  const { roomId } = req.params;
+  const { idc } = req.body as { idc: string };
+  try {
+    const admins = await prisma.rooms.findUnique({
+      where: {
+        roomId: roomId
+      },
+      select: {
+        adminIdentities: true
+      }
+    }) as { adminIdentities: string[] };
+    if (!admins) {
+      res.status(400).json({ error: 'Room not found' });
+      return;
+    }
+    if (!admins.adminIdentities.includes(idc)) {
+      res.status(400).json({ error: 'Admin not found in room' });
+      return;
+    }
+    await prisma.rooms.update({
+      where: {
+        roomId: roomId
+      },
+      data: {
+        adminIdentities: {
+          set: admins.adminIdentities.filter((admin) => admin !== idc)
+        }
+      }
+    });
+    res.status(200).json({ message: `Admin removed from room ${roomId}` });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+}));
 export default router;

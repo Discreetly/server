@@ -55,7 +55,7 @@ https://github.com/Discreetly/IdentityCommitmentNullifierCircuit <- Circuit and 
 */
 /**
  * This function takes in an identity and returns the rooms the identity is in.
- * @param identity - the identity of a user
+ * @param {string} identity - the identity of a user
  * @returns an array of roomIds
  */
 export async function findRoomsByIdentity(identity: string): Promise<string[]> {
@@ -146,7 +146,7 @@ export async function findRoomWithMessageId(
     if (room.epochs[0]) {
       return room.epochs[0].messages[0] as MessageI;
     } else {
-      console.debug('Epoch not found');
+      console.debug('Epoch not found, new epoch');
       return null;
     }
   } catch (err) {

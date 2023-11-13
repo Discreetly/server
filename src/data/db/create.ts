@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 
 /**
  * Creates a new room with the given name and optional parameters.
- * @param {string} name - The name of the room.
+ * @param {string} roomName - The name of the room.
  * @param {number} [rateLimit=10000] - The length of an epoch in milliseconds
  * @param {number} [userMessageLimit=12] - The message limit per user per epoch
  * @param {number} [numClaimCodes=0] - The number of claim codes to generate for the room.

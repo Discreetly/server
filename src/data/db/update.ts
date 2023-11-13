@@ -13,8 +13,8 @@ const prisma = new PrismaClient();
  * It adds the identity commitment to the identity list of each room,
  * and also adds it to the bandada of each room. The identity commitment is
  * sanitized before being added to the database.
- * @param idc - The identity commitment of the user
- * @param roomIds - The list of roomIds that the user is in
+ * @param {string} idc - The identity commitment of the user
+ * @param {string[]} roomIds - The list of roomIds that the user is in
  * @returns {Promise<void>} - A promise that resolves when the update is complete
  */
 export async function updateRoomIdentities(
