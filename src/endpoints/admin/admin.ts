@@ -288,6 +288,22 @@ router.post(
     const { roomId } = req.params;
     const { idc } = req.body as { idc: string };
     try {
+      const admins = await prisma.rooms.findFirst({
+        where: {
+          roomId: roomId
+        },
+        select: {
+          adminIdentities: true
+        }
+        }) as { adminIdentities: string[] };
+      if (!admins) {
+        res.status(400).json({ error: 'Room not found' });
+        return;
+      }
+      if (admins.adminIdentities.includes(idc)) {
+        res.status(400).json({ error: 'Admin already in room' });
+        return;
+      }
       await prisma.rooms.update({
         where: {
           roomId: roomId

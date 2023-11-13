@@ -338,7 +338,7 @@ router.post('/setpassword/:id', limiter, asyncHandler(async (req: Request, res: 
         res.status(500).send('Error finding room');
     })
   } else {
-    res.status(401).json({ success: false, message: 'Unauthorized ' });
+    res.status(401).json({ success: false, message: 'Unauthorized' });
   }
 }))
 
