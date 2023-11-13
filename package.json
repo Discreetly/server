@@ -43,7 +43,7 @@
     "express-rate-limit": "^7.1.1",
     "ffjavascript": "^0.2.60",
     "helmet": "^7.0.0",
-    "idc-nullifier": "^0.0.7",
+    "idc-nullifier": "^0.0.8",
     "mongodb": "^5.8.0",
     "poseidon-lite": "^0.2.0",
     "rlnjs": "^3.2.0",
