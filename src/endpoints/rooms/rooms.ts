@@ -289,7 +289,7 @@ router.post('/checkpasswordhash/:id', limiter, (req: Request, res: Response) => 
       if (room && room.passwordHash === passwordHash) {
         res.status(200).json({ success: true });
       } else {
-        res.status(500).json({ success: false });
+        res.status(400).json({ success: false });
       }
     })
     .catch((error: Error) => {
