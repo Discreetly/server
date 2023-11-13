@@ -23,6 +23,7 @@ export async function findRoomById(id: string): Promise<RoomI | null> {
         rateLimit: true,
         userMessageLimit: true,
         membershipType: true,
+        adminIdentities: true,
         contractAddress: true,
         bandadaAddress: true,
         bandadaGroupId: true,
