@@ -324,3 +324,20 @@ export async function createEthGroup(
     }
   });
 }
+
+
+export async function addBulkIdentities(
+  roomId: string,
+  identities: string[]
+) {
+  await prisma.rooms.update({
+    where: {
+      roomId: roomId
+    },
+    data: {
+      identities: {
+        push: identities
+      }
+    }
+  })
+}

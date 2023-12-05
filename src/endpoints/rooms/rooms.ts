@@ -12,7 +12,8 @@ import {
   // findRoomsByIdentity,
   createRoom,
   removeRoom,
-  removeMessage
+  removeMessage,
+  addBulkIdentities
 } from '../../data/db/';
 import { MessageI, RoomI } from 'discreetly-interfaces';
 import { RLNFullProof } from 'rlnjs';
@@ -134,6 +135,7 @@ router.post('/add', adminAuth, (req, res) => {
   const bandadaAPIKey = roomMetadata.bandadaAPIKey;
   const membershipType = roomMetadata.membershipType;
   const roomId = roomMetadata.roomId;
+  const encrypted = roomMetadata.encrypted;
   createRoom(
     roomName,
     rateLimit,
@@ -146,7 +148,8 @@ router.post('/add', adminAuth, (req, res) => {
     bandadaGroupId,
     bandadaAPIKey,
     membershipType,
-    roomId
+    roomId,
+    encrypted
   )
     .then((result) => {
       const response =
@@ -342,5 +345,17 @@ router.post('/setpassword/:id', limiter, asyncHandler(async (req: Request, res: 
   }
 }))
 
+router.post('/addIdentities', limiter, adminAuth, asyncHandler(async (req: Request, res: Response) => {
+  const { roomId, identities } = req.body as { roomId: string, identities: string[] };
+  try {
+    await addBulkIdentities(roomId, identities);
+    res.status(200).json({ success: true, message: `Identities added successfully to ${roomId}` });
+  } catch (error) {
+    pp(error, 'error');
+    res.status(500).send('Error adding identities');
+  }
+
+
+}));
 
 export default router;
