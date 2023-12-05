@@ -303,7 +303,6 @@ export async function addIdentityToBandadaRooms(
  * @param {string} roomId - The ID of the room
  * @param {string[]} ethAddresses - The list of Ethereum addresses to add to the group
 */
-
 export async function createEthGroup(
   name: string,
   roomId: string,
@@ -324,4 +323,21 @@ export async function createEthGroup(
       }
     }
   });
+}
+
+
+export async function addBulkIdentities(
+  roomId: string,
+  identities: string[]
+) {
+  await prisma.rooms.update({
+    where: {
+      roomId: roomId
+    },
+    data: {
+      identities: {
+        push: identities
+      }
+    }
+  })
 }

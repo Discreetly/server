@@ -1,4 +1,4 @@
-import { createRoom } from '../src/data/db';
+import { addBulkIdentities, createRoom } from '../src/data/db';
 import { createEthGroup } from '../src/data/db';
 import addresses from './addresses';
 async function main() {
@@ -15,10 +15,13 @@ async function main() {
   await createRoom('SBC Experiments', 100000, 12, 20, 20, 'PUBLIC');
   await createRoom('Ban Appeals', 10000, 1, 0, 5, 'PUBLIC', [], '666');
   await createRoom('The Word', 100000, 12, 0, 0, 'PUBLIC', [], '007001');
+  const taz = await createRoom('TAZ', 100000, 12, 0, 0, 'PUBLIC');
+  await addBulkIdentities(taz!.roomId, addresses.taz);
   const bcgd = await createRoom('Beacon Chain Genesis Depositors', 10000, 12, 0, 20, 'PUBLIC');
   const sgf = await createRoom('Stateful Genesis Funders', 10000, 12, 0, 20, 'PUBLIC');
   await createEthGroup('Beacon Chain Genesis Depositors', bcgd!.roomId, addresses.bcgd);
   await createEthGroup('Stateful Genesis Funders', sgf!.roomId, addresses.sgf);
+
 }
 
 await main();
