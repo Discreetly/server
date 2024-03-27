@@ -107,10 +107,15 @@ export function createSystemMessages(
         const createMessage = prisma.messages.create({
           data: {
             message,
-            roomId: room.roomId,
-            messageId: '0',
-            proof: JSON.stringify({})
-          }
+            roomId: room.roomId, // Assuming this is still needed for direct column mapping
+            messageId: '0', // Assuming you have a default or specific value for messageId
+            proof: JSON.stringify({}), // Assuming you have a default or specific value for proof
+            room: {
+              connect: {
+                roomId: room.roomId,
+              },
+            },
+          },
         });
         if (io) {
           io.to(room.roomId).emit('systemMessage', createMessage);
@@ -141,20 +146,20 @@ export function createMessageInRoom(roomId: string, message: MessageI): Promise<
       roomId: roomId
     },
     data: {
-      epochs: {
-        create: {
+      Epoch: {
+        create: [{
           epoch: String(message.epoch),
           messages: {
-            create: {
+            create: [{
               message: message.message ? String(message.message) : '',
               messageId: message.messageId ? message.messageId.toString() : '',
               messageType: message.messageType!,
               proof: JSON.stringify(message.proof),
               roomId: roomId,
               sessionId: message.sessionId ? message.sessionId : ''
-            }
+            }]
           }
-        }
+        }]
       }
     }
   });

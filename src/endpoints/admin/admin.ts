@@ -129,62 +129,7 @@ router.post('/:roomId/addcode', adminAuth, (req, res) => {
     expires: number;
     usesLeft: number;
   };
-  const codes = genClaimCodeArray(numCodes);
 
-  const currentDate = new Date();
-  const threeMonthsLater = new Date(currentDate).setMonth(currentDate.getMonth() + 3);
-
-  const codeExpires = expires ? expires : threeMonthsLater;
-
-  prisma.rooms
-    .findUnique({
-      where: { roomId: roomId },
-      include: { claimCodes: true }
-    })
-    .then((room) => {
-      if (!room) {
-        res.status(404).json({ error: 'Room not found' });
-        return;
-      }
-      // Map over the codes array and create a claim code for each code
-      const createCodes = codes.map((code) => {
-        return prisma.claimCodes.create({
-          data: {
-            claimcode: code.claimcode,
-            expiresAt: codeExpires,
-            usesLeft: usesLeft,
-            rooms: {
-              connect: {
-                roomId: roomId
-              }
-            }
-          }
-        });
-      });
-
-      return Promise.all(createCodes);
-    })
-    .then(() => {
-      res.status(200).json({ message: 'Claim codes added successfully', codes });
-    })
-    .catch((err) => {
-      console.error(err);
-      res.status(500).json({ error: 'Internal Server Error' });
-    });
-});
-
-// This fetches the claim/invite codes from the database and returns them as JSON
-router.get('/logclaimcodes', adminAuth, (req, res) => {
-  pp('Express: fetching claim codes');
-  prisma.claimCodes
-    .findMany()
-    .then((claimCodes) => {
-      res.status(401).json(claimCodes);
-    })
-    .catch((err) => {
-      console.error(err);
-      res.status(500).json({ error: 'Internal Server Error' });
-    });
 });
 
 // GET all rooms from the database and return them as JSON

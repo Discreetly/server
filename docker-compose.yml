@@ -1,12 +1,15 @@
 version: '3'
 services:
-  node:
-    build: .
+  postgres:
+    image: postgres:latest
+    container_name: postgres
     ports:
-      - '3001:3001'
-      - '3002:3002'
+      - '5432:5432'
     volumes:
-      - .:/app
-    restart: always
-    environment:
-      - NODE_ENV=production
+      - progresDB:/data/postgres
+    env_file:
+      - ./.env
+
+volumes:
+  progresDB:
+

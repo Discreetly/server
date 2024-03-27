@@ -1,117 +1,127 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "mongodb"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-model Rooms {
-  id               String            @id @default(auto()) @map("_id") @db.ObjectId
-  roomId           String            @unique
-  name             String
-  rateLimit        Int               @default(10000) // epoch length in ms
-  banRateLimit     Int               @default(1000000) // starting number of epochs banned for
-  userMessageLimit Int               @default(12) // per epoch
-  membershipType   String            @default("IDENTITY_LIST")
-  adminIdentities  String[]          @default([])
-  identities       String[]          @default([])
-  contractAddress  String? // RLN_CONTRACT as "chainID:0xADDRESS"
-  bandadaAddress   String? // BANDADA as "url:groupID"
-  bandadaGroupId   String? // Bandada Group ID
-  bandadaAPIKey    String? // Bandada API Key
-  epochs           Epoch[]
-  messages         Messages[]
-  claimCodes       ClaimCodes[]      @relation(fields: [claimCodeIds], references: [id])
-  claimCodeIds     String[]          @default([]) @db.ObjectId
-  type             String            @default("PUBLIC")
-  ephemeral        String            @default("PERSISTENT")
-  encrypted        String            @default("PLAINTEXT")
-  passwordHash     String?
-  gatewayIds       String[]          @default([]) @db.ObjectId
-  gateways         GateWayIdentity[] @relation(fields: [gatewayIds], references: [id])
-  ethereumGroups   EthereumGroup[]   @relation(fields: [ethereumGroupIds], references: [id])
-  ethereumGroupIds String[]          @db.ObjectId
+enum MembershipType {
+  IDENTITY_LIST
 }
 
-model GateWayIdentity {
-  id                String            @id @default(auto()) @map("_id") @db.ObjectId
+enum RoomType {
+  PUBLIC
+  PRIVATE
+}
+
+enum Ephemeral {
+  PERSISTENT
+  EPHEMERAL
+}
+
+enum Encrypted {
+  PLAINTEXT
+  AES
+}
+
+model Rooms {
+  id               Int             @id @default(autoincrement())
+  roomId           String          @unique
+  name             String
+  rateLimit        Int             @default(10000)
+  banRateLimit     Int             @default(1000000)
+  userMessageLimit Int             @default(12)
+  membershipType   MembershipType  @default(IDENTITY_LIST)
+  adminIdentities  String[]
+  identities       String[]
+  contractAddress  String?
+  bandadaAddress   String?
+  bandadaGroupId   String?
+  bandadaAPIKey    String?
+  type             RoomType        @default(PUBLIC)
+  ephemeral        Ephemeral       @default(PERSISTENT)
+  encrypted        Encrypted       @default(PLAINTEXT)
+  passwordHash     String?
+  claimCodes       ClaimCodes[]    @relation("RoomClaimCodes")
+  gateways         UserIdentity[]  @relation("RoomIdentity")
+  ethereumGroups   EthereumGroup[] @relation("RoomEthereumGroup")
+  Epoch            Epoch[]
+}
+
+model UserIdentity {
+  id                Int               @id @default(autoincrement())
   semaphoreIdentity String            @unique
   discordId         String?
-  jubmoji          String[]
+  jubmoji           String[]
   steamId64         String?
-  roomIds           String[]          @default([]) @db.ObjectId
-  rooms             Rooms[]           @relation(fields: [roomIds], references: [id])
-  usedClaimCodes    String[]          @default([]) @db.ObjectId
-  claimCodes        ClaimCodes[]      @relation(fields: [usedClaimCodes], references: [id])
+  rooms             Rooms[]           @relation("RoomIdentity")
+  claimCodes        ClaimCodes[]
   ethereumAddress   EthereumAddress[]
 }
 
 model EthereumGroup {
-  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  id                Int      @id @default(autoincrement())
   name              String   @unique
-  roomIds           String[] @default([]) @db.ObjectId
-  rooms             Rooms[]  @relation(fields: [roomIds], references: [id])
-  ethereumAddresses String[] @default([])
+  rooms             Rooms[]  @relation("RoomEthereumGroup")
+  ethereumAddresses String[]
 }
 
 model EthereumAddress {
-  id              String          @id @default(auto()) @map("_id") @db.ObjectId
-  ethereumAddress String          @unique
-  gateways        GateWayIdentity @relation(fields: [gatewayId], references: [id])
-  gatewayId       String          @db.ObjectId
+  id                Int          @id @default(autoincrement())
+  ethereumAddress   String       @unique
+  gateways          UserIdentity @relation(fields: [gateWayIdentityId], references: [id])
+  gateWayIdentityId Int
 }
 
 model ClaimCodes {
-  id         String            @id @default(auto()) @map("_id") @db.ObjectId
-  claimcode  String            @unique
-  roomIds    String[]          @default([]) @db.ObjectId
-  expiresAt  Int               @default(0)
-  usesLeft   Int               @default(-1)
-  rooms      Rooms[]           @relation(fields: [roomIds], references: [id])
-  discordId  String?
-  gatewayIds String[]          @default([]) @db.ObjectId
-  gateways   GateWayIdentity[] @relation(fields: [gatewayIds], references: [id])
+  id        Int            @id @default(autoincrement())
+  claimcode String         @unique
+  expiresAt DateTime       @default("1970-01-01T00:00:00Z")
+  usesLeft  Int            @default(-1)
+  rooms     Rooms[]        @relation("RoomClaimCodes")
+  discordId String?
+  gateways  UserIdentity[]
 }
 
 model Messages {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  messageId   String // Internal Nullifier
+  id          Int       @id @default(autoincrement())
+  messageId   String
   message     String
-  timeStamp   DateTime @default(now())
-  roomId      String
-  messageType String?  @default("TEXT")
-  room        Rooms    @relation(fields: [roomId], references: [roomId])
+  timeStamp   DateTime  @default(now())
+  messageType String?   @default("TEXT")
   proof       String
-  epoch       Epoch?   @relation(fields: [epochId], references: [id])
-  epochId     String?  @db.ObjectId
-  sessionId   String   @default("")
-  responseTo  String?  @default("")
-  encrypted   String   @default("PLAINTEXT")
+  epoch       Epoch?    @relation(fields: [epochId], references: [id])
+  epochId     Int?
+  sessionId   String    @default("")
+  responseTo  String?   @default("")
+  encrypted   Encrypted @default(PLAINTEXT)
+
+  @@index(fields: [messageId])
 }
 
 model Epoch {
-  id       String     @id @default(auto()) @map("_id") @db.ObjectId
+  id       Int        @id @default(autoincrement())
   epoch    String
   messages Messages[]
-  rooms    Rooms?     @relation(fields: [roomsId], references: [id])
-  roomsId  String?    @db.ObjectId
+  rooms    Rooms?     @relation(fields: [roomsId], references: [roomId])
+  roomsId  String?
+
+  @@index(fields: [epoch])
 }
 
 model Discord {
-  id              String                   @id @default(auto()) @map("_id") @db.ObjectId
+  id              Int                      @id @default(autoincrement())
   discordServerId String                   @unique
   roomsMapping    DiscordRoleRoomMapping[]
 }
 
 model DiscordRoleRoomMapping {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  id              Int      @id @default(autoincrement())
   discordServerId String
   roomId          String   @unique
   roles           String[]
-  discord         Discord  @relation(fields: [discordServerId], references: [discordServerId])
+  discord         Discord  @relation(fields: [discordId], references: [id])
+  discordId       Int
 }
